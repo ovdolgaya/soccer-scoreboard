@@ -13,8 +13,8 @@ function loadMatches() {
         database.ref('matches').off('value', matchListListener);
     }
 
-    // Set up real-time listener
-    matchListListener = database.ref('matches').orderByChild('createdBy').equalTo(currentUser.uid).on('value', function(snapshot) {
+    // Set up real-time listener for ALL matches (not filtered by user)
+    matchListListener = database.ref('matches').on('value', function(snapshot) {
         const matches = [];
         snapshot.forEach(function(childSnapshot) {
             const match = childSnapshot.val();
@@ -136,7 +136,7 @@ function openMatch(matchIdToOpen) {
             document.getElementById('score2').textContent = match.score2;
 
             // Show widget URL
-            const widgetUrl = window.location.origin + window.location.pathname.replace('control.html', 'widget.html') + '?match=' + matchId;
+            const widgetUrl = window.location.origin + window.location.pathname.replace('index.html', 'widget.html') + '?match=' + matchId;
             document.getElementById('widgetUrl').value = widgetUrl;
 
             // Update button states based on match status
@@ -214,7 +214,7 @@ function copyWidgetLinkFromCard(matchIdToCopy, event) {
         event.preventDefault();
     }
     
-    const widgetUrl = window.location.origin + window.location.pathname.replace('control.html', 'widget.html') + '?match=' + matchIdToCopy;
+    const widgetUrl = window.location.origin + window.location.pathname.replace('index.html', 'widget.html') + '?match=' + matchIdToCopy;
     
     // Modern clipboard API with fallback
     if (navigator.clipboard && navigator.clipboard.writeText) {

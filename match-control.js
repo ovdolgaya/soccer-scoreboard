@@ -240,8 +240,8 @@ function endMatch() {
 function loadSavedTeams() {
     if (!currentUser) return;
 
-    // Load teams for both dropdowns
-    database.ref('teams').orderByChild('createdBy').equalTo(currentUser.uid).once('value')
+    // Load ALL teams (not filtered by user)
+    database.ref('teams').once('value')
         .then(function(snapshot) {
             const team1Select = document.getElementById('team1Select');
             const team2Select = document.getElementById('team2Select');
