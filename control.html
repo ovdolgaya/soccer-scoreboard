@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление табло</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="auth.js"></script>
+    <script src="match-management.js"></script>
+    <script src="match-control.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .password-form {
+            display: none;
+        }
+
+        .password-form.active {
+            display: block;
+        }
+
+        .setup-form, .control-panel {
+            display: none;
+        }
+
+        .setup-form.active, .control-panel.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 5px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            background: white;
+        }
+
+        .team-quick-select {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .team-quick-select select {
+            flex: 1;
+        }
+
+        .team-quick-select button {
+            padding: 10px 15px;
+            white-space: nowrap;
+        }
+
+        .button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+
+        .button:hover {
+            background: #45a049;
+        }
+
+        .button.secondary {
+            background: #2196F3;
+        }
+
+        .button.secondary:hover {
+            background: #0b7dda;
+        }
+
+        .button.danger {
+            background: #f44336;
+        }
+
+        .button.danger:hover {
+            background: #da190b;
+        }
+
+        .widget-url {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            word-break: break-all;
+        }
+
+        .widget-url strong {
+            color: #2e7d32;
+        }
+
+        .score-controls {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .team-control {
+            text-align: center;
+            margin: 10px;
+        }
+
+        .team-control h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .score-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .score-buttons button {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            border-radius: 50%;
+        }
+
+        .score-display {
+            font-size: 36px;
+            font-weight: bold;
+            min-width: 60px;
+            color: #333;
+        }
+
+        .time-controls {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        .time-controls h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .time-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .preview-image {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .match-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .match-card:hover {
+            border-color: #4CAF50;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .match-card.active {
+            border-color: #4CAF50;
+            background: #f1f8f4;
+        }
+
+        .match-card.ended {
+            opacity: 0.7;
+        }
+
+        .match-card.scheduled {
+            border-color: #2196F3;
+            background: #f5f9ff;
+        }
+
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .match-teams {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            flex: 1;
+        }
+
+        .match-score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 0 15px;
+        }
+
+        .match-status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .match-status.playing {
+            background: #4CAF50;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .match-status.ended {
+            background: #999;
+        }
+
+        .match-status.scheduled {
+            background: #2196F3;
+        }
+
+        .match-status.waiting {
+            background: #FF9800;
+        }
+
+        .match-info {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .match-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .match-actions button {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+
+            .score-controls {
+                flex-direction: column;
+            }
+
+            .match-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .match-score {
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚽ Управление табло</h1>
+
+        <!-- Password Form -->
+        <div class="password-form active" id="passwordForm">
+            <h2 style="margin-bottom: 20px;">Вход в систему</h2>
+            
+            <div class="form-group">
+                <label for="emailInput">Email:</label>
+                <input type="email" id="emailInput" placeholder="Ваш email">
+            </div>
+
+            <div class="form-group">
+                <label for="passwordInput">Пароль:</label>
+                <input type="password" id="passwordInput" placeholder="Пароль">
+            </div>
+
+            <button class="button" onclick="loginUser()">Войти</button>
+            
+            <div id="loginError" style="color: #f44336; margin-top: 10px; display: none;">
+                Ошибка входа. Проверьте email и пароль.
+            </div>
+            
+            <div id="loginLoading" style="color: #666; margin-top: 10px; display: none;">
+                Вход...
+            </div>
+
+            <div style="margin-top: 30px; padding: 15px; background: #e3f2fd; border-radius: 5px;">
+                <strong>Первый запуск?</strong><br>
+                <small>Создайте аккаунт в Firebase Console (см. FIREBASE_SETUP.md)</small>
+            </div>
+        </div>
+
+        <!-- Match Dashboard -->
+        <div class="dashboard" id="dashboard">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Мои матчи</h2>
+                <button class="button secondary" onclick="logoutUser()" style="padding: 8px 15px; font-size: 14px;">
+                    🚪 Выход
+                </button>
+            </div>
+
+            <button class="button" onclick="showSetupForm()" style="margin-bottom: 20px; width: 100%;">
+                ➕ Создать новый матч
+            </button>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="hidePastMatches" onchange="loadMatches()" style="width: auto; height: 18px; cursor: pointer;">
+                    <span>Спрятать прошедшие матчи</span>
+                </label>
+            </div>
+
+            <div id="matchList" style="margin-top: 20px;">
+                <div style="text-align: center; padding: 40px; color: #999;">
+                    Загрузка матчей...
+                </div>
+            </div>
+        </div>
+
+        <!-- Setup Form -->
+        <div class="setup-form" id="setupForm">
+            <h2 style="margin-bottom: 20px;">Настройка нового матча</h2>
+            
+            <div class="form-group">
+                <label for="matchDateTime">Дата и время матча:</label>
+                <input type="datetime-local" id="matchDateTime" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+                <small style="color: #666;">Оставьте пустым для немедленного начала</small>
+            </div>
+
+            <div class="form-group">
+                <label for="team1Name">Название команды 1:</label>
+                <div class="team-quick-select">
+                    <select id="team1Select" onchange="loadTeamData(1)">
+                        <option value="">-- Выбрать из сохраненных --</option>
+                    </select>
+                    <button type="button" class="button secondary" onclick="saveTeamData(1)">💾 Сохранить</button>
+                </div>
+                <input type="text" id="team1Name" placeholder="Введите название команды 1">
+            </div>
+
+            <div class="form-group">
+                <label for="team1Logo">Логотип команды 1 (опционально):</label>
+                <input type="file" id="team1Logo" accept="image/*">
+                <img id="team1Preview" class="preview-image hidden">
+            </div>
+
+            <div class="form-group">
+                <label for="team1Color">Цвет команды 1:</label>
+                <input type="color" id="team1Color" value="#08399A">
+            </div>
+
+            <div class="form-group">
+                <label for="team2Name">Название команды 2:</label>
+                <div class="team-quick-select">
+                    <select id="team2Select" onchange="loadTeamData(2)">
+                        <option value="">-- Выбрать из сохраненных --</option>
+                    </select>
+                    <button type="button" class="button secondary" onclick="saveTeamData(2)">💾 Сохранить</button>
+                </div>
+                <input type="text" id="team2Name" placeholder="Введите название команды 2">
+            </div>
+
+            <div class="form-group">
+                <label for="team2Logo">Логотип команды 2 (опционально):</label>
+                <input type="file" id="team2Logo" accept="image/*">
+                <img id="team2Preview" class="preview-image hidden">
+            </div>
+
+            <div class="form-group">
+                <label for="team2Color">Цвет команды 2:</label>
+                <input type="color" id="team2Color" value="#4A90E2">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="button secondary" onclick="backToDashboard()">← Назад</button>
+                <button class="button" onclick="startMatch()" style="flex: 1;">Сохранить и начать матч</button>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel" id="controlPanel">
+            <div class="widget-url">
+                <strong>URL виджета для стрима:</strong><br>
+                <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap;">
+                    <input type="text" id="widgetUrl" readonly style="flex: 1; min-width: 200px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px; font-size: 14px; background: white;">
+                    <button class="button" onclick="copyWidgetUrl()" style="white-space: nowrap;">
+                        📋 Копировать URL
+                    </button>
+                </div>
+                <div id="copyMessage" style="color: #4CAF50; font-weight: bold; display: none; margin-top: 5px;">
+                    ✓ URL скопирован!
+                </div>
+                <small>Вставьте этот URL как Browser Source в OBS или Web Overlay в Larix/Prism</small>
+            </div>
+
+            <div class="time-controls">
+                <h3>Управление временем</h3>
+                <div class="time-buttons">
+                    <button class="button secondary" id="startHalf1Btn" onclick="startHalf(1)">▶ Начать 1 тайм</button>
+                    <button class="button secondary hidden" id="stopHalf1Btn" onclick="stopHalf(1)">⏸ Остановить 1 тайм</button>
+                    <button class="button secondary hidden" id="startHalf2Btn" onclick="startHalf(2)">▶ Начать 2 тайм</button>
+                    <button class="button secondary hidden" id="stopHalf2Btn" onclick="stopHalf(2)">⏸ Остановить 2 тайм</button>
+                    <button class="button danger hidden" id="endMatchBtn" onclick="endMatch()">⏹ Закончить матч</button>
+                </div>
+            </div>
+
+            <div class="score-controls">
+                <div class="team-control">
+                    <h3 id="team1NameDisplay"></h3>
+                    <div class="score-buttons">
+                        <button class="button" onclick="changeScore(1, -1)">−</button>
+                        <span class="score-display" id="score1">0</span>
+                        <button class="button" onclick="changeScore(1, 1)">+</button>
+                    </div>
+                </div>
+
+                <div class="team-control">
+                    <h3 id="team2NameDisplay"></h3>
+                    <div class="score-buttons">
+                        <button class="button" onclick="changeScore(2, -1)">−</button>
+                        <span class="score-display" id="score2">0</span>
+                        <button class="button" onclick="changeScore(2, 1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="button secondary" onclick="backToDashboard()">← К списку матчей</button>
+            </div>
+        </div>
+    </div>
+</body>
+</body>
+</html>
