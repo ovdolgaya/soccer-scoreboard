@@ -8,44 +8,48 @@ function loadMatches() {
     
     matchListDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Загрузка матчей...</div>';
 
-    database.ref('matches').orderByChild('createdBy').equalTo(currentUser.uid).once('value')
-        .then(function(snapshot) {
-            const matches = [];
-            snapshot.forEach(function(childSnapshot) {
-                const match = childSnapshot.val();
-                match.id = childSnapshot.key;
-                
-                // Filter out ended matches if toggle is on
-                if (hidePast && match.status === 'ended') {
-                    return; // skip this match
-                }
-                
-                matches.push(match);
-            });
+    // Remove old listener if exists
+    if (matchListListener) {
+        database.ref('matches').off('value', matchListListener);
+    }
 
-            if (matches.length === 0) {
-                matchListDiv.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">⚽</div>
-                        <h3>${hidePast ? 'Активных матчей нет' : 'Матчей пока нет'}</h3>
-                        <p>${hidePast ? 'Прошедшие матчи скрыты' : 'Нажмите "Создать новый матч" чтобы начать'}</p>
-                    </div>
-                `;
-                return;
+    // Set up real-time listener
+    matchListListener = database.ref('matches').orderByChild('createdBy').equalTo(currentUser.uid).on('value', function(snapshot) {
+        const matches = [];
+        snapshot.forEach(function(childSnapshot) {
+            const match = childSnapshot.val();
+            match.id = childSnapshot.key;
+            
+            // Filter out ended matches if toggle is on
+            if (hidePast && match.status === 'ended') {
+                return; // skip this match
             }
-
-            // Sort by date DESC (newest/future first)
-            matches.sort(function(a, b) {
-                const aDate = a.scheduledTime || a.createdAt || 0;
-                const bDate = b.scheduledTime || b.createdAt || 0;
-                return bDate - aDate; // Descending order
-            });
-
-            matchListDiv.innerHTML = matches.map(renderMatchCard).join('');
-        })
-        .catch(function(error) {
-            matchListDiv.innerHTML = '<div style="color: #f44336; padding: 20px;">Ошибка загрузки: ' + error.message + '</div>';
+            
+            matches.push(match);
         });
+
+        if (matches.length === 0) {
+            matchListDiv.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">⚽</div>
+                    <h3>${hidePast ? 'Активных матчей нет' : 'Матчей пока нет'}</h3>
+                    <p>${hidePast ? 'Прошедшие матчи скрыты' : 'Нажмите "Создать новый матч" чтобы начать'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort by date DESC (newest/future first)
+        matches.sort(function(a, b) {
+            const aDate = a.scheduledTime || a.createdAt || 0;
+            const bDate = b.scheduledTime || b.createdAt || 0;
+            return bDate - aDate; // Descending order
+        });
+
+        matchListDiv.innerHTML = matches.map(renderMatchCard).join('');
+    }, function(error) {
+        matchListDiv.innerHTML = '<div style="color: #f44336; padding: 20px;">Ошибка загрузки: ' + error.message + '</div>';
+    });
 }
 
 function getMatchStatus(match) {
