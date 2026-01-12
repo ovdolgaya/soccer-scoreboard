@@ -6,6 +6,7 @@ let currentHalf = 0;
 let team1Logo = null;
 let team2Logo = null;
 let currentUser = null;
+let matchListListener = null; // For real-time dashboard updates
 
 // ========================================
 // AUTHENTICATION
@@ -107,6 +108,12 @@ document.addEventListener('DOMContentLoaded', function() {
 // ========================================
 
 function hideAllViews() {
+    // Clean up match list listener when leaving dashboard
+    if (matchListListener && database) {
+        database.ref('matches').off('value', matchListListener);
+        matchListListener = null;
+    }
+    
     document.getElementById('passwordForm').classList.remove('active');
     document.getElementById('dashboard').classList.remove('active');
     document.getElementById('setupForm').classList.remove('active');
