@@ -136,7 +136,17 @@ function openMatch(matchIdToOpen) {
             document.getElementById('score2').textContent = match.score2;
 
             // Show widget URL
-            const widgetUrl = window.location.origin + window.location.pathname.replace('index.html', 'widget.html') + '?match=' + matchId;
+            let basePath = window.location.pathname;
+            // If path ends with / or index.html, replace with widget.html
+            if (basePath.endsWith('/') || basePath.endsWith('/index.html')) {
+                basePath = basePath.replace(/\/?index\.html$/, '/widget.html');
+            } else if (basePath.endsWith('index.html')) {
+                basePath = basePath.replace('index.html', 'widget.html');
+            } else {
+                // Path is just directory, append widget.html
+                basePath = basePath + (basePath.endsWith('/') ? '' : '/') + 'widget.html';
+            }
+            const widgetUrl = window.location.origin + basePath + '?match=' + matchId;
             document.getElementById('widgetUrl').value = widgetUrl;
 
             // Update button states based on match status
@@ -214,7 +224,16 @@ function copyWidgetLinkFromCard(matchIdToCopy, event) {
         event.preventDefault();
     }
     
-    const widgetUrl = window.location.origin + window.location.pathname.replace('index.html', 'widget.html') + '?match=' + matchIdToCopy;
+    // Generate widget URL handling both directory and index.html paths
+    let basePath = window.location.pathname;
+    if (basePath.endsWith('/') || basePath.endsWith('/index.html')) {
+        basePath = basePath.replace(/\/?index\.html$/, '/widget.html');
+    } else if (basePath.endsWith('index.html')) {
+        basePath = basePath.replace('index.html', 'widget.html');
+    } else {
+        basePath = basePath + (basePath.endsWith('/') ? '' : '/') + 'widget.html';
+    }
+    const widgetUrl = window.location.origin + basePath + '?match=' + matchIdToCopy;
     
     // Modern clipboard API with fallback
     if (navigator.clipboard && navigator.clipboard.writeText) {
