@@ -129,7 +129,8 @@ function startHalf(half) {
         currentHalf: half,
         status: 'playing',
         startTime: Date.now(),
-        time: '00:00:00'
+        time: '00:00:00',
+        scheduledTime: null  // Clear scheduled time when match actually starts
     };
 
     database.ref('matches/' + matchId).update(updates).then(function() {
@@ -139,7 +140,58 @@ function startHalf(half) {
         document.getElementById('endMatchBtn').classList.remove('hidden');
 
         currentHalf = half;
+        
+        // Start timer sync (updates every 10 seconds)
+        startTimerSync();
     });
+}
+
+// Timer sync for control panel
+let timerSyncInterval = null;
+
+function startTimerSync() {
+    // Clear existing interval
+    if (timerSyncInterval) {
+        clearInterval(timerSyncInterval);
+    }
+    
+    // Update timer every 10 seconds
+    timerSyncInterval = setInterval(function() {
+        if (!matchId) {
+            stopTimerSync();
+            return;
+        }
+        
+        database.ref('matches/' + matchId).once('value').then(function(snapshot) {
+            const matchData = snapshot.val();
+            if (!matchData || matchData.status !== 'playing') {
+                stopTimerSync();
+                return;
+            }
+            
+            // Calculate current time
+            const elapsed = Date.now() - matchData.startTime;
+            const seconds = Math.floor(elapsed / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            
+            const displaySeconds = String(seconds % 60).padStart(2, '0');
+            const displayMinutes = String(minutes % 60).padStart(2, '0');
+            const displayHours = String(hours).padStart(2, '0');
+            
+            const timeString = `${displayHours}:${displayMinutes}:${displaySeconds}`;
+            
+            // Update Firebase (for reference, widgets calculate their own)
+            database.ref('matches/' + matchId + '/time').set(timeString);
+        });
+    }, 10000); // Every 10 seconds
+}
+
+function stopTimerSync() {
+    if (timerSyncInterval) {
+        clearInterval(timerSyncInterval);
+        timerSyncInterval = null;
+    }
 }
 
 function stopHalf(half) {
@@ -150,6 +202,9 @@ function stopHalf(half) {
     };
 
     database.ref('matches/' + matchId).update(updates).then(function() {
+        // Stop timer sync
+        stopTimerSync();
+        
         // Update buttons
         document.getElementById('stopHalf' + half + 'Btn').classList.add('hidden');
         
@@ -167,6 +222,9 @@ function endMatch() {
     };
 
     database.ref('matches/' + matchId).update(updates).then(function() {
+        // Stop timer sync
+        stopTimerSync();
+        
         // Hide all half buttons
         document.getElementById('stopHalf1Btn').classList.add('hidden');
         document.getElementById('stopHalf2Btn').classList.add('hidden');
