@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление табло</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .password-form {
+            display: none;
+        }
+
+        .password-form.active {
+            display: block;
+        }
+
+        .setup-form, .control-panel {
+            display: none;
+        }
+
+        .setup-form.active, .control-panel.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 5px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            background: white;
+        }
+
+        .team-quick-select {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .team-quick-select select {
+            flex: 1;
+        }
+
+        .team-quick-select button {
+            padding: 10px 15px;
+            white-space: nowrap;
+        }
+
+        .button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+
+        .button:hover {
+            background: #45a049;
+        }
+
+        .button.secondary {
+            background: #2196F3;
+        }
+
+        .button.secondary:hover {
+            background: #0b7dda;
+        }
+
+        .button.danger {
+            background: #f44336;
+        }
+
+        .button.danger:hover {
+            background: #da190b;
+        }
+
+        .widget-url {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            word-break: break-all;
+        }
+
+        .widget-url strong {
+            color: #2e7d32;
+        }
+
+        .score-controls {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .team-control {
+            text-align: center;
+            margin: 10px;
+        }
+
+        .team-control h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .score-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .score-buttons button {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            border-radius: 50%;
+        }
+
+        .score-display {
+            font-size: 36px;
+            font-weight: bold;
+            min-width: 60px;
+            color: #333;
+        }
+
+        .time-controls {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        .time-controls h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .time-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .preview-image {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .match-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .match-card:hover {
+            border-color: #4CAF50;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .match-card.active {
+            border-color: #4CAF50;
+            background: #f1f8f4;
+        }
+
+        .match-card.ended {
+            opacity: 0.7;
+        }
+
+        .match-card.scheduled {
+            border-color: #2196F3;
+            background: #f5f9ff;
+        }
+
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .match-teams {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            flex: 1;
+        }
+
+        .match-score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 0 15px;
+        }
+
+        .match-status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .match-status.playing {
+            background: #4CAF50;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .match-status.ended {
+            background: #999;
+        }
+
+        .match-status.scheduled {
+            background: #2196F3;
+        }
+
+        .match-status.waiting {
+            background: #FF9800;
+        }
+
+        .match-info {
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .match-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .match-actions button {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+
+            .score-controls {
+                flex-direction: column;
+            }
+
+            .match-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .match-score {
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚽ Управление табло</h1>
+
+        <!-- Password Form -->
+        <div class="password-form active" id="passwordForm">
+            <h2 style="margin-bottom: 20px;">Вход в систему</h2>
+            
+            <div class="form-group">
+                <label for="emailInput">Email:</label>
+                <input type="email" id="emailInput" placeholder="Ваш email">
+            </div>
+
+            <div class="form-group">
+                <label for="passwordInput">Пароль:</label>
+                <input type="password" id="passwordInput" placeholder="Пароль">
+            </div>
+
+            <button class="button" onclick="loginUser()">Войти</button>
+            
+            <div id="loginError" style="color: #f44336; margin-top: 10px; display: none;">
+                Ошибка входа. Проверьте email и пароль.
+            </div>
+            
+            <div id="loginLoading" style="color: #666; margin-top: 10px; display: none;">
+                Вход...
+            </div>
+
+            <div style="margin-top: 30px; padding: 15px; background: #e3f2fd; border-radius: 5px;">
+                <strong>Первый запуск?</strong><br>
+                <small>Создайте аккаунт в Firebase Console (см. FIREBASE_SETUP.md)</small>
+            </div>
+        </div>
+
+        <!-- Match Dashboard -->
+        <div class="dashboard" id="dashboard">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Мои матчи</h2>
+                <button class="button secondary" onclick="logoutUser()" style="padding: 8px 15px; font-size: 14px;">
+                    🚪 Выход
+                </button>
+            </div>
+
+            <button class="button" onclick="showSetupForm()" style="margin-bottom: 20px; width: 100%;">
+                ➕ Создать новый матч
+            </button>
+
+            <div id="matchList" style="margin-top: 20px;">
+                <div style="text-align: center; padding: 40px; color: #999;">
+                    Загрузка матчей...
+                </div>
+            </div>
+        </div>
+
+        <!-- Setup Form -->
+        <div class="setup-form" id="setupForm">
+            <h2 style="margin-bottom: 20px;">Настройка нового матча</h2>
+            
+            <div class="form-group">
+                <label for="matchDateTime">Дата и время матча:</label>
+                <input type="datetime-local" id="matchDateTime" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
+                <small style="color: #666;">Оставьте пустым для немедленного начала</small>
+            </div>
+
+            <div class="form-group">
+                <label for="team1Name">Название команды 1:</label>
+                <div class="team-quick-select">
+                    <select id="team1Select" onchange="loadTeamData(1)">
+                        <option value="">-- Выбрать из сохраненных --</option>
+                    </select>
+                    <button type="button" class="button secondary" onclick="saveTeamData(1)">💾 Сохранить</button>
+                </div>
+                <input type="text" id="team1Name" placeholder="Введите название команды 1">
+            </div>
+
+            <div class="form-group">
+                <label for="team1Logo">Логотип команды 1 (опционально):</label>
+                <input type="file" id="team1Logo" accept="image/*">
+                <img id="team1Preview" class="preview-image hidden">
+            </div>
+
+            <div class="form-group">
+                <label for="team1Color">Цвет команды 1:</label>
+                <input type="color" id="team1Color" value="#08399A">
+            </div>
+
+            <div class="form-group">
+                <label for="team2Name">Название команды 2:</label>
+                <div class="team-quick-select">
+                    <select id="team2Select" onchange="loadTeamData(2)">
+                        <option value="">-- Выбрать из сохраненных --</option>
+                    </select>
+                    <button type="button" class="button secondary" onclick="saveTeamData(2)">💾 Сохранить</button>
+                </div>
+                <input type="text" id="team2Name" placeholder="Введите название команды 2">
+            </div>
+
+            <div class="form-group">
+                <label for="team2Logo">Логотип команды 2 (опционально):</label>
+                <input type="file" id="team2Logo" accept="image/*">
+                <img id="team2Preview" class="preview-image hidden">
+            </div>
+
+            <div class="form-group">
+                <label for="team2Color">Цвет команды 2:</label>
+                <input type="color" id="team2Color" value="#4A90E2">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="button secondary" onclick="backToDashboard()">← Назад</button>
+                <button class="button" onclick="startMatch()" style="flex: 1;">Сохранить и начать матч</button>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel" id="controlPanel">
+            <div class="widget-url">
+                <strong>URL виджета для стрима:</strong><br>
+                <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap;">
+                    <input type="text" id="widgetUrl" readonly style="flex: 1; min-width: 200px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px; font-size: 14px; background: white;">
+                    <button class="button" onclick="copyWidgetUrl()" style="white-space: nowrap;">
+                        📋 Копировать URL
+                    </button>
+                </div>
+                <div id="copyMessage" style="color: #4CAF50; font-weight: bold; display: none; margin-top: 5px;">
+                    ✓ URL скопирован!
+                </div>
+                <small>Вставьте этот URL как Browser Source в OBS или Web Overlay в Larix/Prism</small>
+            </div>
+
+            <div class="time-controls">
+                <h3>Управление временем</h3>
+                <div class="time-buttons">
+                    <button class="button secondary" id="startHalf1Btn" onclick="startHalf(1)">▶ Начать 1 тайм</button>
+                    <button class="button secondary hidden" id="stopHalf1Btn" onclick="stopHalf(1)">⏸ Остановить 1 тайм</button>
+                    <button class="button secondary hidden" id="startHalf2Btn" onclick="startHalf(2)">▶ Начать 2 тайм</button>
+                    <button class="button secondary hidden" id="stopHalf2Btn" onclick="stopHalf(2)">⏸ Остановить 2 тайм</button>
+                    <button class="button danger hidden" id="endMatchBtn" onclick="endMatch()">⏹ Закончить матч</button>
+                </div>
+            </div>
+
+            <div class="score-controls">
+                <div class="team-control">
+                    <h3 id="team1NameDisplay"></h3>
+                    <div class="score-buttons">
+                        <button class="button" onclick="changeScore(1, -1)">−</button>
+                        <span class="score-display" id="score1">0</span>
+                        <button class="button" onclick="changeScore(1, 1)">+</button>
+                    </div>
+                </div>
+
+                <div class="team-control">
+                    <h3 id="team2NameDisplay"></h3>
+                    <div class="score-buttons">
+                        <button class="button" onclick="changeScore(2, -1)">−</button>
+                        <span class="score-display" id="score2">0</span>
+                        <button class="button" onclick="changeScore(2, 1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="button secondary" onclick="backToDashboard()">← К списку матчей</button>
+        
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // GLOBAL VARIABLES
+        // ========================================
+        let matchId = null;
+        let currentHalf = 0;
+        let team1Logo = null;
+        let team2Logo = null;
+        let currentUser = null;
+
+        // ========================================
+        // AUTHENTICATION
+        // ========================================
+        
+        // Check if user is already logged in
+        auth.onAuthStateChanged(function(user) {
+            if (user) {
+                currentUser = user;
+                // Show dashboard if not already in control panel
+                if (!document.getElementById('controlPanel').classList.contains('active') && 
+                    !document.getElementById('setupForm').classList.contains('active')) {
+                    showDashboard();
+                }
+            }
+        });
+
+        function loginUser() {
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('loginError');
+            const loadingDiv = document.getElementById('loginLoading');
+
+            if (!email || !password) {
+                errorDiv.textContent = 'Введите email и пароль';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            errorDiv.style.display = 'none';
+            loadingDiv.style.display = 'block';
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then(function(userCredential) {
+                    currentUser = userCredential.user;
+                    loadingDiv.style.display = 'none';
+                    showDashboard();
+                })
+                .catch(function(error) {
+                    loadingDiv.style.display = 'none';
+                    errorDiv.textContent = 'Ошибка: ' + error.message;
+                    errorDiv.style.display = 'block';
+                });
+        }
+
+        function logoutUser() {
+            if (confirm('Вы уверены, что хотите выйти?')) {
+                auth.signOut().then(function() {
+                    // Reset everything
+                    clearMatchLocal();
+                    hideAllViews();
+                    document.getElementById('passwordForm').classList.add('active');
+                    document.getElementById('emailInput').value = '';
+                    document.getElementById('passwordInput').value = '';
+                });
+            }
+        }
+
+        function hideAllViews() {
+            document.getElementById('passwordForm').classList.remove('active');
+            document.getElementById('dashboard').classList.remove('active');
+            document.getElementById('setupForm').classList.remove('active');
+            document.getElementById('controlPanel').classList.remove('active');
+        }
+
+        function showDashboard() {
+            hideAllViews();
+            document.getElementById('dashboard').classList.add('active');
+            loadMatches();
+        }
+
+        function showSetupForm() {
+            hideAllViews();
+            document.getElementById('setupForm').classList.add('active');
+            loadSavedTeams();
+        }
+
+        function backToDashboard() {
+            showDashboard();
+        }
+
+        // ========================================
+        // TEAM MANAGEMENT
+        // ========================================
+
+        function loadSavedTeams() {
+            if (!currentUser) return;
+
+            // Load teams for both dropdowns
+            database.ref('teams').orderByChild('createdBy').equalTo(currentUser.uid).once('value')
+                .then(function(snapshot) {
+                    const team1Select = document.getElementById('team1Select');
+                    const team2Select = document.getElementById('team2Select');
+                    
+                    // Clear existing options except first
+                    team1Select.innerHTML = '<option value="">-- Выбрать из сохраненных --</option>';
+                    team2Select.innerHTML = '<option value="">-- Выбрать из сохраненных --</option>';
+
+                    snapshot.forEach(function(childSnapshot) {
+                        const team = childSnapshot.val();
+                        const teamId = childSnapshot.key;
+                        const option1 = document.createElement('option');
+                        const option2 = document.createElement('option');
+                        
+                        option1.value = teamId;
+                        option1.textContent = team.name;
+                        option2.value = teamId;
+                        option2.textContent = team.name;
+                        
+                        team1Select.appendChild(option1);
+                        team2Select.appendChild(option2);
+                    });
+                });
+        }
+
+        function loadTeamData(teamNumber) {
+            const selectId = 'team' + teamNumber + 'Select';
+            const teamId = document.getElementById(selectId).value;
+            
+            if (!teamId) return;
+
+            database.ref('teams/' + teamId).once('value')
+                .then(function(snapshot) {
+                    const team = snapshot.val();
+                    if (team) {
+                        document.getElementById('team' + teamNumber + 'Name').value = team.name;
+                        document.getElementById('team' + teamNumber + 'Color').value = team.color || (teamNumber === 1 ? '#08399A' : '#4A90E2');
+                        
+                        if (team.logo) {
+                            if (teamNumber === 1) {
+                                team1Logo = team.logo;
+                                document.getElementById('team1Preview').src = team.logo;
+                                document.getElementById('team1Preview').classList.remove('hidden');
+                            } else {
+                                team2Logo = team.logo;
+                                document.getElementById('team2Preview').src = team.logo;
+                                document.getElementById('team2Preview').classList.remove('hidden');
+                            }
+                        }
+                    }
+                });
+        }
+
+        function saveTeamData(teamNumber) {
+            const name = document.getElementById('team' + teamNumber + 'Name').value.trim();
+            const color = document.getElementById('team' + teamNumber + 'Color').value;
+            const logo = teamNumber === 1 ? team1Logo : team2Logo;
+
+            if (!name) {
+                alert('Введите название команды');
+                return;
+            }
+
+            if (!currentUser) {
+                alert('Ошибка: пользователь не авторизован');
+                return;
+            }
+
+            // Check if team already exists
+            database.ref('teams').orderByChild('name').equalTo(name).once('value')
+                .then(function(snapshot) {
+                    let teamId = null;
+                    snapshot.forEach(function(childSnapshot) {
+                        const team = childSnapshot.val();
+                        if (team.createdBy === currentUser.uid) {
+                            teamId = childSnapshot.key;
+                        }
+                    });
+
+                    const teamData = {
+                        name: name,
+                        color: color,
+                        logo: logo || '',
+                        createdBy: currentUser.uid,
+                        updatedAt: Date.now()
+                    };
+
+                    if (teamId) {
+                        // Update existing team
+                        database.ref('teams/' + teamId).update(teamData)
+                            .then(function() {
+                                showToast('✓ Команда обновлена!');
+                                loadSavedTeams();
+                            });
+                    } else {
+                        // Create new team
+                        teamData.createdAt = Date.now();
+                        database.ref('teams').push(teamData)
+                            .then(function() {
+                                showToast('✓ Команда сохранена!');
+                                loadSavedTeams();
+                            });
+                    }
+                })
+                .catch(function(error) {
+                    alert('Ошибка сохранения: ' + error.message);
+                });
+        }
+
+        // Allow Enter key to submit login
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    loginUser();
+                }
+            });
+            
+            document.getElementById('emailInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('passwordInput').focus();
+                }
+            });
+        });
+
+        // ========================================
+        // IMAGE PREVIEW
+        // ========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('team1Logo').addEventListener('change', function(e) {
+                previewImage(e.target, 'team1Preview');
+            });
+
+            document.getElementById('team2Logo').addEventListener('change', function(e) {
+                previewImage(e.target, 'team2Preview');
+            });
+        });
+
+        function previewImage(input, previewId) {
+            const preview = document.getElementById(previewId);
+            const file = input.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                    if (previewId === 'team1Preview') {
+                        team1Logo = e.target.result;
+                    } else {
+                        team2Logo = e.target.result;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // ========================================
+        // MATCH MANAGEMENT
+        // ========================================
+        
+        function loadMatches() {
+            const matchListDiv = document.getElementById('matchList');
+            matchListDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Загрузка матчей...</div>';
+
+            database.ref('matches').orderByChild('createdBy').equalTo(currentUser.uid).once('value')
+                .then(function(snapshot) {
+                    const matches = [];
+                    snapshot.forEach(function(childSnapshot) {
+                        const match = childSnapshot.val();
+                        match.id = childSnapshot.key;
+                        matches.push(match);
+                    });
+
+                    if (matches.length === 0) {
+                        matchListDiv.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">⚽</div>
+                                <h3>Матчей пока нет</h3>
+                                <p>Нажмите "Создать новый матч" чтобы начать</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Sort matches: scheduled > playing > waiting > ended
+                    matches.sort(function(a, b) {
+                        const statusOrder = {
+                            'scheduled': 0,
+                            'playing': 1,
+                            'waiting': 2,
+                            'half1_ended': 3,
+                            'half2_ended': 3,
+                            'ended': 4
+                        };
+                        
+                        const aOrder = statusOrder[getMatchStatus(a)] || 5;
+                        const bOrder = statusOrder[getMatchStatus(b)] || 5;
+                        
+                        if (aOrder !== bOrder) return aOrder - bOrder;
+                        
+                        // Sort by date/time
+                        return (b.scheduledTime || b.createdAt) - (a.scheduledTime || a.createdAt);
+                    });
+
+                    matchListDiv.innerHTML = matches.map(renderMatchCard).join('');
+                })
+                .catch(function(error) {
+                    matchListDiv.innerHTML = '<div style="color: #f44336; padding: 20px;">Ошибка загрузки: ' + error.message + '</div>';
+                });
+        }
+
+        function getMatchStatus(match) {
+            if (match.scheduledTime && match.scheduledTime > Date.now()) {
+                return 'scheduled';
+            }
+            return match.status || 'waiting';
+        }
+
+        function getStatusText(status) {
+            const statusTexts = {
+                'scheduled': 'Ожидается',
+                'playing': 'Идет сейчас',
+                'waiting': 'Готов к началу',
+                'half1_ended': '1 тайм окончен',
+                'half2_ended': '2 тайм окончен',
+                'ended': 'Закончен'
+            };
+            return statusTexts[status] || 'Неизвестен';
+        }
+
+        function formatDateTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        }
+
+        function renderMatchCard(match) {
+            const status = getMatchStatus(match);
+            const statusText = getStatusText(status);
+            const cardClass = status === 'playing' ? 'active' : 
+                             status === 'ended' ? 'ended' :
+                             status === 'scheduled' ? 'scheduled' : '';
+
+            const dateInfo = match.scheduledTime ? 
+                `<div class="match-info">📅 ${formatDateTime(match.scheduledTime)}</div>` :
+                `<div class="match-info">Создан: ${formatDateTime(match.createdAt)}</div>`;
+
+            return `
+                <div class="match-card ${cardClass}" onclick="openMatch('${match.id}')">
+                    <div class="match-header">
+                        <div class="match-teams">
+                            ${match.team1Name} <span class="match-score">${match.score1} : ${match.score2}</span> ${match.team2Name}
+                        </div>
+                        <span class="match-status ${status}">${statusText}</span>
+                    </div>
+                    ${dateInfo}
+                    ${status === 'playing' ? '<div class="match-info">⏱️ ' + (match.time || '00:00:00') + '</div>' : ''}
+                    <div class="match-actions" onclick="event.stopPropagation();">
+                        ${status !== 'ended' ? '<button class="button secondary" onclick="openMatch(\'' + match.id + '\')">Открыть</button>' : ''}
+                        <button class="button" onclick="copyWidgetLinkFromCard(\'' + match.id + '\')">📋 Копировать ссылку</button>
+                        <button class="button danger" onclick="deleteMatch(\'' + match.id + '\')">Удалить</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openMatch(matchIdToOpen) {
+            matchId = matchIdToOpen;
+            
+            database.ref('matches/' + matchId).once('value')
+                .then(function(snapshot) {
+                    const match = snapshot.val();
+                    if (!match) {
+                        alert('Матч не найден');
+                        return;
+                    }
+
+                    // Update display
+                    document.getElementById('team1NameDisplay').textContent = match.team1Name;
+                    document.getElementById('team2NameDisplay').textContent = match.team2Name;
+                    document.getElementById('score1').textContent = match.score1;
+                    document.getElementById('score2').textContent = match.score2;
+
+                    // Show widget URL
+                    const widgetUrl = window.location.origin + window.location.pathname.replace('control.html', 'widget.html') + '?match=' + matchId;
+                    document.getElementById('widgetUrl').value = widgetUrl;
+
+                    // Update button states based on match status
+                    updateButtonStates(match);
+
+                    // Switch to control panel
+                    hideAllViews();
+                    document.getElementById('controlPanel').classList.add('active');
+
+                    // Listen for changes
+                    listenToMatchChanges();
+                })
+                .catch(function(error) {
+                    alert('Ошибка открытия матча: ' + error.message);
+                });
+        }
+
+        function updateButtonStates(match) {
+            const status = getMatchStatus(match);
+            
+            // Reset all buttons
+            document.getElementById('startHalf1Btn').classList.add('hidden');
+            document.getElementById('stopHalf1Btn').classList.add('hidden');
+            document.getElementById('startHalf2Btn').classList.add('hidden');
+            document.getElementById('stopHalf2Btn').classList.add('hidden');
+            document.getElementById('endMatchBtn').classList.add('hidden');
+
+            if (status === 'scheduled' || status === 'waiting') {
+                document.getElementById('startHalf1Btn').classList.remove('hidden');
+            } else if (status === 'playing') {
+                if (match.currentHalf === 1) {
+                    document.getElementById('stopHalf1Btn').classList.remove('hidden');
+                } else if (match.currentHalf === 2) {
+                    document.getElementById('stopHalf2Btn').classList.remove('hidden');
+                }
+                document.getElementById('endMatchBtn').classList.remove('hidden');
+            } else if (status === 'half1_ended') {
+                document.getElementById('startHalf2Btn').classList.remove('hidden');
+            }
+        }
+
+        function deleteMatch(matchIdToDelete) {
+            if (confirm('Вы уверены, что хотите удалить этот матч?')) {
+                database.ref('matches/' + matchIdToDelete).remove()
+                    .then(function() {
+                        loadMatches();
+                    })
+                    .catch(function(error) {
+                        alert('Ошибка удаления: ' + error.message);
+                    });
+            }
+        }
+
+        function copyWidgetLinkFromCard(matchIdToCopy) {
+            const widgetUrl = window.location.origin + window.location.pathname.replace('control.html', 'widget.html') + '?match=' + matchIdToCopy;
+            
+            // Create temporary input to copy
+            const tempInput = document.createElement('input');
+            tempInput.value = widgetUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            tempInput.setSelectionRange(0, 99999);
+            
+            try {
+                navigator.clipboard.writeText(widgetUrl).then(function() {
+                    showToast('✓ Ссылка скопирована!');
+                }).catch(function() {
+                    document.execCommand('copy');
+                    showToast('✓ Ссылка скопирована!');
+                });
+            } catch (err) {
+                document.execCommand('copy');
+                showToast('✓ Ссылка скопирована!');
+            }
+            
+            document.body.removeChild(tempInput);
+        }
+
+        function showToast(message) {
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4CAF50;
+                color: white;
+                padding: 15px 25px;
+                border-radius: 5px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-weight: bold;
+                animation: slideIn 0.3s ease;
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(function() {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(function() {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 2000);
+        }
+        
+        function startMatch() {
+            const team1Name = document.getElementById('team1Name').value.trim();
+            const team2Name = document.getElementById('team2Name').value.trim();
+            const team1Color = document.getElementById('team1Color').value;
+            const team2Color = document.getElementById('team2Color').value;
+            const matchDateTime = document.getElementById('matchDateTime').value;
+
+            if (!team1Name || !team2Name) {
+                alert('Пожалуйста, введите названия обеих команд');
+                return;
+            }
+
+            if (!currentUser) {
+                alert('Ошибка: пользователь не авторизован');
+                return;
+            }
+
+            // Generate unique match ID
+            matchId = 'match_' + Date.now();
+
+            // Parse scheduled time if provided
+            let scheduledTime = null;
+            let initialStatus = 'waiting';
+            
+            if (matchDateTime) {
+                scheduledTime = new Date(matchDateTime).getTime();
+                if (scheduledTime > Date.now()) {
+                    initialStatus = 'scheduled';
+                }
+            }
+
+            // Prepare match data
+            const matchData = {
+                team1Name: team1Name,
+                team2Name: team2Name,
+                team1Logo: team1Logo || '',
+                team2Logo: team2Logo || '',
+                team1Color: team1Color,
+                team2Color: team2Color,
+                score1: 0,
+                score2: 0,
+                time: '00:00:00',
+                status: initialStatus,
+                currentHalf: 0,
+                startTime: 0,
+                scheduledTime: scheduledTime,
+                createdBy: currentUser.uid,
+                createdAt: Date.now()
+            };
+
+            // Save to Firebase
+            database.ref('matches/' + matchId).set(matchData)
+                .then(function() {
+                    // Update display
+                    document.getElementById('team1NameDisplay').textContent = team1Name;
+                    document.getElementById('team2NameDisplay').textContent = team2Name;
+
+                    // Show widget URL
+                    const widgetUrl = window.location.origin + window.location.pathname.replace('control.html', 'widget.html') + '?match=' + matchId;
+                    document.getElementById('widgetUrl').value = widgetUrl;
+
+                    // Switch to control panel
+                    hideAllViews();
+                    document.getElementById('controlPanel').classList.add('active');
+
+                    // Show appropriate button
+                    if (initialStatus === 'scheduled' || initialStatus === 'waiting') {
+                        document.getElementById('startHalf1Btn').classList.remove('hidden');
+                    }
+
+                    // Listen for changes
+                    listenToMatchChanges();
+
+                    // Clear form
+                    clearSetupForm();
+                })
+                .catch(function(error) {
+                    alert('Ошибка создания матча: ' + error.message);
+                });
+        }
+
+        function clearSetupForm() {
+            document.getElementById('team1Name').value = '';
+            document.getElementById('team2Name').value = '';
+            document.getElementById('matchDateTime').value = '';
+            document.getElementById('team1Logo').value = '';
+            document.getElementById('team2Logo').value = '';
+            document.getElementById('team1Color').value = '#08399A';
+            document.getElementById('team2Color').value = '#4A90E2';
+            document.getElementById('team1Preview').classList.add('hidden');
+            document.getElementById('team2Preview').classList.add('hidden');
+            team1Logo = null;
+            team2Logo = null;
+        }
+
+        function listenToMatchChanges() {
+            database.ref('matches/' + matchId).on('value', function(snapshot) {
+                const matchData = snapshot.val();
+                if (matchData) {
+                    // Update score display
+                    document.getElementById('score1').textContent = matchData.score1;
+                    document.getElementById('score2').textContent = matchData.score2;
+                }
+            });
+        }
+
+        function copyWidgetUrl() {
+            const urlInput = document.getElementById('widgetUrl');
+            const copyMessage = document.getElementById('copyMessage');
+            
+            urlInput.select();
+            urlInput.setSelectionRange(0, 99999);
+            
+            try {
+                navigator.clipboard.writeText(urlInput.value).then(function() {
+                    showCopyMessage();
+                }).catch(function() {
+                    document.execCommand('copy');
+                    showCopyMessage();
+                });
+            } catch (err) {
+                document.execCommand('copy');
+                showCopyMessage();
+            }
+            
+            function showCopyMessage() {
+                copyMessage.style.display = 'block';
+                setTimeout(function() {
+                    copyMessage.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // ========================================
+        // SCORE MANAGEMENT
+        // ========================================
+        
+        function changeScore(team, delta) {
+            if (!matchId) return;
+
+            database.ref('matches/' + matchId).once('value').then(function(snapshot) {
+                const matchData = snapshot.val();
+                if (matchData) {
+                    const scoreKey = 'score' + team;
+                    const newScore = Math.max(0, matchData[scoreKey] + delta);
+                    
+                    const updates = {};
+                    updates[scoreKey] = newScore;
+                    
+                    database.ref('matches/' + matchId).update(updates);
+                }
+            });
+        }
+
+        // ========================================
+        // TIME MANAGEMENT
+        // ========================================
+        
+        function startHalf(half) {
+            if (!matchId) return;
+
+            const updates = {
+                currentHalf: half,
+                status: 'playing',
+                startTime: Date.now(),
+                time: '00:00:00'
+            };
+
+            database.ref('matches/' + matchId).update(updates).then(function() {
+                // Update buttons
+                document.getElementById('startHalf' + half + 'Btn').classList.add('hidden');
+                document.getElementById('stopHalf' + half + 'Btn').classList.remove('hidden');
+                document.getElementById('endMatchBtn').classList.remove('hidden');
+
+                currentHalf = half;
+            });
+        }
+
+        function stopHalf(half) {
+            if (!matchId) return;
+
+            const updates = {
+                status: 'half' + half + '_ended'
+            };
+
+            database.ref('matches/' + matchId).update(updates).then(function() {
+                // Update buttons
+                document.getElementById('stopHalf' + half + 'Btn').classList.add('hidden');
+                
+                if (half === 1) {
+                    document.getElementById('startHalf2Btn').classList.remove('hidden');
+                }
+            });
+        }
+
+        function endMatch() {
+            if (!matchId) return;
+
+            const updates = {
+                status: 'ended'
+            };
+
+            database.ref('matches/' + matchId).update(updates).then(function() {
+                // Hide all half buttons
+                document.getElementById('stopHalf1Btn').classList.add('hidden');
+                document.getElementById('stopHalf2Btn').classList.add('hidden');
+                document.getElementById('startHalf2Btn').classList.add('hidden');
+                document.getElementById('endMatchBtn').classList.add('hidden');
+            });
+        }
+
+        // ========================================
+        // CLEAR MATCH
+        // ========================================
+        
+        function clearMatch() {
+            if (confirm('Вы уверены, что хотите очистить счет и начать новый матч?')) {
+                if (matchId) {
+                    // Remove from Firebase
+                    database.ref('matches/' + matchId).remove();
+                }
+                
+                clearMatchLocal();
+
+                // Go back to dashboard
+                showDashboard();
+            }
+        }
+
+        function clearMatchLocal() {
+            clearSetupForm();
+            
+            matchId = null;
+            currentHalf = 0;
+
+            // Reset display
+            document.getElementById('score1').textContent = '0';
+            document.getElementById('score2').textContent = '0';
+
+            // Reset buttons
+            document.getElementById('startHalf1Btn').classList.remove('hidden');
+            document.getElementById('stopHalf1Btn').classList.add('hidden');
+            document.getElementById('startHalf2Btn').classList.add('hidden');
+            document.getElementById('stopHalf2Btn').classList.add('hidden');
+            document.getElementById('endMatchBtn').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

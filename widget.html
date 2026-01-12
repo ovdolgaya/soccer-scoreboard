@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Табло</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: transparent;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .scoreboard {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            margin: 0 auto;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .score-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .team {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .team.team1 {
+            background: linear-gradient(135deg, var(--team1-color, #08399A) 0%, var(--team1-color-light, #0a4ab3) 100%);
+        }
+
+        .team.team2 {
+            background: linear-gradient(135deg, var(--team2-color, #4A90E2) 0%, var(--team2-color-light, #5ea3f5) 100%);
+        }
+
+        .team.right {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+
+        .team-logo {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            border-radius: 5px;
+            background: white;
+            padding: 5px;
+        }
+
+        .team-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            flex: 1;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .score {
+            font-size: 48px;
+            font-weight: bold;
+            color: #333;
+            min-width: 60px;
+            text-align: center;
+            padding: 0 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .separator {
+            font-size: 36px;
+            color: #999;
+            margin: 0 10px;
+        }
+
+        .timer-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 15px 20px;
+            text-align: center;
+        }
+
+        .half-indicator {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .timer {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-message {
+            font-size: 24px;
+            font-weight: bold;
+            color: #f44336;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .waiting-message {
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            padding: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .team-name {
+                font-size: 18px;
+            }
+
+            .score {
+                font-size: 36px;
+                min-width: 50px;
+                padding: 0 10px;
+            }
+
+            .team-logo {
+                width: 40px;
+                height: 40px;
+            }
+
+            .timer {
+                font-size: 24px;
+            }
+
+            .half-indicator {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scoreboard" id="scoreboard">
+        <div class="waiting-message" id="waitingMessage">
+            Ожидание начала матча...
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // VARIABLES
+        // ========================================
+        let matchId = null;
+        let timerInterval = null;
+
+        // Get match ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        matchId = urlParams.get('match');
+
+        if (!matchId) {
+            document.getElementById('waitingMessage').textContent = 'Ошибка: не указан ID матча';
+        } else {
+            // Listen to Firebase for real-time updates
+            database.ref('matches/' + matchId).on('value', function(snapshot) {
+                const matchData = snapshot.val();
+                updateScoreboard(matchData);
+            });
+        }
+
+        // ========================================
+        // COLOR HELPER
+        // ========================================
+        function lightenColor(hex, percent) {
+            const num = parseInt(hex.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.min(255, (num >> 16) + amt);
+            const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+            const B = Math.min(255, (num & 0x0000FF) + amt);
+            return '#' + (0x1000000 + (R * 0x10000) + (G * 0x100) + B).toString(16).slice(1);
+        }
+
+        // ========================================
+        // UPDATE SCOREBOARD
+        // ========================================
+        function updateScoreboard(matchData) {
+            if (!matchData) {
+                document.getElementById('scoreboard').innerHTML = 
+                    '<div class="waiting-message">Ожидание начала матча...</div>';
+                return;
+            }
+
+            // Set CSS variables for team colors
+            const team1ColorLight = lightenColor(matchData.team1Color || '#08399A', 10);
+            const team2ColorLight = lightenColor(matchData.team2Color || '#4A90E2', 10);
+            
+            document.documentElement.style.setProperty('--team1-color', matchData.team1Color || '#08399A');
+            document.documentElement.style.setProperty('--team1-color-light', team1ColorLight);
+            document.documentElement.style.setProperty('--team2-color', matchData.team2Color || '#4A90E2');
+            document.documentElement.style.setProperty('--team2-color-light', team2ColorLight);
+
+            const scoreboardHtml = `
+                <div class="score-container">
+                    <div class="team team1">
+                        ${matchData.team1Logo ? `<img src="${matchData.team1Logo}" class="team-logo" alt="Team 1">` : ''}
+                        <div class="team-name">${matchData.team1Name}</div>
+                    </div>
+                    <div class="score">${matchData.score1}</div>
+                    <div class="separator">:</div>
+                    <div class="score">${matchData.score2}</div>
+                    <div class="team team2 right">
+                        <div class="team-name">${matchData.team2Name}</div>
+                        ${matchData.team2Logo ? `<img src="${matchData.team2Logo}" class="team-logo" alt="Team 2">` : ''}
+                    </div>
+                </div>
+                <div class="timer-container">
+                    ${getTimerContent(matchData)}
+                </div>
+            `;
+
+            document.getElementById('scoreboard').innerHTML = scoreboardHtml;
+
+            // Handle timer
+            if (matchData.status === 'playing') {
+                if (!timerInterval) {
+                    timerInterval = setInterval(function() {
+                        updateTimer(matchData);
+                    }, 100);
+                }
+            } else {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+            }
+        }
+
+        function getTimerContent(matchData) {
+            const status = getMatchStatus(matchData);
+            
+            if (status === 'scheduled') {
+                const scheduledDate = new Date(matchData.scheduledTime);
+                const day = String(scheduledDate.getDate()).padStart(2, '0');
+                const month = String(scheduledDate.getMonth() + 1).padStart(2, '0');
+                const hours = String(scheduledDate.getHours()).padStart(2, '0');
+                const minutes = String(scheduledDate.getMinutes()).padStart(2, '0');
+                return `<div class="status-message">Матч начнется ${day}.${month} в ${hours}:${minutes}</div>`;
+            } else if (status === 'waiting') {
+                return '<div class="status-message">Ожидание начала матча</div>';
+            } else if (status === 'ended') {
+                return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
+            } else if (status === 'half1_ended') {
+                return '<div class="status-message">1 ТАЙМ ОКОНЧЕН</div>';
+            } else if (status === 'half2_ended') {
+                return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
+            } else if (status === 'playing') {
+                const halfText = matchData.currentHalf === 1 ? '1 тайм' : '2 тайм';
+                return `
+                    <div class="half-indicator">${halfText}</div>
+                    <div class="timer" id="timerDisplay">${matchData.time || '00:00:00'}</div>
+                `;
+            }
+            
+            return '<div class="timer">00:00:00</div>';
+        }
+
+        function getMatchStatus(matchData) {
+            if (matchData.scheduledTime && matchData.scheduledTime > Date.now()) {
+                return 'scheduled';
+            }
+            return matchData.status || 'waiting';
+        }
+
+        function updateTimer(matchData) {
+            if (matchData.status !== 'playing') return;
+
+            const elapsed = Date.now() - matchData.startTime;
+            const seconds = Math.floor(elapsed / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+
+            const displaySeconds = String(seconds % 60).padStart(2, '0');
+            const displayMinutes = String(minutes % 60).padStart(2, '0');
+            const displayHours = String(hours).padStart(2, '0');
+
+            const timeString = `${displayHours}:${displayMinutes}:${displaySeconds}`;
+
+            const timerDisplay = document.getElementById('timerDisplay');
+            if (timerDisplay) {
+                timerDisplay.textContent = timeString;
+            }
+
+            // Update Firebase with current time (optional, for sync)
+            if (seconds % 5 === 0) { // Update every 5 seconds to reduce writes
+                database.ref('matches/' + matchId + '/time').set(timeString);
+            }
+        }
+    </script>
+</body>
+</html>
