@@ -18,6 +18,9 @@
     <script src="match-management.js"></script>
     <script src="match-control.js"></script>
     
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
     <style>
         * {
             box-sizing: border-box;
@@ -26,24 +29,44 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
             padding: 20px;
-            background: #f5f5f5;
-            max-width: 800px;
-            margin: 0 auto;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            min-height: 100vh;
         }
 
         .container {
+            max-width: 900px;
+            margin: 0 auto;
             background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
 
         h1 {
-            color: #333;
+            color: #1e293b;
             margin-bottom: 30px;
             text-align: center;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            color: #334155;
+            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h3 {
+            color: #475569;
+            font-size: 18px;
+            font-weight: 600;
         }
 
         .password-form {
@@ -63,36 +86,80 @@
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+            letter-spacing: 0.02em;
         }
 
-        input[type="text"] {
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="datetime-local"] {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            background: #f8fafc;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="datetime-local"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         input[type="file"] {
             width: 100%;
-            padding: 5px;
+            padding: 8px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        input[type="file"]:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 50px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
         }
 
         select {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #3b82f6;
             background: white;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
         .team-quick-select {
@@ -107,102 +174,143 @@
         }
 
         .team-quick-select button {
-            padding: 10px 15px;
+            padding: 12px 16px;
             white-space: nowrap;
         }
 
+        /* Button Styles - Professional & Subtle */
         .button {
-            background: #4CAF50;
+            background: #3b82f6;
             color: white;
-            padding: 12px 30px;
+            padding: 12px 24px;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 15px;
+            font-weight: 600;
             margin: 10px 5px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .button:hover {
-            background: #45a049;
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
         }
 
         .button.secondary {
-            background: #2196F3;
+            background: #64748b;
+            box-shadow: 0 2px 4px rgba(100, 116, 139, 0.2);
         }
 
         .button.secondary:hover {
-            background: #0b7dda;
+            background: #475569;
+            box-shadow: 0 4px 8px rgba(100, 116, 139, 0.3);
         }
 
         .button.danger {
-            background: #f44336;
+            background: #ef4444;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
         }
 
         .button.danger:hover {
-            background: #da190b;
+            background: #dc2626;
+            box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
         }
 
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Widget URL Section */
         .widget-url {
-            background: #e8f5e9;
-            padding: 15px;
-            border-radius: 5px;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            padding: 20px;
+            border-radius: 12px;
             margin: 20px 0;
-            word-break: break-all;
+            border: 2px solid #bfdbfe;
         }
 
         .widget-url strong {
-            color: #2e7d32;
+            color: #1e40af;
+            display: block;
+            margin-bottom: 12px;
+            font-size: 16px;
         }
 
+        /* Score Controls */
         .score-controls {
             display: flex;
             justify-content: space-around;
-            margin: 30px 0;
+            margin: 40px 0;
             flex-wrap: wrap;
+            gap: 20px;
         }
 
         .team-control {
             text-align: center;
-            margin: 10px;
+            flex: 1;
+            min-width: 200px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
         }
 
         .team-control h3 {
-            margin-bottom: 15px;
-            color: #333;
+            margin-bottom: 20px;
+            color: #1e293b;
         }
 
         .score-buttons {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 15px;
         }
 
         .score-buttons button {
-            width: 50px;
-            height: 50px;
-            font-size: 24px;
-            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            font-size: 20px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .score-display {
-            font-size: 36px;
-            font-weight: bold;
-            min-width: 60px;
-            color: #333;
+            font-size: 48px;
+            font-weight: 700;
+            min-width: 80px;
+            color: #1e293b;
+            font-feature-settings: 'tnum';
         }
 
+        /* Time Controls */
         .time-controls {
             text-align: center;
             margin: 30px 0;
-            padding: 20px;
-            background: #f5f5f5;
-            border-radius: 5px;
+            padding: 24px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
         }
 
         .time-controls h3 {
-            margin-bottom: 15px;
-            color: #333;
+            margin-bottom: 20px;
+            color: #1e293b;
         }
 
         .time-buttons {
@@ -217,106 +325,129 @@
         }
 
         .preview-image {
-            max-width: 100px;
-            max-height: 100px;
-            margin-top: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            max-width: 120px;
+            max-height: 120px;
+            margin-top: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            object-fit: cover;
         }
 
+        /* Match Card - Modern Design */
         .match-card {
             background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
             cursor: pointer;
             transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
         .match-card:hover {
-            border-color: #4CAF50;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-color: #3b82f6;
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+            transform: translateY(-2px);
         }
 
         .match-card.active {
-            border-color: #4CAF50;
-            background: #f1f8f4;
+            border-color: #10b981;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
         }
 
         .match-card.ended {
-            opacity: 0.7;
+            opacity: 0.6;
+            border-color: #cbd5e1;
         }
 
         .match-card.scheduled {
-            border-color: #2196F3;
-            background: #f5f9ff;
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
         }
 
         .match-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            gap: 15px;
         }
 
         .match-teams {
             font-size: 18px;
-            font-weight: bold;
-            color: #333;
+            font-weight: 600;
+            color: #1e293b;
             flex: 1;
         }
 
         .match-score {
-            font-size: 24px;
-            font-weight: bold;
-            color: #4CAF50;
+            font-size: 28px;
+            font-weight: 700;
+            color: #3b82f6;
             margin: 0 15px;
+            font-feature-settings: 'tnum';
         }
 
         .match-status {
-            display: inline-block;
-            padding: 5px 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
             border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
+            font-size: 13px;
+            font-weight: 600;
             color: white;
+            white-space: nowrap;
         }
 
         .match-status.playing {
-            background: #4CAF50;
-            animation: pulse 1.5s ease-in-out infinite;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            animation: pulse 2s ease-in-out infinite;
         }
 
         .match-status.ended {
-            background: #999;
+            background: #64748b;
         }
 
         .match-status.scheduled {
-            background: #2196F3;
+            background: #3b82f6;
         }
 
         .match-status.waiting {
-            background: #FF9800;
+            background: #f59e0b;
         }
 
         .match-info {
             font-size: 14px;
-            color: #666;
-            margin-top: 8px;
+            color: #64748b;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .match-info span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .match-actions {
-            margin-top: 10px;
+            margin-top: 15px;
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
         }
 
         .match-actions button {
-            padding: 6px 12px;
+            padding: 8px 16px;
             font-size: 13px;
+            margin: 0;
         }
 
+        /* Dashboard */
         .dashboard {
             display: none;
         }
@@ -325,38 +456,210 @@
             display: block;
         }
 
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .dashboard-header h2 {
+            margin: 0;
+        }
+
+        .dashboard-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #475569;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+
+        .filter-toggle:hover {
+            background: #e2e8f0;
+        }
+
+        .filter-toggle input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+
+        /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 60px 20px;
-            color: #999;
+            padding: 80px 20px;
+            color: #94a3b8;
         }
 
         .empty-state-icon {
             font-size: 64px;
             margin-bottom: 20px;
+            opacity: 0.5;
         }
 
-        @media (max-width: 600px) {
+        .empty-state h3 {
+            color: #64748b;
+            margin-bottom: 12px;
+            font-size: 20px;
+        }
+
+        .empty-state p {
+            color: #94a3b8;
+            font-size: 15px;
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #1e293b;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 400px;
+        }
+
+        .toast.success {
+            background: #10b981;
+        }
+
+        .toast.error {
+            background: #ef4444;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        /* Logout Button */
+        .logout-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: 2px solid #e2e8f0;
+            color: #64748b;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .logout-button:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+            background: #fef2f2;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
             body {
                 padding: 10px;
             }
-            
+
             .container {
-                padding: 15px;
+                padding: 24px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+
+            h2 {
+                font-size: 20px;
             }
 
             .score-controls {
                 flex-direction: column;
             }
 
-            .match-header {
+            .team-control {
+                width: 100%;
+            }
+
+            .dashboard-header {
                 flex-direction: column;
                 align-items: flex-start;
             }
 
-            .match-score {
-                margin: 10px 0;
+            .match-header {
+                flex-wrap: wrap;
             }
+
+            .match-score {
+                font-size: 22px;
+            }
+
+            .match-actions {
+                width: 100%;
+            }
+
+            .match-actions button {
+                flex: 1;
+            }
+
+            .logout-button {
+                position: static;
+                margin-bottom: 20px;
+            }
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -378,7 +681,7 @@
                 <input type="password" id="passwordInput" placeholder="Пароль">
             </div>
 
-            <button class="button" onclick="loginUser()">Войти</button>
+            <button class="button" onclick="loginUser()"><i class="fas fa-sign-in-alt"></i> Войти</button>
             
             <div id="loginError" style="color: #f44336; margin-top: 10px; display: none;">
                 Ошибка входа. Проверьте email и пароль.
@@ -404,7 +707,7 @@
             </div>
 
             <button class="button" onclick="showSetupForm()" style="margin-bottom: 20px; width: 100%;">
-                ➕ Создать новый матч
+                <i class="fas fa-plus-circle"></i> Создать новый матч
             </button>
 
             <div style="margin-bottom: 20px;">
@@ -477,7 +780,7 @@
 
             <div style="display: flex; gap: 10px;">
                 <button class="button secondary" onclick="backToDashboard()">← Назад</button>
-                <button class="button" onclick="startMatch()" style="flex: 1;">Сохранить и начать матч</button>
+                <button class="button" onclick="startMatch()" style="flex: 1;"><i class="fas fa-play-circle"></i> Сохранить и начать матч</button>
             </div>
         </div>
 
