@@ -375,19 +375,59 @@
             gap: 15px;
         }
 
+        .match-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .match-teams {
             font-size: 18px;
             font-weight: 600;
             color: #1e293b;
-            flex: 1;
         }
 
         .match-score {
             font-size: 28px;
             font-weight: 700;
             color: #3b82f6;
-            margin: 0 15px;
             font-feature-settings: 'tnum';
+        }
+
+        /* Desktop: show as "TEAM1 XX : YY TEAM2 [status]" */
+        @media (min-width: 769px) {
+            .match-header {
+                flex-direction: row;
+                flex-wrap: nowrap;
+                align-items: center;
+            }
+
+            .match-row {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .match-row:first-child::after {
+                content: ":";
+                font-size: 28px;
+                font-weight: 700;
+                color: #3b82f6;
+                margin: 0 8px;
+            }
+
+            .match-teams {
+                white-space: nowrap;
+            }
+
+            .match-score {
+                margin: 0;
+            }
+
+            .match-status {
+                flex-shrink: 0;
+                margin-left: auto;
+            }
         }
 
         .match-status {
@@ -626,11 +666,44 @@
             }
 
             .match-header {
-                flex-wrap: wrap;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 2px;
+            }
+
+            .match-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+                padding: 2px 0;
+            }
+
+            /* On mobile, reverse the second row back to normal order */
+            .match-row-reverse {
+                flex-direction: row-reverse;
+            }
+
+            .match-teams {
+                font-size: 16px;
+                flex: 1;
             }
 
             .match-score {
-                font-size: 22px;
+                font-size: 24px;
+                margin: 0;
+                min-width: 40px;
+                text-align: right;
+            }
+
+            /* Keep score on right for reversed row too */
+            .match-row-reverse .match-score {
+                text-align: right;
+            }
+
+            .match-status {
+                align-self: flex-start;
+                margin-top: 8px;
             }
 
             .match-actions {

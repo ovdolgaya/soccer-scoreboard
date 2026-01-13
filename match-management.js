@@ -98,8 +98,13 @@ function renderMatchCard(match) {
     return `
         <div class="match-card ${cardClass}" onclick="openMatch('${match.id}')">
             <div class="match-header">
-                <div class="match-teams">
-                    ${match.team1Name} <span class="match-score">${match.score1} : ${match.score2}</span> ${match.team2Name}
+                <div class="match-row">
+                    <span class="match-teams">${match.team1Name}</span>
+                    <span class="match-score">${match.score1}</span>
+                </div>
+                <div class="match-row match-row-reverse">
+                    <span class="match-score">${match.score2}</span>
+                    <span class="match-teams">${match.team2Name}</span>
                 </div>
                 <span class="match-status ${status}">${statusText}</span>
             </div>
