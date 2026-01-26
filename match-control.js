@@ -24,10 +24,17 @@ function startMatch() {
 
     // Parse scheduled time if provided
     let scheduledTime = null;
+    let matchDate = null;
     let initialStatus = 'waiting';
     
     if (matchDateTime) {
         scheduledTime = new Date(matchDateTime).getTime();
+        // Extract date only (YYYY-MM-DD format)
+        const dateObj = new Date(matchDateTime);
+        matchDate = dateObj.getFullYear() + '-' + 
+                   String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + 
+                   String(dateObj.getDate()).padStart(2, '0');
+        
         if (scheduledTime > Date.now()) {
             initialStatus = 'scheduled';
         }
@@ -48,8 +55,11 @@ function startMatch() {
         currentHalf: 0,
         startTime: 0,
         scheduledTime: scheduledTime,
+        matchDate: matchDate,
         createdBy: currentUser.uid,
-        createdAt: Date.now()
+        createdByEmail: currentUser.email || '',
+        createdAt: Date.now(),
+        matchStartedAt: null  // Will be set when match actually starts
     };
 
     // Save to Firebase
@@ -125,24 +135,39 @@ function changeScore(team, delta) {
 function startHalf(half) {
     if (!matchId) return;
 
+    // Get current date for matchDate if not already set
+    const today = new Date();
+    const matchDateToday = today.getFullYear() + '-' + 
+                          String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(today.getDate()).padStart(2, '0');
+
     const updates = {
         currentHalf: half,
         status: 'playing',
         startTime: Date.now(),
         time: '00:00:00',
-        scheduledTime: null  // Clear scheduled time when match actually starts
+        scheduledTime: null,  // Clear scheduled time when match actually starts
+        matchStartedAt: half === 1 ? Date.now() : undefined  // Only set on first half
     };
 
-    database.ref('matches/' + matchId).update(updates).then(function() {
-        // Update buttons
-        document.getElementById('startHalf' + half + 'Btn').classList.add('hidden');
-        document.getElementById('stopHalf' + half + 'Btn').classList.remove('hidden');
-        document.getElementById('endMatchBtn').classList.remove('hidden');
+    // Set matchDate if not already set (from scheduled date or current date)
+    database.ref('matches/' + matchId).once('value').then(function(snapshot) {
+        const matchData = snapshot.val();
+        if (!matchData.matchDate) {
+            updates.matchDate = matchDateToday;
+        }
 
-        currentHalf = half;
-        
-        // Start timer sync (updates every 10 seconds)
-        startTimerSync();
+        database.ref('matches/' + matchId).update(updates).then(function() {
+            // Update buttons
+            document.getElementById('startHalf' + half + 'Btn').classList.add('hidden');
+            document.getElementById('stopHalf' + half + 'Btn').classList.remove('hidden');
+            document.getElementById('endMatchBtn').classList.remove('hidden');
+
+            currentHalf = half;
+            
+            // Start timer sync (updates every 10 seconds)
+            startTimerSync();
+        });
     });
 }
 
@@ -347,6 +372,34 @@ function saveTeamData(teamNumber) {
             }
         })
         .catch(function(error) {
-            alert('Ошибка сохранения: ' + error.message);
+            alert('Ошибка сохранения команды: ' + error.message);
         });
 }
+
+// ========================================
+// MATCH DATE UPDATE
+// ========================================
+
+function updateMatchDate() {
+    if (!matchId) {
+        alert('Матч не выбран');
+        return;
+    }
+
+    const newDate = document.getElementById('matchDateEdit').value;
+    if (!newDate) {
+        alert('Выберите дату');
+        return;
+    }
+
+    database.ref('matches/' + matchId).update({
+        matchDate: newDate
+    })
+    .then(function() {
+        showToast('✓ Дата матча обновлена!');
+    })
+    .catch(function(error) {
+        alert('Ошибка обновления даты: ' + error.message);
+    });
+}
+

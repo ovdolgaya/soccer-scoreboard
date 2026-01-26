@@ -82,6 +82,14 @@ function formatDateTime(timestamp) {
     return `${day}.${month}.${year} ${hours}:${minutes}`;
 }
 
+function formatDate(dateString) {
+    if (!dateString) return '';
+    // dateString format: YYYY-MM-DD
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    return `${parts[2]}.${parts[1]}.${parts[0]}`;  // DD.MM.YYYY
+}
+
 function renderMatchCard(match) {
     const status = getMatchStatus(match);
     const statusText = getStatusText(status);
@@ -89,9 +97,15 @@ function renderMatchCard(match) {
                      status === 'ended' ? 'ended' :
                      status === 'scheduled' ? 'scheduled' : '';
 
-    const dateInfo = match.scheduledTime ? 
-        `<div class="match-info">📅 ${formatDateTime(match.scheduledTime)}</div>` :
-        `<div class="match-info">Создан: ${formatDateTime(match.createdAt)}</div>`;
+    // Show scheduled time for scheduled matches, matchDate for others, or creation date as fallback
+    let dateInfo = '';
+    if (match.scheduledTime && status === 'scheduled') {
+        dateInfo = `<div class="match-info"><span>📅</span> <span>${formatDateTime(match.scheduledTime)}</span></div>`;
+    } else if (match.matchDate) {
+        dateInfo = `<div class="match-info"><span>📅</span> <span>Дата матча: ${formatDate(match.matchDate)}</span></div>`;
+    } else {
+        dateInfo = `<div class="match-info"><span>📅</span> <span>Создан: ${formatDateTime(match.createdAt)}</span></div>`;
+    }
 
     const matchIdShort = match.id.substring(match.id.length - 8);
 
@@ -109,7 +123,7 @@ function renderMatchCard(match) {
                 <span class="match-status ${status}">${statusText}</span>
             </div>
             ${dateInfo}
-            ${status === 'playing' ? '<div class="match-info">⏱️ ' + (match.time || '00:00:00') + '</div>' : ''}
+            ${status === 'playing' ? '<div class="match-info"><span>⏱️</span> <span>' + (match.time || '00:00:00') + '</span></div>' : ''}
             <div class="match-info" style="font-family: monospace; font-size: 12px;">
                 ID: ${matchIdShort} 
                 <button onclick="event.stopPropagation(); copyMatchId('${match.id}');" style="border: none; background: none; cursor: pointer; padding: 2px 6px; font-size: 12px;">📋</button>
@@ -140,24 +154,46 @@ function openMatch(matchIdToOpen) {
             document.getElementById('score1').textContent = match.score1;
             document.getElementById('score2').textContent = match.score2;
 
-            // Show widget URL
-            let basePath = window.location.pathname;
-            
-            // Remove trailing slash if present
-            if (basePath.endsWith('/')) {
-                basePath = basePath.slice(0, -1);
+            // Update metadata
+            updateMatchMetadata(match);
+
+            // Update match date field
+            if (match.matchDate) {
+                document.getElementById('matchDateEdit').value = match.matchDate;
+            } else {
+                // Set to today's date as default
+                const today = new Date();
+                const todayString = today.getFullYear() + '-' + 
+                                  String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                                  String(today.getDate()).padStart(2, '0');
+                document.getElementById('matchDateEdit').value = todayString;
             }
-            
-            // Remove index.html if present
-            if (basePath.endsWith('/index.html')) {
-                basePath = basePath.replace('/index.html', '');
-            } else if (basePath.endsWith('index.html')) {
-                basePath = basePath.replace('index.html', '');
+
+            // Show/hide sections based on match status
+            const isEnded = match.status === 'ended';
+            document.getElementById('widgetUrlSection').style.display = isEnded ? 'none' : 'block';
+            document.getElementById('timeControlsSection').style.display = isEnded ? 'none' : 'block';
+
+            // Show widget URL (for non-ended matches)
+            if (!isEnded) {
+                let basePath = window.location.pathname;
+                
+                // Remove trailing slash if present
+                if (basePath.endsWith('/')) {
+                    basePath = basePath.slice(0, -1);
+                }
+                
+                // Remove index.html if present
+                if (basePath.endsWith('/index.html')) {
+                    basePath = basePath.replace('/index.html', '');
+                } else if (basePath.endsWith('index.html')) {
+                    basePath = basePath.replace('index.html', '');
+                }
+                
+                // Add widget.html
+                const widgetUrl = window.location.origin + basePath + '/widget.html?match=' + matchId;
+                document.getElementById('widgetUrl').value = widgetUrl;
             }
-            
-            // Add widget.html
-            const widgetUrl = window.location.origin + basePath + '/widget.html?match=' + matchId;
-            document.getElementById('widgetUrl').value = widgetUrl;
 
             // Update button states based on match status
             updateButtonStates(match);
@@ -172,6 +208,25 @@ function openMatch(matchIdToOpen) {
         .catch(function(error) {
             alert('Ошибка открытия матча: ' + error.message);
         });
+}
+
+function updateMatchMetadata(match) {
+    let createdHtml = '';
+    let startedHtml = '';
+    
+    // Created by info
+    if (match.createdAt) {
+        const createdBy = match.createdByEmail || 'Неизвестно';
+        createdHtml = `<div><strong>Создан:</strong> ${formatDateTime(match.createdAt)} (${createdBy})</div>`;
+    }
+    
+    // Match started info
+    if (match.matchStartedAt) {
+        startedHtml = `<div><strong>Начало матча:</strong> ${formatDateTime(match.matchStartedAt)}</div>`;
+    }
+    
+    document.getElementById('metadataCreated').innerHTML = createdHtml;
+    document.getElementById('metadataStarted').innerHTML = startedHtml;
 }
 
 function updateButtonStates(match) {

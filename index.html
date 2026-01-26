@@ -763,7 +763,6 @@
             <div id="loginLoading" style="color: #666; margin-top: 10px; display: none;">
                 Вход...
             </div>
-
         </div>
 
         <!-- Match Dashboard -->
@@ -781,7 +780,7 @@
 
             <div style="margin-bottom: 20px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
-                    <input type="checkbox" id="hidePastMatches" onchange="loadMatches()" style="width: auto; height: 18px; cursor: pointer;">
+                    <input type="checkbox" id="hidePastMatches" onchange="loadMatches()" checked style="width: auto; height: 18px; cursor: pointer;">
                     <span>Спрятать прошедшие матчи</span>
                 </label>
             </div>
@@ -855,21 +854,41 @@
 
         <!-- Control Panel -->
         <div class="control-panel" id="controlPanel">
-            <div class="widget-url">
+            <!-- Match Metadata Section -->
+            <div class="match-metadata" id="matchMetadata" style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #e2e8f0;">
+                <h3 style="margin-bottom: 15px; color: #1e293b;">📋 Информация о матче</h3>
+                <div style="font-size: 14px; color: #64748b; line-height: 1.8;">
+                    <div id="metadataCreated"></div>
+                    <div id="metadataStarted"></div>
+                </div>
+                
+                <!-- Match Date Editor -->
+                <div class="form-group" style="margin-top: 15px;">
+                    <label for="matchDateEdit">Дата матча:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="date" id="matchDateEdit" style="flex: 1; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; background: white;">
+                        <button class="button secondary" onclick="updateMatchDate()" style="white-space: nowrap; margin: 0;">
+                            <i class="fas fa-save"></i> Сохранить
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="widget-url" id="widgetUrlSection">
                 <strong>URL виджета для стрима:</strong><br>
                 <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap;">
-                    <input type="text" id="widgetUrl" readonly style="flex: 1; min-width: 200px; padding: 10px; border: 2px solid #4CAF50; border-radius: 5px; font-size: 14px; background: white;">
+                    <input type="text" id="widgetUrl" readonly style="flex: 1; min-width: 200px; padding: 10px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; background: white;">
                     <button class="button" onclick="copyWidgetUrl()" style="white-space: nowrap;">
                         📋 Копировать URL
                     </button>
                 </div>
-                <div id="copyMessage" style="color: #4CAF50; font-weight: bold; display: none; margin-top: 5px;">
+                <div id="copyMessage" style="color: #10b981; font-weight: bold; display: none; margin-top: 5px;">
                     ✓ URL скопирован!
                 </div>
                 <small>Вставьте этот URL как Browser Source в OBS или Web Overlay в Larix/Prism</small>
             </div>
 
-            <div class="time-controls">
+            <div class="time-controls" id="timeControlsSection">
                 <h3>Управление временем</h3>
                 <div class="time-buttons">
                     <button class="button secondary" id="startHalf1Btn" onclick="startHalf(1)">▶ Начать 1 тайм</button>
