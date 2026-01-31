@@ -2,14 +2,22 @@
 // MATCH DASHBOARD & LIST MANAGEMENT
 // ========================================
 
-function loadMatches() {
+let currentMatchesDisplayed = 10; // Show 10 initially
+const MATCHES_PER_PAGE = 10;
+let allMatchesCache = []; // Store all matches for pagination
+
+function loadMatches(reset = true) {
     const matchListDiv = document.getElementById('matchList');
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
     const hidePast = document.getElementById('hidePastMatches') ? document.getElementById('hidePastMatches').checked : false;
     
-    matchListDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Загрузка матчей...</div>';
+    if (reset) {
+        currentMatchesDisplayed = MATCHES_PER_PAGE;
+        matchListDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Загрузка матчей...</div>';
+    }
 
     // Remove old listener if exists
-    if (matchListListener) {
+    if (matchListListener && reset) {
         database.ref('matches').off('value', matchListListener);
     }
 
@@ -28,17 +36,6 @@ function loadMatches() {
             matches.push(match);
         });
 
-        if (matches.length === 0) {
-            matchListDiv.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">⚽</div>
-                    <h3>${hidePast ? 'Активных матчей нет' : 'Матчей пока нет'}</h3>
-                    <p>${hidePast ? 'Прошедшие матчи скрыты' : 'Нажмите "Создать новый матч" чтобы начать'}</p>
-                </div>
-            `;
-            return;
-        }
-
         // Sort by date DESC (newest/future first)
         matches.sort(function(a, b) {
             const aDate = a.scheduledTime || a.createdAt || 0;
@@ -46,11 +43,54 @@ function loadMatches() {
             return bDate - aDate; // Descending order
         });
 
-        matchListDiv.innerHTML = matches.map(renderMatchCard).join('');
+        // Cache all matches
+        allMatchesCache = matches;
+
+        // Display matches
+        displayMatches();
     }, function(error) {
         matchListDiv.innerHTML = '<div style="color: #f44336; padding: 20px;">Ошибка загрузки: ' + error.message + '</div>';
     });
 }
+
+function displayMatches() {
+    const matchListDiv = document.getElementById('matchList');
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const hidePast = document.getElementById('hidePastMatches') ? document.getElementById('hidePastMatches').checked : false;
+
+    if (allMatchesCache.length === 0) {
+        matchListDiv.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">⚽</div>
+                <h3>${hidePast ? 'Активных матчей нет' : 'Матчей пока нет'}</h3>
+                <p>${hidePast ? 'Прошедшие матчи скрыты' : 'Нажмите "Создать новый матч" чтобы начать'}</p>
+            </div>
+        `;
+        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+        return;
+    }
+
+    // Get matches to display (limited by currentMatchesDisplayed)
+    const matchesToShow = allMatchesCache.slice(0, currentMatchesDisplayed);
+    matchListDiv.innerHTML = matchesToShow.map(renderMatchCard).join('');
+
+    // Show/hide "Load More" button
+    if (loadMoreBtn) {
+        if (allMatchesCache.length > currentMatchesDisplayed) {
+            loadMoreBtn.style.display = 'block';
+            const remaining = allMatchesCache.length - currentMatchesDisplayed;
+            loadMoreBtn.querySelector('span').textContent = `Показать ещё (${remaining})`;
+        } else {
+            loadMoreBtn.style.display = 'none';
+        }
+    }
+}
+
+function loadMoreMatches() {
+    currentMatchesDisplayed += MATCHES_PER_PAGE;
+    displayMatches();
+}
+
 
 function getMatchStatus(match) {
     if (match.scheduledTime && match.scheduledTime > Date.now()) {
@@ -253,6 +293,9 @@ function updateButtonStates(match) {
         document.getElementById('endMatchBtn').classList.remove('hidden');
     } else if (actualStatus === 'half1_ended') {
         document.getElementById('startHalf2Btn').classList.remove('hidden');
+    } else if (actualStatus === 'half2_ended') {
+        // Second half ended, show end match button
+        document.getElementById('endMatchBtn').classList.remove('hidden');
     }
 }
 
