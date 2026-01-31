@@ -816,17 +816,37 @@
             margin-bottom: 10px;
         }
 
+        .halftime-popup-actions .button {
+            padding: 16px 24px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
         @media (max-width: 600px) {
             .halftime-popup-content {
                 width: 95%;
             }
 
             .halftime-timer {
-                font-size: 48px;
+                font-size: 52px;
             }
 
             .halftime-popup-actions {
                 flex-direction: column;
+                gap: 20px;
+            }
+
+            .halftime-popup-actions .button {
+                padding: 18px 24px;
+                font-size: 17px;
+                min-height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .halftime-popup-body {
+                padding: 30px 25px;
             }
         }
     </style>
