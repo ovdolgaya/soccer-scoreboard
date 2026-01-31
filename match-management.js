@@ -95,7 +95,8 @@ function renderMatchCard(match) {
     const statusText = getStatusText(status);
     const cardClass = status === 'playing' ? 'active' : 
                      status === 'ended' ? 'ended' :
-                     status === 'scheduled' ? 'scheduled' : '';
+                     status === 'scheduled' ? 'scheduled' : 
+                     status === 'half1_ended' || status === 'half2_ended' ? 'active' : '';
 
     // Show scheduled time for scheduled matches, matchDate for others, or creation date as fallback
     let dateInfo = '';

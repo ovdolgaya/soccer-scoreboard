@@ -146,9 +146,13 @@ function startHalf(half) {
         status: 'playing',
         startTime: Date.now(),
         time: '00:00:00',
-        scheduledTime: null,  // Clear scheduled time when match actually starts
-        matchStartedAt: half === 1 ? Date.now() : undefined  // Only set on first half
+        scheduledTime: null  // Clear scheduled time when match actually starts
     };
+
+    // Only set matchStartedAt on first half
+    if (half === 1) {
+        updates.matchStartedAt = Date.now();
+    }
 
     // Set matchDate if not already set (from scheduled date or current date)
     database.ref('matches/' + matchId).once('value').then(function(snapshot) {
