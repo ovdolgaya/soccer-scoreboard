@@ -69,8 +69,23 @@ function startMatch() {
             document.getElementById('team1NameDisplay').textContent = team1Name;
             document.getElementById('team2NameDisplay').textContent = team2Name;
 
-            // Show widget URL
-            const widgetUrl = window.location.origin + window.location.pathname.replace('control.html', 'widget.html') + '?match=' + matchId;
+            // Show widget URL (use same logic as openMatch)
+            let basePath = window.location.pathname;
+            
+            // Remove trailing slash if present
+            if (basePath.endsWith('/')) {
+                basePath = basePath.slice(0, -1);
+            }
+            
+            // Remove index.html if present
+            if (basePath.endsWith('/index.html')) {
+                basePath = basePath.replace('/index.html', '');
+            } else if (basePath.endsWith('index.html')) {
+                basePath = basePath.replace('index.html', '');
+            }
+            
+            // Add widget.html
+            const widgetUrl = window.location.origin + basePath + '/widget.html?match=' + matchId;
             document.getElementById('widgetUrl').value = widgetUrl;
 
             // Switch to control panel
