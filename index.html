@@ -739,6 +739,96 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Halftime Popup */
+        .halftime-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+        }
+
+        .halftime-popup-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        .halftime-popup-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            max-width: 500px;
+            width: 90%;
+            animation: popupSlideIn 0.3s ease;
+        }
+
+        @keyframes popupSlideIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -60%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        .halftime-popup-header {
+            padding: 30px 30px 20px;
+            text-align: center;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .halftime-popup-header h2 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 24px;
+        }
+
+        .halftime-popup-body {
+            padding: 30px;
+        }
+
+        .halftime-timer {
+            text-align: center;
+            font-size: 64px;
+            font-weight: 700;
+            color: #3b82f6;
+            font-feature-settings: 'tnum';
+            margin-bottom: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', monospace;
+        }
+
+        .halftime-popup-actions {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .halftime-popup-content {
+                width: 95%;
+            }
+
+            .halftime-timer {
+                font-size: 48px;
+            }
+
+            .halftime-popup-actions {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -934,6 +1024,34 @@
             </div>
         </div>
     </div>
-</body>
+
+    <!-- Halftime Break Popup -->
+    <div id="halftimePopup" class="halftime-popup" style="display: none;">
+        <div class="halftime-popup-overlay" onclick="closeHalftimePopup()"></div>
+        <div class="halftime-popup-content">
+            <div class="halftime-popup-header">
+                <h2>⏸️ Перерыв между таймами</h2>
+            </div>
+            <div class="halftime-popup-body">
+                <div class="halftime-timer" id="halftimeTimer">05:00</div>
+                <p style="text-align: center; color: #64748b; margin-bottom: 30px;">
+                    Стандартный перерыв: 5 минут
+                </p>
+                <div class="halftime-popup-actions">
+                    <button class="button" onclick="startSecondHalfFromPopup()" style="flex: 1;">
+                        <i class="fas fa-play-circle"></i> Начать 2 тайм
+                    </button>
+                    <button class="button danger" onclick="endMatchFromPopup()" style="flex: 1;">
+                        <i class="fas fa-stop-circle"></i> Закончить матч
+                    </button>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="button secondary" onclick="closeHalftimePopup()">
+                        Закрыть
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

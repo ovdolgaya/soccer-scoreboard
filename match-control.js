@@ -239,8 +239,70 @@ function stopHalf(half) {
         
         if (half === 1) {
             document.getElementById('startHalf2Btn').classList.remove('hidden');
+            // Show halftime popup
+            showHalftimePopup();
         }
     });
+}
+
+// ========================================
+// HALFTIME POPUP
+// ========================================
+
+let halftimeTimerInterval = null;
+let halftimeSecondsRemaining = 300; // 5 minutes
+
+function showHalftimePopup() {
+    // Reset timer
+    halftimeSecondsRemaining = 300; // 5 minutes
+    
+    // Show popup
+    document.getElementById('halftimePopup').style.display = 'block';
+    
+    // Start countdown
+    updateHalftimeTimer();
+    halftimeTimerInterval = setInterval(function() {
+        halftimeSecondsRemaining--;
+        updateHalftimeTimer();
+        
+        if (halftimeSecondsRemaining <= 0) {
+            clearInterval(halftimeTimerInterval);
+            halftimeTimerInterval = null;
+            // Timer finished but don't auto-close
+        }
+    }, 1000);
+}
+
+function updateHalftimeTimer() {
+    const minutes = Math.floor(halftimeSecondsRemaining / 60);
+    const seconds = halftimeSecondsRemaining % 60;
+    const display = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+    document.getElementById('halftimeTimer').textContent = display;
+    
+    // Change color when time runs out
+    if (halftimeSecondsRemaining <= 0) {
+        document.getElementById('halftimeTimer').style.color = '#ef4444'; // Red
+    } else {
+        document.getElementById('halftimeTimer').style.color = '#3b82f6'; // Blue
+    }
+}
+
+function closeHalftimePopup() {
+    document.getElementById('halftimePopup').style.display = 'none';
+    if (halftimeTimerInterval) {
+        clearInterval(halftimeTimerInterval);
+        halftimeTimerInterval = null;
+    }
+}
+
+function startSecondHalfFromPopup() {
+    closeHalftimePopup();
+    startHalf(2);
+}
+
+function endMatchFromPopup() {
+    closeHalftimePopup();
+    endMatch();
 }
 
 function endMatch() {
