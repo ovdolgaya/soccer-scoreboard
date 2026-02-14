@@ -176,6 +176,7 @@
         // ========================================
         let matchId = null;
         let timerInterval = null;
+        let currentMatchData = null; // Store current match data for timer updates
 
         // Get match ID from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -213,6 +214,9 @@
                 return;
             }
 
+            // Store match data globally for timer updates
+            currentMatchData = matchData;
+
             // Set CSS variables for team colors
             const team1ColorLight = lightenColor(matchData.team1Color || '#08399A', 10);
             const team2ColorLight = lightenColor(matchData.team2Color || '#4A90E2', 10);
@@ -247,7 +251,7 @@
             if (matchData.status === 'playing') {
                 if (!timerInterval) {
                     timerInterval = setInterval(function() {
-                        updateTimer(matchData);
+                        updateTimer(); // No parameter - uses global currentMatchData
                     }, 100);
                 }
             } else {
@@ -291,10 +295,16 @@
             return matchData.status || 'waiting';
         }
 
-        function updateTimer(matchData) {
-            if (matchData.status !== 'playing') return;
+        function updateTimer() {
+            if (!currentMatchData) return;
+            if (currentMatchData.status !== 'playing') return;
+            if (!currentMatchData.startTime) return; // Don't calculate if startTime not set yet
 
-            const elapsed = Date.now() - matchData.startTime;
+            const elapsed = Date.now() - currentMatchData.startTime;
+            
+            // Prevent negative values
+            if (elapsed < 0) return;
+            
             const seconds = Math.floor(elapsed / 1000);
             const minutes = Math.floor(seconds / 60);
             const hours = Math.floor(minutes / 60);
@@ -303,12 +313,13 @@
             const displayMinutes = String(minutes % 60).padStart(2, '0');
             const displayHours = String(hours).padStart(2, '0');
 
-            const halfText = matchData.currentHalf === 1 ? '1 тайм' : '2 тайм';
-            const timeString = `${halfText}: ${displayHours}:${displayMinutes}:${displaySeconds}`;
+            const timeString = `${displayHours}:${displayMinutes}:${displaySeconds}`;
 
             const timerDisplay = document.getElementById('timerDisplay');
             if (timerDisplay) {
-                timerDisplay.textContent = timeString;
+                // Only update if we have valid time data
+                const halfText = currentMatchData.currentHalf === 1 ? '1 тайм' : '2 тайм';
+                timerDisplay.textContent = `${halfText}: ${timeString}`;
             }
             
             // Note: Widget only reads from Firebase, doesn't write
