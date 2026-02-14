@@ -111,10 +111,15 @@
         }
 
         .half-indicator {
-            display: none;
+            display: inline;
+            font-size: 40px;
+            font-weight: bold;
+            color: #333;
+            margin-right: 5px;
         }
 
         .timer {
+            display: inline;
             font-size: 40px;
             font-weight: bold;
             color: #333;
@@ -157,6 +162,10 @@
                 height: 40px;
             }
 
+            .half-indicator {
+                font-size: 28px;
+            }
+
             .timer {
                 font-size: 28px;
             }
@@ -176,7 +185,6 @@
         // ========================================
         let matchId = null;
         let timerInterval = null;
-        let currentMatchData = null; // Store current match data for timer updates
 
         // Get match ID from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -214,9 +222,6 @@
                 return;
             }
 
-            // Store match data globally for timer updates
-            currentMatchData = matchData;
-
             // Set CSS variables for team colors
             const team1ColorLight = lightenColor(matchData.team1Color || '#08399A', 10);
             const team2ColorLight = lightenColor(matchData.team2Color || '#4A90E2', 10);
@@ -251,7 +256,7 @@
             if (matchData.status === 'playing') {
                 if (!timerInterval) {
                     timerInterval = setInterval(function() {
-                        updateTimer(); // No parameter - uses global currentMatchData
+                        updateTimer(matchData);
                     }, 100);
                 }
             } else {
@@ -282,7 +287,10 @@
                 return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
             } else if (status === 'playing') {
                 const halfText = matchData.currentHalf === 1 ? '1 тайм' : '2 тайм';
-                return `<div class="timer" id="timerDisplay">${halfText}: ${matchData.time || '00:00:00'}</div>`;
+                return `
+                    <div class="half-indicator">${halfText}:</div>
+                    <div class="timer" id="timerDisplay">${matchData.time || '00:00:00'}</div>
+                `;
             }
             
             return '<div class="timer">00:00:00</div>';
@@ -295,16 +303,10 @@
             return matchData.status || 'waiting';
         }
 
-        function updateTimer() {
-            if (!currentMatchData) return;
-            if (currentMatchData.status !== 'playing') return;
-            if (!currentMatchData.startTime) return; // Don't calculate if startTime not set yet
+        function updateTimer(matchData) {
+            if (matchData.status !== 'playing') return;
 
-            const elapsed = Date.now() - currentMatchData.startTime;
-            
-            // Prevent negative values
-            if (elapsed < 0) return;
-            
+            const elapsed = Date.now() - matchData.startTime;
             const seconds = Math.floor(elapsed / 1000);
             const minutes = Math.floor(seconds / 60);
             const hours = Math.floor(minutes / 60);
@@ -317,9 +319,7 @@
 
             const timerDisplay = document.getElementById('timerDisplay');
             if (timerDisplay) {
-                // Only update if we have valid time data
-                const halfText = currentMatchData.currentHalf === 1 ? '1 тайм' : '2 тайм';
-                timerDisplay.textContent = `${halfText}: ${timeString}`;
+                timerDisplay.textContent = timeString;
             }
             
             // Note: Widget only reads from Firebase, doesn't write
