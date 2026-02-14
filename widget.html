@@ -111,15 +111,13 @@
         }
 
         .half-indicator {
-            display: inline;
-            font-size: 40px;
+            font-size: 18px;
             font-weight: bold;
-            color: #333;
-            margin-right: 5px;
+            color: #667eea;
+            margin-bottom: 5px;
         }
 
         .timer {
-            display: inline;
             font-size: 40px;
             font-weight: bold;
             color: #333;
@@ -162,12 +160,12 @@
                 height: 40px;
             }
 
-            .half-indicator {
+            .timer {
                 font-size: 28px;
             }
 
-            .timer {
-                font-size: 28px;
+            .half-indicator {
+                font-size: 16px;
             }
         }
     </style>
@@ -286,9 +284,9 @@
             } else if (status === 'half2_ended') {
                 return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
             } else if (status === 'playing') {
-                const halfText = matchData.currentHalf === 1 ? '1 ТАЙМ' : '2 ТАЙМ';
+                const halfText = matchData.currentHalf === 1 ? '1 тайм' : '2 тайм';
                 return `
-                    <div class="half-indicator">${halfText}:</div>
+                    <div class="half-indicator">${halfText}</div>
                     <div class="timer" id="timerDisplay">${matchData.time || '00:00:00'}</div>
                 `;
             }
