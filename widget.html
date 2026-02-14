@@ -304,11 +304,9 @@
             } else if (status === 'playing') {
                 const halfText = matchData.currentHalf === 1 ? '1 ТАЙМ' : '2 ТАЙМ';
                 return `
-                    <div class="timer-card">
                         <span class="half-indicator">${halfText}:</span>
                         <span class="timer" id="timerDisplay">${matchData.time || '00:00:00'}</span>
-                    </div>
-                `;
+                    `;
             }
             
             return '<div class="timer">00:00:00</div>';
