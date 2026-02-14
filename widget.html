@@ -286,7 +286,7 @@
             } else if (status === 'half2_ended') {
                 return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
             } else if (status === 'playing') {
-                const halfText = matchData.currentHalf === 1 ? '1 тайм' : '2 тайм';
+                const halfText = matchData.currentHalf === 1 ? '1 ТАЙМ' : '2 ТАЙМ';
                 return `
                     <div class="half-indicator">${halfText}:</div>
                     <div class="timer" id="timerDisplay">${matchData.time || '00:00:00'}</div>
