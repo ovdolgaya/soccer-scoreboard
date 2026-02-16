@@ -566,8 +566,8 @@ function generateThumbnail() {
         canvas.width = 1280;
         canvas.height = 720;
         
-        // Background - more solid (90% opacity)
-        ctx.fillStyle = 'rgba(59, 131, 246, 0.6)';
+        // Background - more solid (70% opacity)
+        ctx.fillStyle = 'rgba(59, 131, 246, 0.7)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Load and draw logos FIRST (background layer)
