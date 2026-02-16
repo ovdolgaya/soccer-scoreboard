@@ -878,6 +878,11 @@
             <div id="loginLoading" style="color: #666; margin-top: 10px; display: none;">
                 Вход...
             </div>
+
+            <div style="margin-top: 30px; padding: 15px; background: #e3f2fd; border-radius: 5px;">
+                <strong>Первый запуск?</strong><br>
+                <small>Создайте аккаунт в Firebase Console (см. FIREBASE_SETUP.md)</small>
+            </div>
         </div>
 
         <!-- Match Dashboard -->
@@ -922,6 +927,17 @@
                 <label for="matchDateTime">Дата и время матча:</label>
                 <input type="datetime-local" id="matchDateTime" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%;">
                 <small style="color: #666;">Оставьте пустым для немедленного начала</small>
+            </div>
+
+            <div class="form-group">
+                <label for="championshipTitle">Название чемпионата:</label>
+                <div class="team-quick-select">
+                    <select id="championshipSelect" onchange="loadChampionshipTitle()">
+                        <option value="">-- Выбрать из сохраненных --</option>
+                    </select>
+                    <button type="button" class="button secondary" onclick="saveChampionshipTitle()">💾 Сохранить</button>
+                </div>
+                <input type="text" id="championshipTitle" placeholder="Введите название чемпионата">
             </div>
 
             <div class="form-group">
@@ -1010,6 +1026,15 @@
                 <small>Вставьте этот URL как Browser Source в OBS или Web Overlay в Larix/Prism</small>
             </div>
 
+            <!-- Thumbnail Generator -->
+            <div class="thumbnail-generator" id="thumbnailSection" style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 2px solid #e2e8f0;">
+                <strong style="font-size: 16px; color: #1e293b;">🖼️ Заставка для трансляции:</strong>
+                <p style="color: #64748b; font-size: 14px; margin: 10px 0;">Создайте изображение для превью матча на YouTube</p>
+                <button class="button" onclick="generateThumbnail()" style="width: 100%;">
+                    <i class="fas fa-download"></i> Скачать заставку
+                </button>
+            </div>
+
             <div class="time-controls" id="timeControlsSection">
                 <h3>Управление временем</h3>
                 <div class="time-buttons">
@@ -1075,5 +1100,7 @@
             </div>
         </div>
     </div>
+    <!-- Hidden canvas for thumbnail generation -->
+    <canvas id="thumbnailCanvas" style="display: none;"></canvas>
 </body>
 </html>

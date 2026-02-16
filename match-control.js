@@ -8,6 +8,7 @@ function startMatch() {
     const team1Color = document.getElementById('team1Color').value;
     const team2Color = document.getElementById('team2Color').value;
     const matchDateTime = document.getElementById('matchDateTime').value;
+    const championshipTitle = document.getElementById('championshipTitle').value.trim();
 
     if (!team1Name || !team2Name) {
         alert('Пожалуйста, введите названия обеих команд');
@@ -56,6 +57,7 @@ function startMatch() {
         startTime: 0,
         scheduledTime: scheduledTime,
         matchDate: matchDate,
+        championshipTitle: championshipTitle || '',
         createdBy: currentUser.uid,
         createdByEmail: currentUser.email || '',
         createdAt: Date.now(),
@@ -484,3 +486,242 @@ function updateMatchDate() {
     });
 }
 
+// ========================================
+// CHAMPIONSHIP MANAGEMENT
+// ========================================
+
+function saveChampionshipTitle() {
+    const title = document.getElementById('championshipTitle').value.trim();
+    
+    if (!title) {
+        alert('Введите название чемпионата');
+        return;
+    }
+    
+    const championshipId = 'champ_' + Date.now();
+    const championshipData = {
+        title: title,
+        createdAt: Date.now()
+    };
+    
+    database.ref('championships/' + championshipId).set(championshipData)
+        .then(function() {
+            showToast('✓ Чемпионат сохранен!');
+            loadChampionships();
+        })
+        .catch(function(error) {
+            alert('Ошибка сохранения: ' + error.message);
+        });
+}
+
+function loadChampionships() {
+    database.ref('championships').once('value').then(function(snapshot) {
+        const select = document.getElementById('championshipSelect');
+        select.innerHTML = '<option value="">-- Выбрать из сохраненных --</option>';
+        
+        snapshot.forEach(function(childSnapshot) {
+            const championship = childSnapshot.val();
+            const option = document.createElement('option');
+            option.value = childSnapshot.key;
+            option.textContent = championship.title;
+            select.appendChild(option);
+        });
+    });
+}
+
+function loadChampionshipTitle() {
+    const select = document.getElementById('championshipSelect');
+    const championshipId = select.value;
+    
+    if (!championshipId) {
+        document.getElementById('championshipTitle').value = '';
+        return;
+    }
+    
+    database.ref('championships/' + championshipId).once('value').then(function(snapshot) {
+        const championship = snapshot.val();
+        if (championship) {
+            document.getElementById('championshipTitle').value = championship.title;
+        }
+    });
+}
+
+// ========================================
+// THUMBNAIL GENERATOR
+// ========================================
+
+function generateThumbnail() {
+    if (!matchId) return;
+    
+    // Get current match data
+    database.ref('matches/' + matchId).once('value').then(function(snapshot) {
+        const match = snapshot.val();
+        if (!match) return;
+        
+        // Create canvas
+        const canvas = document.getElementById('thumbnailCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size (YouTube thumbnail: 1280x720)
+        canvas.width = 1280;
+        canvas.height = 720;
+        
+        // Background - more solid (90% opacity)
+        ctx.fillStyle = 'rgba(240, 240, 240, 0.95)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Load and draw logos FIRST (background layer)
+        let logosLoaded = 0;
+        const totalLogos = (match.team1Logo ? 1 : 0) + (match.team2Logo ? 1 : 0);
+        
+        function checkComplete() {
+            logosLoaded++;
+            if (logosLoaded >= totalLogos || totalLogos === 0) {
+                // After logos loaded, draw all text on top
+                drawAllText();
+            }
+        }
+        
+        function drawAllText() {
+            // Championship title at top
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 52px Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(match.championshipTitle || 'ФУТБОЛ', canvas.width / 2, 100);
+            
+            // VS text in center
+            ctx.font = 'bold 100px Arial, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText('VS', canvas.width / 2, canvas.height / 2 + 30);
+            
+            // Team 1 name (left side, below logo)
+            ctx.font = 'bold 48px Arial, sans-serif';
+            ctx.fillStyle = match.team1Color || '#08399A';
+            ctx.textAlign = 'center';
+            ctx.fillText(match.team1Name, canvas.width / 2 - 350, canvas.height / 2 + 150);
+            
+            // Team 2 name (right side, below logo)
+            ctx.fillStyle = match.team2Color || '#4A90E2';
+            ctx.textAlign = 'center';
+            ctx.fillText(match.team2Name, canvas.width / 2 + 350, canvas.height / 2 + 150);
+            
+            // Date and time at bottom
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 44px Arial, sans-serif';
+            ctx.textAlign = 'center';
+            
+            let dateTimeText = '';
+            if (match.scheduledTime) {
+                const date = new Date(match.scheduledTime);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                dateTimeText = `${day}.${month}.${year} в ${hours}:${minutes}`;
+            } else if (match.matchDate) {
+                const parts = match.matchDate.split('-');
+                dateTimeText = `${parts[2]}.${parts[1]}.${parts[0]}`;
+            }
+            
+            if (dateTimeText) {
+                ctx.fillText(dateTimeText, canvas.width / 2, canvas.height - 70);
+            }
+            
+            // Now download
+            downloadThumbnail();
+        }
+        
+        function downloadThumbnail() {
+            // Convert to image and download
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `match-thumbnail-${match.team1Name}-vs-${match.team2Name}.png`;
+                link.click();
+                URL.revokeObjectURL(url);
+                showToast('✓ Заставка скачана!');
+            });
+        }
+        
+        // Draw team logos if available (background layer)
+        if (match.team1Logo) {
+            const img1 = new Image();
+            img1.onload = function() {
+                // Calculate proportional size (max 180px)
+                const maxSize = 180;
+                let width = img1.width;
+                let height = img1.height;
+                
+                // Scale to fit within maxSize while maintaining aspect ratio
+                if (width > height) {
+                    // Landscape: fit by width
+                    if (width > maxSize) {
+                        height = (height * maxSize) / width;
+                        width = maxSize;
+                    }
+                } else {
+                    // Portrait or square: fit by height
+                    if (height > maxSize) {
+                        width = (width * maxSize) / height;
+                        height = maxSize;
+                    }
+                }
+                
+                // Draw logo on left side (centered)
+                const x = canvas.width / 2 - 350 - width / 2;
+                const y = canvas.height / 2 - 80 + (maxSize - height) / 2;
+                ctx.drawImage(img1, x, y, width, height);
+                checkComplete();
+            };
+            img1.onerror = checkComplete;
+            img1.src = match.team1Logo;
+        }
+        
+        if (match.team2Logo) {
+            const img2 = new Image();
+            img2.onload = function() {
+                // Calculate proportional size (max 180px)
+                const maxSize = 180;
+                let width = img2.width;
+                let height = img2.height;
+                
+                // Scale to fit within maxSize while maintaining aspect ratio
+                if (width > height) {
+                    // Landscape: fit by width
+                    if (width > maxSize) {
+                        height = (height * maxSize) / width;
+                        width = maxSize;
+                    }
+                } else {
+                    // Portrait or square: fit by height
+                    if (height > maxSize) {
+                        width = (width * maxSize) / height;
+                        height = maxSize;
+                    }
+                }
+                
+                // Draw logo on right side (centered)
+                const x = canvas.width / 2 + 350 - width / 2;
+                const y = canvas.height / 2 - 80 + (maxSize - height) / 2;
+                ctx.drawImage(img2, x, y, width, height);
+                checkComplete();
+            };
+            img2.onerror = checkComplete;
+            img2.src = match.team2Logo;
+        }
+        
+        if (totalLogos === 0) {
+            // No logos, just draw text
+            drawAllText();
+        }
+    });
+}
+
+// Load championships on page load
+if (typeof window !== 'undefined') {
+    window.addEventListener('load', function() {
+        loadChampionships();
+    });
+}
