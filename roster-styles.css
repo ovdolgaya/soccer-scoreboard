@@ -1,0 +1,861 @@
+/* roster-styles.css - Player Roster Management Styles */
+/* Version 1.0 - Separated from inline styles */
+
+/* ============================================
+   ROSTER LAYOUT
+   ============================================ */
+
+.roster-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.roster-header {
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.roster-header h1 {
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 28px;
+    color: white;
+}
+
+.roster-header p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 15px;
+}
+
+/* ============================================
+   BACK BUTTON
+   ============================================ */
+
+.back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: white;
+    color: #3b82f6;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    margin-bottom: 2rem;
+}
+
+.back-button:hover {
+    background: #f1f5f9;
+    transform: translateX(-4px);
+}
+
+/* ============================================
+   TEAM SELECTOR
+   ============================================ */
+
+.team-selector {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.team-selector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.team-selector-header h2 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.team-selector-header .button {
+    margin: 0;
+}
+
+.team-settings-content {
+    margin-top: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.team-settings-content.hidden {
+    display: none;
+}
+
+.team-selector h2 {
+    margin: 0 0 1.5rem 0;
+    color: #1e293b;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.team-selector-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.team-selector-row > div {
+    flex: 1;
+    min-width: 250px;
+}
+
+.team-selector-row .button {
+    height: 44px;
+    white-space: nowrap;
+    margin: 0;
+}
+
+/* ============================================
+   CURRENT TEAM DISPLAY
+   ============================================ */
+
+.current-team-display {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 8px;
+    margin-top: 1.5rem;
+    border: 2px solid #e2e8f0;
+}
+
+.current-team-logo {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.current-team-info {
+    flex: 1;
+}
+
+.current-team-info h3 {
+    margin: 0 0 0.5rem 0;
+    color: #1e293b;
+    font-size: 22px;
+}
+
+.current-team-info p {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+/* ============================================
+   NO TEAM SELECTED STATE
+   ============================================ */
+
+.no-team-selected {
+    text-align: center;
+    padding: 3rem;
+    color: #94a3b8;
+}
+
+.no-team-selected i {
+    font-size: 48px;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* ============================================
+   COACH INLINE DISPLAY (matches team display)
+   ============================================ */
+
+.coach-info-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    margin-top: 1rem;
+    border: 2px solid #e2e8f0;
+}
+
+.coach-photo-inline {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid #e2e8f0;
+    background: white;
+    flex-shrink: 0;
+}
+
+.coach-info-inline {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.coach-name-inline {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.coach-label {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.coach-info-display .button {
+    margin: 0;
+    white-space: nowrap;
+}
+
+.edit-coach-form {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 2rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    border: 2px solid #e2e8f0;
+}
+
+.edit-coach-form.hidden {
+    display: none;
+}
+
+.edit-coach-form .form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.edit-coach-form .form-header h3 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.edit-coach-form .form-header .button {
+    margin: 0;
+}
+
+/* ============================================
+   GOALKEEPER CHECKBOX
+   ============================================ */
+
+.goalkeeper-checkbox-group {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: #f0f9ff;
+    border: 2px solid #bfdbfe;
+    border-radius: 8px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-text {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #1e40af;
+    font-size: 16px;
+}
+
+.checkbox-text i {
+    font-size: 18px;
+}
+
+/* ============================================
+   POSITION BADGE
+   ============================================ */
+
+.player-position-cell {
+    width: 100px;
+}
+
+.position-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.position-badge.goalkeeper {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.position-badge.field-player {
+    background: #f0fdf4;
+    color: #166534;
+}
+
+/* ============================================
+   PLAYERS SECTION
+   ============================================ */
+
+.players-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.players-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.players-header h2 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.players-header-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.players-header .button,
+.players-header-actions .button {
+    margin: 0;
+}
+
+.players-count {
+    background: #3b82f6;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* ============================================
+   PLAYERS TABLE
+   ============================================ */
+
+.players-table-wrapper {
+    overflow-x: auto;
+    margin-bottom: 2rem;
+}
+
+.players-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.players-table thead {
+    background: #f8fafc;
+}
+
+.players-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.players-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: middle;
+}
+
+.players-table tbody tr {
+    transition: background 0.2s;
+}
+
+.players-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.player-photo-cell {
+    width: 70px;
+}
+
+.player-photo {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid #e2e8f0;
+    background: white;
+}
+
+.player-number-cell {
+    width: 80px;
+}
+
+.player-number {
+    font-size: 24px;
+    font-weight: 700;
+    color: #3b82f6;
+}
+
+.player-name {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.player-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.player-actions .button {
+    padding: 0.5rem 1rem;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #94a3b8;
+}
+
+.empty-state i {
+    font-size: 64px;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+.empty-state h3 {
+    margin: 0 0 0.5rem 0;
+    color: #64748b;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* ============================================
+   ADD/EDIT PLAYER FORM
+   ============================================ */
+
+.add-player-form {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 2rem;
+    border-radius: 12px;
+    margin-top: 2rem;
+    border: 2px dashed #cbd5e1;
+    transition: all 0.3s;
+}
+
+.add-player-form.hidden {
+    display: none;
+}
+
+.add-player-form.active {
+    border-color: #3b82f6;
+    border-style: solid;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.form-header h3 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-header .button {
+    margin: 0;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.form-group input[type="number"],
+.form-group input[type="text"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 15px;
+    transition: all 0.2s;
+    background: white;
+}
+
+.form-group input:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ============================================
+   PHOTO UPLOAD
+   ============================================ */
+
+.photo-upload-group {
+    grid-column: 1 / -1;
+}
+
+.photo-upload-container {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+.photo-preview-wrapper {
+    flex-shrink: 0;
+}
+
+.photo-preview {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #e2e8f0;
+    background: white;
+}
+
+.photo-upload-info {
+    flex: 1;
+}
+
+.photo-upload-info p {
+    margin: 0 0 1rem 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.file-input-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.file-input-wrapper input[type="file"] {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+.file-input-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    color: #475569;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-input-button:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+/* ============================================
+   FORM ACTIONS
+   ============================================ */
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.form-actions .button {
+    margin: 0;
+}
+
+/* ============================================
+   SUCCESS BUTTON STYLE
+   ============================================ */
+
+.button.success {
+    background: #10b981;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.button.success:hover {
+    background: #059669;
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+/* ============================================
+   BADGE ICONS SECTION
+   ============================================ */
+
+.badge-icons-section {
+    background: #f8fafc;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    border: 2px solid #e2e8f0;
+}
+
+.badge-icons-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.badge-icons-section .section-header h3 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge-icons-display {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    justify-content: center;
+}
+
+.badge-icon-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge-icon-preview {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    background: white;
+}
+
+.badge-icon-item span {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.edit-badge-form {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.edit-badge-form.hidden {
+    display: none;
+}
+
+.badge-upload-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.badge-upload-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+}
+
+.badge-preview {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    background: #f8fafc;
+}
+
+.badge-upload-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+    .roster-container {
+        padding: 1rem;
+    }
+
+    .roster-header {
+        padding: 1.5rem;
+    }
+
+    .roster-header h1 {
+        font-size: 22px;
+    }
+
+    .team-selector,
+    .players-section {
+        padding: 1.5rem;
+    }
+
+    .team-selector-row {
+        flex-direction: column;
+    }
+
+    .team-selector-row > div {
+        width: 100%;
+    }
+
+    .current-team-display,
+    .coach-info-display {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .coach-info-inline {
+        flex-wrap: wrap;
+    }
+
+    .coach-info-display .button {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+
+    .players-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .players-table th,
+    .players-table td {
+        padding: 0.75rem 0.5rem;
+        font-size: 14px;
+    }
+
+    .player-number {
+        font-size: 20px;
+    }
+
+    .player-photo {
+        width: 40px;
+        height: 40px;
+    }
+
+    .coach-photo-inline {
+        width: 40px;
+        height: 40px;
+    }
+
+    .position-badge {
+        font-size: 11px;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .photo-upload-container {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .button {
+        width: 100%;
+    }
+}

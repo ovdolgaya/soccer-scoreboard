@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Состав команды - Soccer Scoreboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="roster-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="roster-container">
+        <!-- Back Button -->
+        <a href="index.html" class="back-button">
+            <i class="fas fa-arrow-left"></i>
+            Назад к списку матчей
+        </a>
+
+        <!-- Header -->
+        <div class="roster-header">
+            <h1>
+                <i class="fas fa-users"></i>
+                Состав команды
+            </h1>
+            <p>Управление игроками вашей команды</p>
+        </div>
+
+        <!-- Team Selector -->
+        <div class="team-selector">
+            <div class="team-selector-header">
+                <h2>
+                    <i class="fas fa-shield-alt"></i>
+                    Настройки команды
+                </h2>
+                <button onclick="toggleTeamSettings()" class="button secondary" id="toggleTeamSettingsBtn">
+                    <i class="fas fa-chevron-down"></i>
+                    Развернуть
+                </button>
+            </div>
+
+            <!-- Collapsible Team Settings Content -->
+            <div id="teamSettingsContent" class="team-settings-content hidden">
+                <div class="team-selector-row">
+                    <div>
+                        <label for="defaultTeamSelect">Выберите команду по умолчанию:</label>
+                        <select id="defaultTeamSelect" class="form-control">
+                            <option value="">Загрузка команд...</option>
+                        </select>
+                    </div>
+                    <button onclick="saveDefaultTeam()" class="button">
+                        <i class="fas fa-save"></i>
+                        Сохранить
+                    </button>
+                </div>
+
+                <!-- Coach Info (inline with team) -->
+                <div id="coachInfoDisplay" class="coach-info-display" style="display: none;">
+                    <img id="currentCoachPhoto" src="" alt="Coach Photo" class="coach-photo-inline">
+                    <div class="coach-info-inline">
+                        <div id="currentCoachName" class="coach-name-inline">Не указан</div>
+                        <div class="coach-label">Тренер</div>
+                    </div>
+                    <button onclick="toggleCoachForm()" class="button secondary" id="editCoachBtn">
+                        <i class="fas fa-edit"></i>
+                        Редактировать
+                    </button>
+                </div>
+
+                <!-- Edit Coach Form (collapsible) -->
+                <div id="editCoachForm" class="edit-coach-form hidden">
+                    <div class="form-header">
+                        <h3>
+                            <i class="fas fa-user-tie"></i>
+                            Редактировать тренера
+                        </h3>
+                        <button onclick="cancelEditCoach()" class="button secondary">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="form-grid" style="grid-template-columns: 1fr;">
+                        <div class="form-group">
+                            <label for="coachName">Имя тренера</label>
+                            <input type="text" id="coachName" placeholder="Введите имя тренера">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Фото тренера</label>
+                        <div class="photo-upload-container">
+                            <div class="photo-preview-wrapper">
+                                <img id="coachPhotoPreview" src="" alt="Preview" class="photo-preview">
+                            </div>
+                            <div class="photo-upload-info">
+                                <p>По умолчанию используется логотип команды. Загрузите фото тренера для персонализации.</p>
+                                <div class="file-input-wrapper">
+                                    <input type="file" id="coachPhotoInput" accept="image/*" onchange="previewCoachPhoto(event)">
+                                    <div class="file-input-button">
+                                        <i class="fas fa-upload"></i>
+                                        Выбрать фото
+                                    </div>
+                                </div>
+                                <button onclick="clearCoachPhoto()" class="button secondary" style="margin-left: 1rem;">
+                                    <i class="fas fa-times"></i>
+                                    Очистить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button onclick="cancelEditCoach()" class="button secondary">
+                            <i class="fas fa-times"></i>
+                            Отмена
+                        </button>
+                        <button onclick="saveCoach()" class="button">
+                            <i class="fas fa-save"></i>
+                            Сохранить
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Team Badge Icons Section -->
+            <div id="badgeIconsSection" class="badge-icons-section" style="display: none;">
+                <div class="section-header">
+                    <h3>
+                        <i class="fas fa-icons"></i>
+                        Иконки значков
+                    </h3>
+                    <button onclick="toggleBadgeIconsForm()" class="button secondary" id="editBadgeIconsBtn">
+                        <i class="fas fa-edit"></i>
+                        Редактировать
+                    </button>
+                </div>
+
+                <!-- Badge Icons Display -->
+                <div id="badgeIconsDisplay" class="badge-icons-display">
+                    <div class="badge-icon-item">
+                        <img id="currentGoalkeeperBadge" src="goalkeeper.png" alt="Goalkeeper Badge" class="badge-icon-preview">
+                        <span>Вратарь</span>
+                    </div>
+                    <div class="badge-icon-item">
+                        <img id="currentFieldPlayerBadge" src="soccer-player.png" alt="Field Player Badge" class="badge-icon-preview">
+                        <span>Полевой игрок</span>
+                    </div>
+                </div>
+
+                <!-- Edit Badge Icons Form (collapsible) -->
+                <div id="editBadgeIconsForm" class="edit-badge-form hidden">
+                    <div class="form-header">
+                        <h3>
+                            <i class="fas fa-icons"></i>
+                            Редактировать иконки
+                        </h3>
+                        <button onclick="cancelEditBadgeIcons()" class="button secondary">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="badge-upload-grid">
+                        <!-- Goalkeeper Badge -->
+                        <div class="form-group">
+                            <label>Иконка вратаря</label>
+                            <div class="badge-upload-item">
+                                <img id="goalkeeperBadgePreview" src="goalkeeper.png" alt="Preview" class="badge-preview">
+                                <div class="badge-upload-controls">
+                                    <div class="file-input-wrapper">
+                                        <input type="file" id="goalkeeperBadgeInput" accept="image/*" onchange="previewGoalkeeperBadge(event)">
+                                        <div class="file-input-button">
+                                            <i class="fas fa-upload"></i>
+                                            Загрузить
+                                        </div>
+                                    </div>
+                                    <button onclick="clearGoalkeeperBadge()" class="button secondary" style="margin-top: 0.5rem;">
+                                        <i class="fas fa-times"></i>
+                                        Сбросить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Field Player Badge -->
+                        <div class="form-group">
+                            <label>Иконка полевого игрока</label>
+                            <div class="badge-upload-item">
+                                <img id="fieldPlayerBadgePreview" src="soccer-player.png" alt="Preview" class="badge-preview">
+                                <div class="badge-upload-controls">
+                                    <div class="file-input-wrapper">
+                                        <input type="file" id="fieldPlayerBadgeInput" accept="image/*" onchange="previewFieldPlayerBadge(event)">
+                                        <div class="file-input-button">
+                                            <i class="fas fa-upload"></i>
+                                            Загрузить
+                                        </div>
+                                    </div>
+                                    <button onclick="clearFieldPlayerBadge()" class="button secondary" style="margin-top: 0.5rem;">
+                                        <i class="fas fa-times"></i>
+                                        Сбросить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button onclick="cancelEditBadgeIcons()" class="button secondary">
+                            <i class="fas fa-times"></i>
+                            Отмена
+                        </button>
+                        <button onclick="saveBadgeIcons()" class="button">
+                            <i class="fas fa-save"></i>
+                            Сохранить
+                        </button>
+                    </div>
+                </div>
+            </div>
+            </div><!-- End of teamSettingsContent -->
+
+            <!-- Current Team Display (always visible when team selected) -->
+            <div id="currentTeamDisplay" class="current-team-display" style="display: none;">
+                <img id="currentTeamLogo" src="" alt="Team Logo" class="current-team-logo">
+                <div class="current-team-info">
+                    <h3 id="currentTeamName">-</h3>
+                    <p>Текущая команда по умолчанию</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden canvas for thumbnail generation -->
+        <canvas id="rosterThumbnailCanvas" style="display: none;"></canvas>
+
+        <!-- Players Section -->
+        <div id="playersSection" class="players-section" style="display: none;">
+            <div class="players-header">
+                <h2>
+                    <i class="fas fa-users"></i>
+                    Игроки
+                    <span id="playersCount" class="players-count">0</span>
+                </h2>
+                <div class="players-header-actions">
+                    <button onclick="generateRosterThumbnail()" class="button" id="downloadRosterBtn">
+                        <i class="fas fa-download"></i>
+                        Скачать состав
+                    </button>
+                    <button onclick="toggleAddPlayerForm()" class="button success" id="addPlayerBtn">
+                        <i class="fas fa-plus"></i>
+                        Добавить игрока
+                    </button>
+                </div>
+            </div>
+
+            <!-- Players Table -->
+            <div class="players-table-wrapper">
+                <table class="players-table" id="playersTable">
+                    <thead>
+                        <tr>
+                            <th class="player-photo-cell">Фото</th>
+                            <th class="player-number-cell">Номер</th>
+                            <th>Имя</th>
+                            <th>Фамилия</th>
+                            <th class="player-position-cell">Позиция</th>
+                            <th style="text-align: right;">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="playersTableBody">
+                        <!-- Players will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state">
+                <i class="fas fa-users-slash"></i>
+                <h3>Игроков пока нет</h3>
+                <p>Нажмите "Добавить игрока" чтобы начать формировать состав команды</p>
+            </div>
+
+            <!-- Add Player Form -->
+            <div id="addPlayerForm" class="add-player-form hidden">
+                <div class="form-header">
+                    <h3>
+                        <i class="fas fa-user-plus"></i>
+                        <span id="formTitle">Добавить нового игрока</span>
+                    </h3>
+                    <button onclick="cancelAddPlayer()" class="button secondary">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="playerNumber">Номер игрока *</label>
+                        <input type="number" id="playerNumber" min="0" max="99" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="playerFirstName">Имя *</label>
+                        <input type="text" id="playerFirstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="playerLastName">Фамилия *</label>
+                        <input type="text" id="playerLastName" required>
+                    </div>
+                </div>
+
+                <!-- Goalkeeper Checkbox -->
+                <div class="form-group goalkeeper-checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="playerIsGoalkeeper">
+                        <span class="checkbox-text">
+                            <i class="fas fa-hand-paper"></i>
+                            Вратарь
+                        </span>
+                    </label>
+                </div>
+
+                <div class="form-group photo-upload-group">
+                    <label>Фото игрока</label>
+                    <div class="photo-upload-container">
+                        <div class="photo-preview-wrapper">
+                            <img id="playerPhotoPreview" src="" alt="Preview" class="photo-preview">
+                        </div>
+                        <div class="photo-upload-info">
+                            <p>По умолчанию используется логотип команды. Загрузите фото игрока для персонализации.</p>
+                            <div class="file-input-wrapper">
+                                <input type="file" id="playerPhotoInput" accept="image/*" onchange="previewPlayerPhoto(event)">
+                                <div class="file-input-button">
+                                    <i class="fas fa-upload"></i>
+                                    Выбрать фото
+                                </div>
+                            </div>
+                            <button onclick="clearPlayerPhoto()" class="button secondary" style="margin-left: 1rem;">
+                                <i class="fas fa-times"></i>
+                                Очистить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button onclick="cancelAddPlayer()" class="button secondary">
+                        <i class="fas fa-times"></i>
+                        Отмена
+                    </button>
+                    <button onclick="savePlayer()" class="button" id="savePlayerBtn">
+                        <i class="fas fa-save"></i>
+                        Сохранить игрока
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- No Team Selected State -->
+        <div id="noTeamState" class="team-selector no-team-selected">
+            <i class="fas fa-shield-alt"></i>
+            <h3>Команда не выбрана</h3>
+            <p>Выберите команду выше, чтобы управлять её составом</p>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+
+    <!-- Roster Management Script -->
+    <script src="roster.js"></script>
+</body>
+</html>

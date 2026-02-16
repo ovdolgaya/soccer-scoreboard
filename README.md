@@ -12,11 +12,13 @@ Professional soccer scoreboard system with Firebase real-time synchronization fo
 - **Match Metadata** - Track creation info and match start times
 - **Championship Management** - Save and reuse championship/tournament titles
 - **Team Management** - Save and reuse team data with logos and colors
+- **Team Roster Management** - Complete player roster system with photos and positions (NEW)
 - **Live Score Control** - Update scores in real-time during matches
 - **Timer Management** - Start/stop/track match time by halves
 - **Halftime Break Popup** - 5-minute countdown with quick actions
 - **Match Pagination** - Load matches in increments for better performance
 - **Thumbnail Generator** - One-click creation of YouTube-ready match thumbnails
+- **Roster Thumbnail Generator** - Professional team roster graphics (1280×720) (NEW)
 - **Mobile Friendly** - Full control from phone or tablet
 
 ### 📺 Stream Widget
@@ -88,10 +90,24 @@ Professional soccer scoreboard system with Firebase real-time synchronization fo
       ".read": "auth != null",
       ".write": "auth != null",
       "$teamId": {
-        ".read": true
+        ".read": true,
+        ".indexOn": ["teamId"]
       }
     },
     "championships": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "players": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["teamId"]
+    },
+    "coaches": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "settings": {
       ".read": "auth != null",
       ".write": "auth != null"
     }
@@ -168,8 +184,11 @@ const firebaseConfig = {
 ```
 soccer-scoreboard/
 ├── index.html                    # Main control panel (275 lines - HTML only)
-├── styles.css                    # Application styles (827 lines - NEW)
+├── styles.css                    # Application styles (827 lines)
 ├── widget.html                   # Stream overlay widget
+├── roster.html                   # Team roster management page (NEW)
+├── roster.js                     # Roster logic & thumbnail generator (NEW)
+├── roster-styles.css             # Roster page styles (NEW)
 ├── firebase-config.js            # Firebase config for control panel
 ├── firebase-config-widget.js     # Firebase config for widget (read-only)
 ├── auth.js                       # Authentication & navigation logic
@@ -183,8 +202,11 @@ soccer-scoreboard/
 ### Code Architecture
 
 **Modular Design:**
-- **index.html** (275 lines) - HTML structure only (75% smaller!)
-- **styles.css** (827 lines) - All CSS styles (NEW - separated from HTML)
+- **index.html** (275 lines) - HTML structure only
+- **styles.css** (827 lines) - All CSS styles
+- **roster.html** - Team roster management interface (NEW)
+- **roster.js** - Player management, coach config, badge icons, roster thumbnail generation (NEW)
+- **roster-styles.css** - Roster page styling (NEW)
 - **auth.js** (178 lines) - Authentication, navigation, cleanup
 - **match-management.js** (464 lines) - Dashboard, real-time listeners, UI rendering, pagination
 - **match-control.js** (728 lines) - Match operations, championships, thumbnail generator
@@ -252,6 +274,87 @@ URL: https://your-site.com/soccer-scoreboard/
 
 **Save Teams:**
 1. When creating match, fill in team data
+2. Click "💾 Сохранить команду" to save for future use
+3. Team appears in dropdown for next matches
+4. Includes: name, logo, and colors
+
+**Reuse Saved Teams:**
+1. Click team dropdown (Team 1 or Team 2)
+2. Select team from list
+3. All data populates automatically
+4. Edit if needed for this specific match
+
+### Team Roster Management
+
+**Access Roster Page:**
+```
+URL: https://your-site.com/soccer-scoreboard/roster.html
+```
+
+**Team Settings (Collapsible Section):**
+1. **Select Default Team**
+   - Choose team from dropdown
+   - Click "Сохранить" to set as default
+   - Team settings collapse after setup
+
+2. **Coach Configuration**
+   - Click "Редактировать" to edit coach
+   - Enter coach name
+   - Upload coach photo (optional - uses team logo by default)
+   - Click "Сохранить"
+
+3. **Badge Icons**
+   - Click "Редактировать" to edit badges
+   - Upload goalkeeper badge icon (recommended: 32×32px or 64×64px PNG)
+   - Upload field player badge icon (recommended: 28×28px or 56×56px PNG)
+   - Click "Сохранить"
+   - Badges appear next to player photos in roster thumbnail
+
+**Player Management:**
+1. **Add Player**
+   - Click "Добавить игрока" button
+   - Enter player number (0-99)
+   - Enter first and last name
+   - Check "Вратарь" if goalkeeper
+   - Upload player photo (optional - uses team logo by default)
+   - Click "Сохранить игрока"
+
+2. **Edit Player**
+   - Click "Редактировать" button on player row
+   - Update player information
+   - Click "Сохранить игрока"
+
+3. **Delete Player**
+   - Click "Удалить" button on player row
+   - Confirm deletion
+
+**Generate Roster Thumbnail:**
+1. Ensure team and players are configured
+2. Click "Скачать состав" button (next to Add Player)
+3. PNG image (1280×720) downloads automatically
+4. Perfect for YouTube, social media, or streaming graphics
+
+**Roster Thumbnail Features:**
+- Team logo in top-left corner
+- Coach photo and name (centered)
+- Goalkeepers row (up to 3, with goalkeeper badge)
+- Field players grid (5 per row, up to 15 total, with field player badge)
+- Player numbers and names
+- Badge icons positioned next to photos (always visible)
+- Professional blue gradient background
+
+**Best Practices:**
+- ✅ Use 32×32px or 64×64px PNG images for badge icons
+- ✅ Use PNG with transparency for team logo
+- ✅ Upload player photos for professional appearance
+- ✅ Keep player names concise for better display
+- ✅ Organize players by number before generating thumbnail
+
+**Badge Icon Tips:**
+- Simple, high-contrast designs work best
+- Solid shapes scale better than thin lines
+- Any color works - badges display next to photos, not overlaid
+- Free sources: Flaticon, Font Awesome, Icons8, Noun Project
 2. Click "💾 Сохранить" next to team name
 3. Team saved to library (accessible to all users)
 
@@ -579,6 +682,54 @@ You'd need Blaze (pay-as-you-go) plan if:
 ---
 
 ## 🔄 Updates & Changelog
+
+### Version 2.3 - Team Roster Management
+**Released:** February 17, 2026
+
+**New Features:**
+- ✅ **Team Roster Management Page** - Complete player roster system with dedicated interface
+- ✅ **Player Database** - Add, edit, and delete players with photos and positions
+- ✅ **Coach Configuration** - Assign coach to team with photo upload
+- ✅ **Customizable Badge Icons** - Upload goalkeeper and field player badges per team
+- ✅ **Roster Thumbnail Generator** - Create 1280x720 team roster graphics with automatic layout
+- ✅ **Goalkeeper/Field Player Distinction** - Separate player types with custom badges
+- ✅ **Collapsible Team Settings** - Clean UI with expandable configuration section
+
+**Roster Features:**
+- Default team selection for roster management
+- Player photos with fallback to team logo
+- Coach photo with fallback to team logo
+- Badge icons positioned next to photos (not overlaid)
+- Automatic player sorting by number
+- Up to 3 goalkeepers in dedicated row
+- Up to 15 field players in 5×3 grid
+- Professional blue gradient background
+- Team logo in header (team name hidden for cleaner look)
+- Centered coach display in header row
+
+**UI Improvements:**
+- ✅ Team settings section collapses after setup
+- ✅ Download roster button moved to players section
+- ✅ Badge icon management with preview
+- ✅ Photo upload for players and coach
+- ✅ Clean, professional interface design
+- ✅ Mobile-responsive layout
+
+**Technical Details:**
+- New `roster.html`, `roster.js`, `roster-styles.css` files
+- Firebase nodes: `players`, `coaches`, `settings`
+- Badge icons stored as base64 in team settings
+- Optimal badge sizes: 32×32px (goalkeepers), 28×28px (field players)
+- Canvas-based thumbnail generation (1280×720px)
+- CORS-compatible image loading
+
+**Database Changes:**
+- New `players` node with teamId indexing
+- New `coaches` node (one per team)
+- New `settings` node for default team
+- Added `goalkeeperBadge` and `fieldPlayerBadge` to teams
+
+---
 
 ### Version 2.2 - Championship & Thumbnail Features
 **Released:** February 16, 2026
