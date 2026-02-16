@@ -567,7 +567,7 @@ function generateThumbnail() {
         canvas.height = 720;
         
         // Background - more solid (90% opacity)
-        ctx.fillStyle = 'rgba(240, 240, 240, 0.95)';
+        ctx.fillStyle = 'rgba(59, 131, 246, 0.6)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Load and draw logos FIRST (background layer)
@@ -584,30 +584,30 @@ function generateThumbnail() {
         
         function drawAllText() {
             // Championship title at top
-            ctx.fillStyle = '#1e293b';
-            ctx.font = 'bold 52px Arial, sans-serif';
+            ctx.fillStyle = 'rgb(255, 255, 255)';
+            ctx.font = '52px Calibri, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(match.championshipTitle || 'ФУТБОЛ', canvas.width / 2, 100);
             
-            // VS text in center
-            ctx.font = 'bold 100px Arial, sans-serif';
-            ctx.fillStyle = '#64748b';
-            ctx.fillText('VS', canvas.width / 2, canvas.height / 2 + 30);
+            // VS text in center (smaller size)
+            ctx.font = 'bold 60px Calibri, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('VS', canvas.width / 2, canvas.height / 2 + 20);
             
-            // Team 1 name (left side, below logo)
-            ctx.font = 'bold 48px Arial, sans-serif';
-            ctx.fillStyle = match.team1Color || '#08399A';
+            // Team 1 name (left side, below logo) - same color for both teams
+            ctx.font = 'bold 48px Calibri, sans-serif';
+            ctx.fillStyle = '#ffffff';  // Dark gray - same for both teams
             ctx.textAlign = 'center';
             ctx.fillText(match.team1Name, canvas.width / 2 - 350, canvas.height / 2 + 150);
             
-            // Team 2 name (right side, below logo)
-            ctx.fillStyle = match.team2Color || '#4A90E2';
+            // Team 2 name (right side, below logo) - same color
+            ctx.fillStyle = '#ffffff';  // Dark gray - same for both teams
             ctx.textAlign = 'center';
             ctx.fillText(match.team2Name, canvas.width / 2 + 350, canvas.height / 2 + 150);
             
             // Date and time at bottom
-            ctx.fillStyle = '#1e293b';
-            ctx.font = 'bold 44px Arial, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '44px Calibri, sans-serif';
             ctx.textAlign = 'center';
             
             let dateTimeText = '';
@@ -649,8 +649,19 @@ function generateThumbnail() {
         if (match.team1Logo) {
             const img1 = new Image();
             img1.onload = function() {
-                // Calculate proportional size (max 180px)
-                const maxSize = 180;
+                // Draw white rounded square background
+                const squareSize = 200;
+                const squareX = canvas.width / 2 - 350 - squareSize / 2;
+                const squareY = canvas.height / 2 - 100;
+                const cornerRadius = 15;
+                
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.roundRect(squareX, squareY, squareSize, squareSize, cornerRadius);
+                ctx.fill();
+                
+                // Calculate proportional size (max 160px to fit in square with padding)
+                const maxSize = 160;
                 let width = img1.width;
                 let height = img1.height;
                 
@@ -669,9 +680,9 @@ function generateThumbnail() {
                     }
                 }
                 
-                // Draw logo on left side (centered)
-                const x = canvas.width / 2 - 350 - width / 2;
-                const y = canvas.height / 2 - 80 + (maxSize - height) / 2;
+                // Draw logo centered in the white square
+                const x = squareX + (squareSize - width) / 2;
+                const y = squareY + (squareSize - height) / 2;
                 ctx.drawImage(img1, x, y, width, height);
                 checkComplete();
             };
@@ -682,8 +693,19 @@ function generateThumbnail() {
         if (match.team2Logo) {
             const img2 = new Image();
             img2.onload = function() {
-                // Calculate proportional size (max 180px)
-                const maxSize = 180;
+                // Draw white rounded square background
+                const squareSize = 200;
+                const squareX = canvas.width / 2 + 350 - squareSize / 2;
+                const squareY = canvas.height / 2 - 100;
+                const cornerRadius = 15;
+                
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.roundRect(squareX, squareY, squareSize, squareSize, cornerRadius);
+                ctx.fill();
+                
+                // Calculate proportional size (max 160px to fit in square with padding)
+                const maxSize = 160;
                 let width = img2.width;
                 let height = img2.height;
                 
@@ -702,9 +724,9 @@ function generateThumbnail() {
                     }
                 }
                 
-                // Draw logo on right side (centered)
-                const x = canvas.width / 2 + 350 - width / 2;
-                const y = canvas.height / 2 - 80 + (maxSize - height) / 2;
+                // Draw logo centered in the white square
+                const x = squareX + (squareSize - width) / 2;
+                const y = squareY + (squareSize - height) / 2;
                 ctx.drawImage(img2, x, y, width, height);
                 checkComplete();
             };
