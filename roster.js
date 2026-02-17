@@ -485,7 +485,15 @@ function savePlayer() {
         updatedAt: Date.now()
     };
 
-    // Handle photo upload
+    // If editing, preserve existing photo unless a new one is uploaded
+    if (editingPlayerId) {
+        const existingPlayerData = allPlayers.find(p => p.id === editingPlayerId);
+        if (existingPlayerData && existingPlayerData.photo) {
+            playerData.photo = existingPlayerData.photo; // Keep existing photo
+        }
+    }
+
+    // Handle photo upload (will override existing photo if new one is selected)
     if (photoInput.files.length > 0) {
         const file = photoInput.files[0];
         const reader = new FileReader();
@@ -503,7 +511,7 @@ function savePlayer() {
         
         reader.readAsDataURL(file);
     } else {
-        // No photo uploaded, save without photo
+        // No new photo uploaded, save with existing photo (if editing) or without photo (if new)
         savePlayerToFirebase(playerData, saveBtn);
     }
 }
