@@ -872,11 +872,14 @@
     }
 
     .player-card-badge.goalkeeper {
-        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            background: #dbeafe;
+            color: #1e40af;
     }
 
+
     .player-card-badge.field-player {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            background: #f0fdf4;
+            color: #166534;
     }
 
     .player-card-content {
