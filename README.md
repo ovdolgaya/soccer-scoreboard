@@ -309,10 +309,12 @@ URL: https://your-site.com/soccer-scoreboard/roster.html
    - Upload field player badge icon (recommended: 28×28px or 56×56px PNG)
    - Click "Сохранить"
    - Badges appear next to player photos in roster thumbnail
+   - If no badges uploaded, placeholder icon shows (no errors)
 
 **Player Management:**
 1. **Add Player**
    - Click "Добавить игрока" button
+   - Opens modal form (mobile-friendly!)
    - Enter player number (0-99)
    - Enter first and last name
    - Check "Вратарь" if goalkeeper
@@ -320,24 +322,69 @@ URL: https://your-site.com/soccer-scoreboard/roster.html
    - Click "Сохранить игрока"
 
 2. **Edit Player**
-   - Click "Редактировать" button on player row
+   - Click "Редактировать" button on player row/card
+   - Opens modal with player information
    - Update player information
    - Click "Сохранить игрока"
 
-3. **Delete Player**
-   - Click "Удалить" button on player row
+3. **Quick Absence Toggle**
+   - Click green checkmark (✓) to mark player absent
+   - Click red X (✗) to mark player present
+   - No need to open player profile
+   - Instant Firebase update
+   - **Absent players excluded from roster thumbnail**
+
+4. **Delete Player**
+   - Click "Удалить" button on player row/card
    - Confirm deletion
 
-**Generate Roster Thumbnail:**
-1. Ensure team and players are configured
+**Player List Views:**
+- **Desktop:** Table layout with all columns
+- **Mobile:** Card layout optimized for touch
+  - Photo on left
+  - Number and name
+  - Position badge icon in top-right corner (goalkeeper/field player)
+  - Quick action buttons (status, edit, delete)
+
+**Generate Game-Day Roster:**
+1. Mark absent players using quick toggle (red X)
 2. Click "Скачать состав" button (next to Add Player)
 3. PNG image (1280×720) downloads automatically
-4. Perfect for YouTube, social media, or streaming graphics
+4. **Only present players appear in thumbnail**
+5. Perfect for YouTube, social media, or streaming graphics
 
 **Roster Thumbnail Features:**
 - Team logo in top-left corner
-- Coach photo and name (centered)
-- Goalkeepers row (up to 3, with goalkeeper badge)
+- Coach photo and name (centered, same row as logo)
+- Goalkeepers row (up to 3, with goalkeeper badge if uploaded)
+- Field players grid (5 per row, up to 15 total, with field player badge if uploaded)
+- Player numbers and names
+- Badge icons positioned next to photos (not overlaid - always visible)
+- Professional blue gradient background
+- Automatically excludes absent players
+
+**Mobile Features:**
+- Modal forms for add/edit (full-screen, easy to use)
+- Card-based player list (touch-friendly)
+- Large tap targets (48px minimum)
+- Icon-only buttons to save space
+- Position badges as icons in corner
+- Smooth animations and transitions
+
+**Best Practices:**
+- ✅ Use 32×32px or 64×64px PNG images for badge icons
+- ✅ Use PNG with transparency for team logo
+- ✅ Upload player photos for professional appearance
+- ✅ Keep player names concise for better display
+- ✅ Mark absent players before generating game-day roster
+- ✅ Generate new roster for each match with current availability
+
+**Badge Icon Tips:**
+- Simple, high-contrast designs work best
+- Solid shapes scale better than thin lines
+- Any color works - badges display next to photos, not overlaid
+- Free sources: Flaticon, Font Awesome, Icons8, Noun Project
+- No default files needed - placeholders show until you upload
 - Field players grid (5 per row, up to 15 total, with field player badge)
 - Player numbers and names
 - Badge icons positioned next to photos (always visible)
@@ -694,18 +741,43 @@ You'd need Blaze (pay-as-you-go) plan if:
 - ✅ **Roster Thumbnail Generator** - Create 1280x720 team roster graphics with automatic layout
 - ✅ **Goalkeeper/Field Player Distinction** - Separate player types with custom badges
 - ✅ **Collapsible Team Settings** - Clean UI with expandable configuration section
+- ✅ **Quick Absence Toggle** - Mark players present/absent with one click (NEW)
+- ✅ **Modal Forms** - Mobile-friendly full-screen forms for add/edit players (NEW)
+- ✅ **Mobile Card Layout** - Touch-optimized card view for player list (NEW)
+- ✅ **Game-Day Roster Generation** - Excludes absent players from thumbnail (NEW)
 
 **Roster Features:**
 - Default team selection for roster management
 - Player photos with fallback to team logo
 - Coach photo with fallback to team logo
-- Badge icons positioned next to photos (not overlaid)
+- Badge icons positioned next to photos (not overlaid - always visible)
 - Automatic player sorting by number
 - Up to 3 goalkeepers in dedicated row
 - Up to 15 field players in 5×3 grid
 - Professional blue gradient background
 - Team logo in header (team name hidden for cleaner look)
 - Centered coach display in header row
+- Absent players automatically excluded from roster thumbnail
+
+**Absence Management:**
+- ✅ Quick toggle buttons for present/absent status
+- ✅ Green checkmark (✓) = Present
+- ✅ Red X (✗) = Absent
+- ✅ Instant Firebase update
+- ✅ No need to open player profile
+- ✅ Perfect for managing game-day availability (injuries, sick, unavailable)
+- ✅ Roster thumbnails only show present players
+
+**Mobile Optimizations:**
+- ✅ Modal forms with backdrop for add/edit operations
+- ✅ Smooth animations and transitions
+- ✅ Card-based player list (hidden on desktop)
+- ✅ Table layout preserved for desktop (>768px)
+- ✅ Large tap targets (48px minimum)
+- ✅ Icon-only buttons to save space
+- ✅ Position badge icons in top-right corner of cards
+- ✅ Touch-friendly layout: Photo left, number/name, badge top-right
+- ✅ Responsive design switches automatically at 768px
 
 **UI Improvements:**
 - ✅ Team settings section collapses after setup
@@ -713,7 +785,9 @@ You'd need Blaze (pay-as-you-go) plan if:
 - ✅ Badge icon management with preview
 - ✅ Photo upload for players and coach
 - ✅ Clean, professional interface design
-- ✅ Mobile-responsive layout
+- ✅ Mobile-responsive layout with cards
+- ✅ Modal forms prevent background scrolling
+- ✅ Desktop table + mobile cards (CSS-controlled visibility)
 
 **Technical Details:**
 - New `roster.html`, `roster.js`, `roster-styles.css` files
@@ -722,12 +796,20 @@ You'd need Blaze (pay-as-you-go) plan if:
 - Optimal badge sizes: 32×32px (goalkeepers), 28×28px (field players)
 - Canvas-based thumbnail generation (1280×720px)
 - CORS-compatible image loading
+- Placeholder badges when not uploaded (no file errors)
+- Modal system with backdrop and smooth animations
+- Dual render system (table + cards) with CSS media query control
 
 **Database Changes:**
 - New `players` node with teamId indexing
 - New `coaches` node (one per team)
 - New `settings` node for default team
 - Added `goalkeeperBadge` and `fieldPlayerBadge` to teams
+- Added `isAbsent` boolean field to players node
+
+**Updated Firebase Rules:**
+- Added validation for `isAbsent` field in players
+- See `firebase-rules-updated.json` for complete rules
 
 ---
 

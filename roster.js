@@ -229,6 +229,11 @@ function displayPlayers() {
     if (allPlayers.length === 0) {
         tableWrapper.style.display = 'none';
         emptyState.style.display = 'block';
+        // Hide cards container if it exists
+        const cardsContainer = document.getElementById('playersCards');
+        if (cardsContainer) {
+            cardsContainer.innerHTML = '';
+        }
         return;
     }
 
@@ -236,7 +241,19 @@ function displayPlayers() {
     emptyState.style.display = 'none';
     tbody.innerHTML = '';
 
+    // Create or get cards container for mobile
+    let cardsContainer = document.getElementById('playersCards');
+    if (!cardsContainer) {
+        cardsContainer = document.createElement('div');
+        cardsContainer.id = 'playersCards';
+        cardsContainer.className = 'players-cards';
+        tableWrapper.parentNode.insertBefore(cardsContainer, tableWrapper);
+    }
+    cardsContainer.innerHTML = '';
+    // Don't set display style - let CSS handle it based on screen size
+
     allPlayers.forEach(player => {
+        // ===== RENDER TABLE ROW (Desktop) =====
         const row = document.createElement('tr');
         
         // Photo
@@ -285,6 +302,22 @@ function displayPlayers() {
         }
         row.appendChild(positionTd);
 
+        // Status (Present/Absent toggle)
+        const statusTd = document.createElement('td');
+        statusTd.className = 'player-status-cell';
+        const isAbsent = player.isAbsent || false;
+        const statusClass = isAbsent ? 'absent' : 'present';
+        const statusIcon = isAbsent ? 'fa-times' : 'fa-check';
+        const statusTitle = isAbsent ? 'Отсутствует' : 'Присутствует';
+        statusTd.innerHTML = `
+            <button class="status-toggle ${statusClass}" 
+                    onclick="togglePlayerStatus('${player.id}')" 
+                    title="${statusTitle}">
+                <i class="fas ${statusIcon}"></i>
+            </button>
+        `;
+        row.appendChild(statusTd);
+
         // Actions
         const actionsTd = document.createElement('td');
         actionsTd.innerHTML = `
@@ -300,6 +333,49 @@ function displayPlayers() {
         row.appendChild(actionsTd);
 
         tbody.appendChild(row);
+
+        // ===== RENDER MOBILE CARD =====
+        const card = document.createElement('div');
+        card.className = 'player-card';
+
+        // Position badge icon (just icon, no text)
+        const positionIcon = player.isGoalkeeper ? 
+            '<i class="fas fa-hand-paper"></i>' : 
+            '<i class="fas fa-running"></i>';
+        const positionClass = player.isGoalkeeper ? 'goalkeeper' : 'field-player';
+
+        card.innerHTML = `
+            <div class="player-card-badge ${positionClass}">
+                ${positionIcon}
+            </div>
+            
+            <div class="player-card-content">
+                <img src="${player.photo || currentDefaultTeamData.logo}" 
+                     alt="${player.firstName} ${player.lastName}" 
+                     class="player-card-photo">
+                
+                <div class="player-card-info">
+                    <div class="player-card-number">#${player.number}</div>
+                    <div class="player-card-name">${player.firstName} ${player.lastName}</div>
+                </div>
+            </div>
+
+            <div class="player-card-actions">
+                <button class="status-toggle ${statusClass}" 
+                        onclick="togglePlayerStatus('${player.id}')" 
+                        title="${statusTitle}">
+                    <i class="fas ${statusIcon}"></i>
+                </button>
+                <button onclick="editPlayer('${player.id}')" class="button" title="Изменить">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button onclick="deletePlayer('${player.id}')" class="button danger" title="Удалить">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+
+        cardsContainer.appendChild(card);
     });
 }
 
@@ -308,25 +384,23 @@ function displayPlayers() {
 // ============================================
 
 function toggleAddPlayerForm() {
-    const form = document.getElementById('addPlayerForm');
-    const isHidden = form.classList.contains('hidden');
+    const modal = document.getElementById('playerModal');
+    const isHidden = modal.classList.contains('hidden');
     
     if (isHidden) {
         resetPlayerForm();
-        form.classList.remove('hidden');
-        form.classList.add('active');
         document.getElementById('formTitle').textContent = 'Добавить нового игрока';
-        document.getElementById('addPlayerBtn').innerHTML = '<i class="fas fa-times"></i> Отмена';
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
     } else {
         cancelAddPlayer();
     }
 }
 
 function cancelAddPlayer() {
-    const form = document.getElementById('addPlayerForm');
-    form.classList.add('hidden');
-    form.classList.remove('active');
-    document.getElementById('addPlayerBtn').innerHTML = '<i class="fas fa-plus"></i> Добавить игрока';
+    const modal = document.getElementById('playerModal');
+    modal.classList.add('hidden');
+    document.body.style.overflow = ''; // Restore scrolling
     resetPlayerForm();
 }
 
@@ -489,15 +563,11 @@ function editPlayer(playerId) {
         updatePhotoPreview();
     }
 
-    // Show form
-    const form = document.getElementById('addPlayerForm');
-    form.classList.remove('hidden');
-    form.classList.add('active');
+    // Show modal
+    const modal = document.getElementById('playerModal');
     document.getElementById('formTitle').textContent = 'Редактировать игрока';
-    document.getElementById('addPlayerBtn').innerHTML = '<i class="fas fa-times"></i> Отмена';
-
-    // Scroll to form
-    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
 }
 
 // ============================================
@@ -530,6 +600,27 @@ function deletePlayer(playerId) {
         .catch((error) => {
             console.error('Error deleting player:', error);
             alert('Ошибка при удалении игрока: ' + error.message);
+        });
+}
+
+function togglePlayerStatus(playerId) {
+    const player = allPlayers.find(p => p.id === playerId);
+    if (!player) {
+        return;
+    }
+
+    const newStatus = !(player.isAbsent || false);
+    
+    firebase.database().ref('players/' + playerId).update({
+        isAbsent: newStatus
+    })
+        .then(() => {
+            console.log('Player status updated:', playerId, newStatus);
+            loadPlayers(); // Reload to update UI
+        })
+        .catch((error) => {
+            console.error('Error updating player status:', error);
+            alert('Ошибка при обновлении статуса: ' + error.message);
         });
 }
 
@@ -694,14 +785,17 @@ function saveCoachToFirebase(coachData) {
 // ============================================
 
 function loadBadgeIcons() {
-    // Display current badge icons
-    const goalkeeperBadge = currentDefaultTeamData.goalkeeperBadge || 'goalkeeper.png';
-    const fieldPlayerBadge = currentDefaultTeamData.fieldPlayerBadge || 'soccer-player.png';
+    // Display current badge icons or placeholder
+    const goalkeeperBadge = currentDefaultTeamData.goalkeeperBadge || '';
+    const fieldPlayerBadge = currentDefaultTeamData.fieldPlayerBadge || '';
     
-    document.getElementById('currentGoalkeeperBadge').src = goalkeeperBadge;
-    document.getElementById('currentFieldPlayerBadge').src = fieldPlayerBadge;
-    document.getElementById('goalkeeperBadgePreview').src = goalkeeperBadge;
-    document.getElementById('fieldPlayerBadgePreview').src = fieldPlayerBadge;
+    // Use data URI placeholder for empty badges
+    const placeholderBadge = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"%3E%3Crect width="64" height="64" fill="%23e2e8f0"/%3E%3Ctext x="32" y="32" text-anchor="middle" dominant-baseline="middle" font-size="30" fill="%2394a3b8"%3E%3F%3C/text%3E%3C/svg%3E';
+    
+    document.getElementById('currentGoalkeeperBadge').src = goalkeeperBadge || placeholderBadge;
+    document.getElementById('currentFieldPlayerBadge').src = fieldPlayerBadge || placeholderBadge;
+    document.getElementById('goalkeeperBadgePreview').src = goalkeeperBadge || placeholderBadge;
+    document.getElementById('fieldPlayerBadgePreview').src = fieldPlayerBadge || placeholderBadge;
 }
 
 function toggleBadgeIconsForm() {
@@ -857,9 +951,9 @@ function generateRosterThumbnail() {
     canvas.width = 1280;
     canvas.height = 720;
     
-    // Separate goalkeepers and field players
-    const goalkeepers = allPlayers.filter(p => p.isGoalkeeper);
-    const fieldPlayers = allPlayers.filter(p => !p.isGoalkeeper);
+    // Separate goalkeepers and field players, excluding absent players
+    const goalkeepers = allPlayers.filter(p => p.isGoalkeeper && !p.isAbsent);
+    const fieldPlayers = allPlayers.filter(p => !p.isGoalkeeper && !p.isAbsent);
     
     // Prepare image loading array
     const imagesToLoad = [];
@@ -871,19 +965,24 @@ function generateRosterThumbnail() {
         src: currentDefaultTeamData.logo
     });
     
-    // Add badge icons from team settings (with fallback defaults)
+    // Add badge icons from team settings (only if configured)
     // These can be configured in team settings to customize the badges
-    const goalkeeperBadge = currentDefaultTeamData.goalkeeperBadge || 'goalkeeper.png';
-    const fieldPlayerBadge = currentDefaultTeamData.fieldPlayerBadge || 'soccer-player.png';
+    const goalkeeperBadge = currentDefaultTeamData.goalkeeperBadge;
+    const fieldPlayerBadge = currentDefaultTeamData.fieldPlayerBadge;
     
-    imagesToLoad.push({
-        key: 'goalkeeperBadge',
-        src: goalkeeperBadge
-    });
-    imagesToLoad.push({
-        key: 'fieldPlayerBadge',
-        src: fieldPlayerBadge
-    });
+    if (goalkeeperBadge) {
+        imagesToLoad.push({
+            key: 'goalkeeperBadge',
+            src: goalkeeperBadge
+        });
+    }
+    
+    if (fieldPlayerBadge) {
+        imagesToLoad.push({
+            key: 'fieldPlayerBadge',
+            src: fieldPlayerBadge
+        });
+    }
     
     // Add coach photo if exists
     if (currentCoachData && currentCoachData.name) {

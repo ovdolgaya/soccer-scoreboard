@@ -258,6 +258,7 @@
                             <th>Имя</th>
                             <th>Фамилия</th>
                             <th class="player-position-cell">Позиция</th>
+                            <th class="player-status-cell">Статус</th>
                             <th style="text-align: right;">Действия</th>
                         </tr>
                     </thead>
@@ -273,19 +274,31 @@
                 <h3>Игроков пока нет</h3>
                 <p>Нажмите "Добавить игрока" чтобы начать формировать состав команды</p>
             </div>
+        </div>
 
-            <!-- Add Player Form -->
-            <div id="addPlayerForm" class="add-player-form hidden">
-                <div class="form-header">
-                    <h3>
-                        <i class="fas fa-user-plus"></i>
-                        <span id="formTitle">Добавить нового игрока</span>
-                    </h3>
-                    <button onclick="cancelAddPlayer()" class="button secondary">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
+        <!-- No Team Selected State -->
+        <div id="noTeamState" class="team-selector no-team-selected">
+            <i class="fas fa-shield-alt"></i>
+            <h3>Команда не выбрана</h3>
+            <p>Выберите команду выше, чтобы управлять её составом</p>
+        </div>
+    </div>
 
+    <!-- Player Form Modal -->
+    <div id="playerModal" class="modal hidden">
+        <div class="modal-backdrop" onclick="cancelAddPlayer()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>
+                    <i class="fas fa-user-plus"></i>
+                    <span id="formTitle">Добавить нового игрока</span>
+                </h3>
+                <button onclick="cancelAddPlayer()" class="button-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="playerNumber">Номер игрока *</label>
@@ -327,32 +340,25 @@
                                     Выбрать фото
                                 </div>
                             </div>
-                            <button onclick="clearPlayerPhoto()" class="button secondary" style="margin-left: 1rem;">
+                            <button onclick="clearPlayerPhoto()" class="button secondary" style="margin-top: 0.5rem;">
                                 <i class="fas fa-times"></i>
                                 Очистить
                             </button>
                         </div>
                     </div>
                 </div>
-
-                <div class="form-actions">
-                    <button onclick="cancelAddPlayer()" class="button secondary">
-                        <i class="fas fa-times"></i>
-                        Отмена
-                    </button>
-                    <button onclick="savePlayer()" class="button" id="savePlayerBtn">
-                        <i class="fas fa-save"></i>
-                        Сохранить игрока
-                    </button>
-                </div>
             </div>
-        </div>
 
-        <!-- No Team Selected State -->
-        <div id="noTeamState" class="team-selector no-team-selected">
-            <i class="fas fa-shield-alt"></i>
-            <h3>Команда не выбрана</h3>
-            <p>Выберите команду выше, чтобы управлять её составом</p>
+            <div class="modal-footer">
+                <button onclick="cancelAddPlayer()" class="button secondary">
+                    <i class="fas fa-times"></i>
+                    Отмена
+                </button>
+                <button onclick="savePlayer()" class="button" id="savePlayerBtn">
+                    <i class="fas fa-save"></i>
+                    Сохранить игрока
+                </button>
+            </div>
         </div>
     </div>
 
