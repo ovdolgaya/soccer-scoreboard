@@ -215,15 +215,20 @@ function openMatch(matchIdToOpen) {
             
             // Show championship editor only for ended matches
             const championshipEditSection = document.getElementById('championshipEditSection');
-            if (isEnded) {
-                championshipEditSection.style.display = 'block';
-                loadChampionshipsForMatch(match.championshipTitle);
-            } else {
-                championshipEditSection.style.display = 'none';
+            if (championshipEditSection) {
+                if (isEnded) {
+                    championshipEditSection.style.display = 'block';
+                    loadChampionshipsForMatch(match.championshipTitle);
+                } else {
+                    championshipEditSection.style.display = 'none';
+                }
             }
             
-            // Hide widget URL section for ended matches (consolidated in resources)
-            document.getElementById('timeControlsSection').style.display = isEnded ? 'none' : 'block';
+            // Hide time controls for ended matches
+            const timeControlsSection = document.getElementById('timeControlsSection');
+            if (timeControlsSection) {
+                timeControlsSection.style.display = isEnded ? 'none' : 'block';
+            }
 
             // Update button states based on match status
             updateButtonStates(match);
