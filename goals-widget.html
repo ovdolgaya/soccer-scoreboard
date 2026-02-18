@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статистика голов</title>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config-widget.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: transparent;
+            font-family: Arial, sans-serif;
+            width: 1280px;
+            height: 720px;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-start;
+            padding: 20px;
+        }
+
+        /* ── Outer wrapper — same blue as thumbnails ── */
+        .goals-widget {
+            width: 100%;
+            height: 680px;
+            border-radius: 18px;
+            overflow: hidden;
+            background: rgba(59, 131, 246, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .widget-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .team-logo-header {
+            width: 52px; height: 52px;
+            object-fit: contain;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9);
+            padding: 5px;
+            flex-shrink: 0;
+        }
+
+        .header-title { flex: 1; }
+
+        .header-team-name {
+            font-size: 18px; font-weight: 600; color: #fff;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            line-height: 1.1;
+        }
+
+        .header-sub {
+            font-size: 12px; color: rgba(255,255,255,0.8);
+            text-transform: uppercase; letter-spacing: 0.1em; margin-top: 3px;
+        }
+
+        .header-score-badge {
+            display: flex; align-items: center; gap: 4px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 12px; padding: 8px 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        .header-score-num {
+            font-size: 34px; font-weight: 900;
+            color: var(--team1-color, #08399A); line-height: 1;
+        }
+
+        .header-score-sep { font-size: 24px; color: #bbb; font-weight: 300; margin: 0 2px; }
+
+        .header-score-opp { font-size: 34px; font-weight: 900; color: #777; line-height: 1; }
+
+        /* ── Content area (fills remaining height) ── */
+        .content-area {
+            flex: 1;
+            overflow: hidden;
+            padding: 16px 20px 20px;
+        }
+
+        /* ════════════════════════════════════════
+           TABLE LAYOUT (≤ 11 goals)
+        ════════════════════════════════════════ */
+        .goals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        /* Half header row */
+        .half-header td {
+            padding: 7px 16px 5px;
+            font-size: 11px; font-weight: 800;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase; letter-spacing: 0.1em;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+        }
+
+        /* Goal row */
+        .goal-row {
+            animation: rowIn 0.3s ease both;
+        }
+
+        @keyframes rowIn {
+            from { opacity: 0; transform: translateX(-6px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        /* time cell */
+        .cell-time {
+            width: 72px;
+            padding: 10px 0 10px 16px;
+            font-size: 15px; font-weight: 700;
+            color: rgba(255,255,255,0.9);
+            font-family: monospace; letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+
+        /* number badge cell */
+        .cell-number {
+            width: 64px;
+            padding: 10px 12px;
+        }
+
+        .number-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.95);
+            color: var(--team1-color, #08399A);
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 14px; font-weight: 900;
+            min-width: 44px; text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .number-badge.own-goal-badge {
+            background: rgba(255,255,255,0.5);
+            color: rgba(255,255,255,0.9);
+        }
+
+        /* name cell */
+        .cell-name {
+            padding: 10px 16px 10px 4px;
+            font-size: 17px; font-weight: 700;
+            color: #fff;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        }
+
+        .cell-name .first-name {
+            font-size: 14px; font-weight: 400;
+            opacity: 0.8; margin-right: 6px;
+        }
+
+        .cell-ball {
+            width: 36px;
+            padding: 10px 16px 10px 0;
+            font-size: 18px;
+            text-align: right;
+            opacity: 0.75;
+        }
+
+        /* divider between rows */
+        .goal-row td {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* ════════════════════════════════════════
+           CARD LAYOUT (≥ 12 goals)
+        ════════════════════════════════════════ */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .player-card {
+            background: rgba(255,255,255,0.93);
+            border-radius: 14px;
+            height: 110px;
+            display: flex;
+            align-items: stretch;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.2);
+            border-left: 6px solid var(--team1-color, #08399A);
+            overflow: hidden;
+            animation: cardIn 0.35s ease both;
+        }
+
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .player-photo {
+            width: 110px; height: 110px;
+            object-fit: cover; flex-shrink: 0;
+        }
+
+        .player-avatar {
+            width: 110px; height: 110px;
+            background: linear-gradient(160deg, var(--team1-color, #08399A), var(--team1-color-light, #1e5fd4));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px; font-weight: 900; color: #fff; flex-shrink: 0;
+        }
+
+        .player-card.own-goal .player-avatar {
+            background: linear-gradient(160deg, #94a3b8, #64748b);
+        }
+
+        .player-info {
+            flex: 1;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 14px;
+            min-width: 0; overflow: hidden;
+            gap: 2px;
+        }
+
+        .player-number {
+            font-size: 15px; font-weight: 900;
+            color: var(--team1-color, #08399A);
+            letter-spacing: 0.04em; line-height: 1;
+        }
+
+        .player-firstname {
+            font-size: 14px; font-weight: 500; color: #475569;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            line-height: 1.2; margin-top: 4px;
+        }
+
+        .player-lastname {
+            font-size: 18px; font-weight: 800; color: #1e293b;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        /* Goal times — hidden; remove display:none to restore */
+        .player-times {
+            display: none;
+            font-size: 10px; color: #64748b; margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .goal-count {
+            flex-shrink: 0; width: 64px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            border-left: 1px solid rgba(0,0,0,0.07);
+            background: rgba(0,0,0,0.025);
+        }
+
+        .goal-count-number {
+            font-size: 36px; font-weight: 900;
+            color: var(--team1-color, #08399A); line-height: 1;
+        }
+
+        .goal-count-label {
+            font-size: 9px; font-weight: 700; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: 0.04em; margin-top: 3px;
+        }
+
+        .player-card.own-goal {
+            border-left-color: #94a3b8;
+        }
+        .player-card.own-goal .goal-count-number { color: #94a3b8; }
+
+        /* ── Empty state ── */
+        .no-goals {
+            color: rgba(255,255,255,0.75);
+            font-size: 16px; padding: 10px 4px; font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="goals-widget" id="goalsWidget">
+        <!-- Rendered by JS -->
+    </div>
+
+    <script>
+        // ─────────────────────────────────────
+        // CONFIG
+        // ─────────────────────────────────────
+        const urlParams = new URLSearchParams(window.location.search);
+        const matchId   = urlParams.get('match');
+
+        // Layout threshold: use table up to this many goals, cards above
+        const TABLE_MAX_GOALS = 10;
+
+        let matchData    = null;
+        let goalsData    = {};
+        let playersCache = {};
+        let lastStatus   = null;
+        let pollInterval = null;
+        let statusRef    = null;
+
+        const POLL_INTERVAL_MS = 30000;
+
+        // ─────────────────────────────────────
+        // COLOR HELPER
+        // ─────────────────────────────────────
+        function lightenColor(hex, percent) {
+            const num = parseInt((hex || '#08399A').replace('#',''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.min(255, (num >> 16) + amt);
+            const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+            const B = Math.min(255, (num & 0x0000FF) + amt);
+            return '#' + (0x1000000 + R*0x10000 + G*0x100 + B).toString(16).slice(1);
+        }
+
+        function setCssColors(color) {
+            document.documentElement.style.setProperty('--team1-color', color);
+            document.documentElement.style.setProperty('--team1-color-light', lightenColor(color, 20));
+        }
+
+        // ─────────────────────────────────────
+        // STOP ALL SYNC (match ended)
+        // After this, data only refreshes on page reload.
+        // ─────────────────────────────────────
+        function stopSync() {
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+            if (statusRef)    { statusRef.off(); statusRef = null; }
+            console.log('[goals-widget] Sync stopped — match ended. Reload to refresh.');
+        }
+
+        // ─────────────────────────────────────
+        // INIT
+        // ─────────────────────────────────────
+        if (!matchId) {
+            document.getElementById('goalsWidget').innerHTML =
+                '<div style="color:white;padding:20px;">Ошибка: не указан ID матча (?match=...)</div>';
+        } else {
+            fetchAll();
+            pollInterval = setInterval(fetchAll, POLL_INTERVAL_MS);
+
+            // Lightweight status watcher — only one field, not the whole collection.
+            // Triggers immediate re-fetch on half/match end, then kills sync on 'ended'.
+            statusRef = database.ref('matches/' + matchId + '/status');
+            statusRef.on('value', function(snap) {
+                const newStatus = snap.val();
+                if (newStatus !== lastStatus) {
+                    if (['half1_ended','half2_ended','ended'].indexOf(newStatus) !== -1) {
+                        fetchAll().then(function() {
+                            if (newStatus === 'ended') stopSync();
+                        });
+                    }
+                }
+                lastStatus = newStatus;
+            });
+        }
+
+        // ─────────────────────────────────────
+        // FETCH — match + goals + players
+        // ─────────────────────────────────────
+        function fetchAll() {
+            return Promise.all([
+                database.ref('matches/' + matchId).once('value'),
+                database.ref('goals').orderByChild('matchId').equalTo(matchId).once('value')
+            ]).then(function(results) {
+                matchData = results[0].val();
+                goalsData = {};
+                results[1].forEach(function(child) {
+                    goalsData[child.key] = child.val();
+                });
+                return loadMissingPlayers();
+            }).then(function() {
+                render();
+            }).catch(function(err) {
+                console.error('fetchAll error:', err);
+            });
+        }
+
+        // Fetch players not yet in cache (active or soft-deleted — we just need name/photo)
+        function loadMissingPlayers() {
+            const needed = [];
+            Object.values(goalsData).forEach(function(g) {
+                if (g.playerId && !playersCache[g.playerId]) needed.push(g.playerId);
+            });
+            if (!needed.length) return Promise.resolve();
+            return Promise.all(needed.map(function(pid) {
+                return database.ref('players/' + pid).once('value').then(function(snap) {
+                    if (snap.val()) playersCache[pid] = snap.val();
+                });
+            }));
+        }
+
+        // ─────────────────────────────────────
+        // AGGREGATE — goals list (table) and scorer summary (cards)
+        // ─────────────────────────────────────
+
+        // Returns flat sorted array of goal objects for the table view
+        function getGoalsList() {
+            return Object.values(goalsData).sort(function(a, b) {
+                if ((a.half||0) !== (b.half||0)) return (a.half||0) - (b.half||0);
+                return (a.matchTime||'').localeCompare(b.matchTime||'');
+            });
+        }
+
+        // Returns scorer summary array for the card view
+        function aggregateScorers() {
+            const scorers = {};
+            Object.values(goalsData).forEach(function(g) {
+                if (g.isOwnGoal) {
+                    scorers['og_' + g.timestamp] = { isOwnGoal:true, goals:1, times:[g.matchTime||''], halves:[g.half||0] };
+                    return;
+                }
+                const pid = g.playerId || 'unknown';
+                if (!scorers[pid]) scorers[pid] = { playerId:pid, isOwnGoal:false, goals:0, times:[], halves:[] };
+                scorers[pid].goals++;
+                scorers[pid].times.push(g.matchTime||'');
+                scorers[pid].halves.push(g.half||0);
+            });
+            return Object.values(scorers).sort(function(a,b) {
+                if (a.isOwnGoal && !b.isOwnGoal) return 1;
+                if (!a.isOwnGoal && b.isOwnGoal) return -1;
+                return b.goals - a.goals;
+            });
+        }
+
+        // ─────────────────────────────────────
+        // BUILD TABLE HTML
+        // ─────────────────────────────────────
+        function buildTable(goals) {
+            if (!goals.length) {
+                const preMatch = matchData && (matchData.status === 'waiting' || matchData.status === 'scheduled');
+                const msg = preMatch ? 'Матч ещё не начался' : 'Голов пока нет';
+                return '<div class="no-goals">' + msg + '</div>';
+            }
+
+            let html = '<table class="goals-table">';
+            let currentHalf = null;
+
+            goals.forEach(function(g, idx) {
+                // Half separator
+                if (g.half && g.half !== currentHalf) {
+                    currentHalf = g.half;
+                    const label = g.half === 1 ? '1-й тайм' : g.half === 2 ? '2-й тайм' : (g.half + '-й тайм');
+                    html += '<tr class="half-header"><td colspan="3">' + label + '</td></tr>';
+                }
+
+                const timeStr = g.matchTime || '—';
+
+                let badgeHtml, nameHtml;
+                if (g.isOwnGoal) {
+                    badgeHtml = '<span class="number-badge own-goal-badge">АГ</span>';
+                    nameHtml  = '<span>Автогол</span>';
+                } else {
+                    const p   = g.playerId ? (playersCache[g.playerId] || null) : null;
+                    const num = p ? p.number : (g.playerNumber || '?');
+                    const fn  = p ? (p.firstName || '') : '';
+                    const ln  = p ? (p.lastName  || '').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
+                    badgeHtml = '<span class="number-badge">#' + num + '</span>';
+                    nameHtml  = (fn ? '<span class="first-name">' + fn + '</span>' : '') + ln;
+                }
+
+                // Stagger animation delay
+                const delay = (idx * 0.05).toFixed(2) + 's';
+
+                html += '<tr class="goal-row" style="animation-delay:' + delay + '">' +
+                    '<td class="cell-time">' + timeStr + '</td>' +
+                    '<td class="cell-number">' + badgeHtml + '</td>' +
+                    '<td class="cell-name">' + nameHtml + '</td>' +
+                    '<td class="cell-ball">⚽</td>' +
+                '</tr>';
+            });
+
+            html += '</table>';
+            return html;
+        }
+
+        // ─────────────────────────────────────
+        // BUILD CARDS HTML
+        // ─────────────────────────────────────
+        function goalLabel(n) {
+            if (n === 1) return 'гол';
+            if (n >= 2 && n <= 4) return 'гола';
+            return 'голов';
+        }
+
+        function buildCards(scorers) {
+            if (!scorers.length) return '<div class="no-goals">Голов пока нет</div>';
+
+            return '<div class="cards-grid">' +
+                scorers.map(function(scorer) {
+                    if (scorer.isOwnGoal) {
+                        return '<div class="player-card own-goal">' +
+                            '<div class="player-avatar">⚽</div>' +
+                            '<div class="player-info">' +
+                                '<div class="player-number">АГ</div>' +
+                                '<div class="player-lastname">Автогол</div>' +
+                                // Times hidden — remove display:none from .player-times to restore
+                                '<div class="player-times"></div>' +
+                            '</div>' +
+                            '<div class="goal-count">' +
+                                '<div class="goal-count-number">' + scorer.goals + '</div>' +
+                                '<div class="goal-count-label">' + goalLabel(scorer.goals) + '</div>' +
+                            '</div>' +
+                        '</div>';
+                    }
+
+                    const p  = playersCache[scorer.playerId] || null;
+                    const num = p ? ('#' + p.number) : '?';
+                    const fn  = p ? (p.firstName || '') : '';
+                    const ln  = p ? (p.lastName  || '').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
+                    const photo = p ? (p.photo || '') : '';
+
+                    const photoHtml = photo
+                        ? '<img class="player-photo" src="' + photo + '" alt="' + ln + '" ' +
+                          'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">' +
+                          '<div class="player-avatar" style="display:none">' + num + '</div>'
+                        : '<div class="player-avatar">' + num + '</div>';
+
+                    // Times: remove display:none from .player-times and uncomment timesStr to restore
+                    // const timesStr = scorer.times.map((t,i) => { const h=scorer.halves[i]; return (h===1?'1т':h===2?'2т':'')+' '+t; }).filter(Boolean).join(' · ');
+
+                    return '<div class="player-card">' +
+                        photoHtml +
+                        '<div class="player-info">' +
+                            '<div class="player-number">' + num + '</div>' +
+                            (fn ? '<div class="player-firstname">' + fn + '</div>' : '') +
+                            '<div class="player-lastname">' + ln + '</div>' +
+                            '<div class="player-times"><!-- timesStr here --></div>' +
+                        '</div>' +
+                        '<div class="goal-count">' +
+                            '<div class="goal-count-number">' + scorer.goals + '</div>' +
+                            '<div class="goal-count-label">' + goalLabel(scorer.goals) + '</div>' +
+                        '</div>' +
+                    '</div>';
+                }).join('') +
+            '</div>';
+        }
+
+        // ─────────────────────────────────────
+        // RENDER
+        // ─────────────────────────────────────
+        function render() {
+            if (!matchData) return;
+
+            setCssColors(matchData.team1Color || '#08399A');
+
+            // ── Header ──
+            const logoHtml = matchData.team1Logo
+                ? '<img class="team-logo-header" src="' + matchData.team1Logo + '" alt="logo">'
+                : '';
+
+            const statusLabels = {
+                'waiting':     'Матч ещё не начался',
+                'scheduled':   'Матч ещё не начался',
+                'playing':     matchData.currentHalf === 1 ? '1-й тайм' : '2-й тайм',
+                'half1_ended': 'Перерыв',
+                'half2_ended': '2-й тайм окончен',
+                'ended':       'Матч окончен'
+            };
+            const halfLabel = statusLabels[matchData.status] || '';
+
+            const headerHtml =
+                '<div class="widget-header">' +
+                    logoHtml +
+                    '<div class="header-title">' +
+                        '<div class="header-team-name">' + (matchData.team1Name || '') + '</div>' +
+                        '<div class="header-sub">Статистика голов' +
+                            (halfLabel ? ' &nbsp;·&nbsp; ' + halfLabel : '') +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="header-score-badge">' +
+                        '<span class="header-score-num">' + (matchData.score1 || 0) + '</span>' +
+                        '<span class="header-score-sep">:</span>' +
+                        '<span class="header-score-opp">' + (matchData.score2 || 0) + '</span>' +
+                    '</div>' +
+                '</div>';
+
+            // ── Choose layout based on goal count ──
+            const goals   = getGoalsList();
+            const useTable = goals.length <= TABLE_MAX_GOALS;
+
+            const contentHtml = useTable
+                ? buildTable(goals)
+                : buildCards(aggregateScorers());
+
+            document.getElementById('goalsWidget').innerHTML =
+                headerHtml +
+                '<div class="content-area">' + contentHtml + '</div>';
+        }
+    </script>
+</body>
+</html>

@@ -230,6 +230,17 @@ function openMatch(matchIdToOpen) {
                 timeControlsSection.style.display = isEnded ? 'none' : 'block';
             }
 
+            // Show goals stats only for ended matches
+            const goalsStatsSection = document.getElementById('goalsStatsSection');
+            if (goalsStatsSection) {
+                if (isEnded) {
+                    goalsStatsSection.style.display = 'block';
+                    loadGoalsStats(matchId);
+                } else {
+                    goalsStatsSection.style.display = 'none';
+                }
+            }
+
             // Update button states based on match status
             updateButtonStates(match);
 
@@ -239,6 +250,8 @@ function openMatch(matchIdToOpen) {
 
             // Listen for changes
             listenToMatchChanges();
+            // Init goal tracking (loads default team + players)
+            if (typeof initGoalTracking === 'function') initGoalTracking();
         })
         .catch(function(error) {
             alert('Ошибка открытия матча: ' + error.message);
@@ -291,6 +304,127 @@ function updateButtonStates(match) {
         // Second half ended, show end match button
         document.getElementById('endMatchBtn').classList.remove('hidden');
     }
+}
+
+// ========================================
+// GOALS STATISTICS (ended matches only)
+// ========================================
+
+function loadGoalsStats(forMatchId) {
+    const body = document.getElementById('goalsStatsBody');
+    if (!body) return;
+
+    body.innerHTML = '<div style="padding:16px 20px; color:#94a3b8; font-size:14px;">Загрузка...</div>';
+
+    // Fetch goals for this match
+    database.ref('goals').orderByChild('matchId').equalTo(forMatchId).once('value')
+        .then(function(goalsSnap) {
+            const goals = [];
+            goalsSnap.forEach(function(child) {
+                const g = child.val();
+                g._key = child.key;
+                goals.push(g);
+            });
+
+            if (goals.length === 0) {
+                body.innerHTML = '<div style="padding:16px 20px; color:#94a3b8; font-size:14px; font-style:italic;">Голов не зафиксировано</div>';
+                return;
+            }
+
+            // Sort by half then by matchTime string (lexicographic works for MM:SS)
+            goals.sort(function(a, b) {
+                if ((a.half || 0) !== (b.half || 0)) return (a.half || 0) - (b.half || 0);
+                return (a.matchTime || '').localeCompare(b.matchTime || '');
+            });
+
+            // Collect unique playerIds we need to look up
+            const playerIds = [...new Set(
+                goals.filter(function(g) { return g.playerId; }).map(function(g) { return g.playerId; })
+            )];
+
+            // Fetch all players in parallel (works for soft-deleted too)
+            const playerFetches = playerIds.map(function(pid) {
+                return database.ref('players/' + pid).once('value').then(function(snap) {
+                    return { id: pid, data: snap.val() };
+                });
+            });
+
+            return Promise.all(playerFetches).then(function(playerResults) {
+                const players = {};
+                playerResults.forEach(function(r) {
+                    if (r.data) players[r.id] = r.data;
+                });
+                renderGoalsStats(goals, players, body);
+            });
+        })
+        .catch(function(err) {
+            console.error('loadGoalsStats error:', err);
+            body.innerHTML = '<div style="padding:16px 20px; color:#ef4444; font-size:14px;">Ошибка загрузки статистики</div>';
+        });
+}
+
+function renderGoalsStats(goals, players, container) {
+    let currentHalf = null;
+    let html = '';
+
+    goals.forEach(function(g) {
+        // Half separator
+        if (g.half && g.half !== currentHalf) {
+            currentHalf = g.half;
+            const halfLabel = g.half === 1 ? '1-й тайм' : g.half === 2 ? '2-й тайм' : (g.half + '-й тайм');
+            html += '<div style="padding:8px 20px 4px; font-size:11px; font-weight:700; color:#94a3b8; ' +
+                    'text-transform:uppercase; letter-spacing:0.08em; background:#f1f5f9; ' +
+                    'border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">' +
+                    halfLabel + '</div>';
+        }
+
+        const timeStr = g.matchTime || '—';
+
+        let playerNumber = '—';
+        let playerName   = '—';
+
+        if (g.isOwnGoal) {
+            playerNumber = 'АГ';
+            playerName   = 'Автогол';
+        } else if (g.playerId && players[g.playerId]) {
+            const p = players[g.playerId];
+            playerNumber = '#' + (p.number || '?');
+            const fn = p.firstName || '';
+            const ln = (p.lastName  || '').toUpperCase();
+            playerName = fn ? fn + ' ' + ln : ln;
+        } else {
+            playerNumber = g.playerNumber ? ('#' + g.playerNumber) : '?';
+            playerName   = 'Неизвестный игрок';
+        }
+
+        // Alternating row background
+        const rowBg = 'background: transparent;';
+
+        html += '<div style="display:flex; align-items:center; gap:0; padding:10px 20px; ' +
+                'border-bottom:1px solid #f1f5f9; ' + rowBg + '">' +
+
+                // Match time
+                '<div style="width:56px; flex-shrink:0; font-size:13px; font-weight:700; ' +
+                'color:#64748b; font-family:monospace;">' + timeStr + '</div>' +
+
+                // Divider
+                '<div style="width:1px; height:28px; background:#e2e8f0; margin-right:16px; flex-shrink:0;"></div>' +
+
+                // Player number badge
+                '<div style="flex-shrink:0; background:#08399A; color:#fff; border-radius:6px; ' +
+                'padding:3px 8px; font-size:12px; font-weight:800; margin-right:12px; ' +
+                'min-width:36px; text-align:center;">' + playerNumber + '</div>' +
+
+                // Player name
+                '<div style="flex:1; font-size:14px; font-weight:600; color:#1e293b;">' + playerName + '</div>' +
+
+                // Ball icon
+                '<div style="font-size:16px; flex-shrink:0;">⚽</div>' +
+
+                '</div>';
+    });
+
+    container.innerHTML = html;
 }
 
 function deleteMatch(matchIdToDelete) {
@@ -415,6 +549,33 @@ function copyWidgetUrl() {
         setTimeout(function() {
             copyMessage.style.display = 'none';
         }, 3000);
+    }
+}
+
+function copyStatsWidgetUrl() {
+    if (!matchId) {
+        alert('Матч не выбран');
+        return;
+    }
+
+    let basePath = window.location.pathname;
+    if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
+    if (basePath.endsWith('/index.html')) {
+        basePath = basePath.replace('/index.html', '');
+    } else if (basePath.endsWith('index.html')) {
+        basePath = basePath.replace('index.html', '');
+    }
+
+    const statsUrl = window.location.origin + basePath + '/goals-widget.html?match=' + matchId;
+
+    try {
+        navigator.clipboard.writeText(statsUrl).then(function() {
+            showToast('📊 Ссылка на статистику скопирована!');
+        }).catch(function() {
+            fallbackCopyTextToClipboard(statsUrl);
+        });
+    } catch (err) {
+        fallbackCopyTextToClipboard(statsUrl);
     }
 }
 

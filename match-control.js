@@ -86,9 +86,7 @@ function startMatch() {
                 basePath = basePath.replace('index.html', '');
             }
             
-            // Add widget.html
-            const widgetUrl = window.location.origin + basePath + '/widget.html?match=' + matchId;
-            document.getElementById('widgetUrl').value = widgetUrl;
+            // Widget URL is accessed via copyWidgetUrl() — no input field needed
 
             // Switch to control panel
             hideAllViews();
@@ -101,6 +99,8 @@ function startMatch() {
 
             // Listen for changes
             listenToMatchChanges();
+            // Init goal tracking
+            if (typeof initGoalTracking === 'function') initGoalTracking();
 
             // Clear form
             clearSetupForm();

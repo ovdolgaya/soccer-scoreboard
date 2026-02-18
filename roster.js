@@ -199,9 +199,12 @@ function loadPlayers() {
             allPlayers = [];
             
             snapshot.forEach((childSnapshot) => {
+                const data = childSnapshot.val();
+                // Skip soft-deleted players in UI
+                if (data.isDeleted) return;
                 allPlayers.push({
                     id: childSnapshot.key,
-                    ...childSnapshot.val()
+                    ...data
                 });
             });
 
@@ -599,10 +602,13 @@ function deletePlayer(playerId) {
         return;
     }
 
-    firebase.database().ref('players/' + playerId).remove()
+    firebase.database().ref('players/' + playerId).update({
+        isDeleted: true,
+        deletedAt: Date.now()
+    })
         .then(() => {
-            console.log('Player deleted:', playerId);
-            alert('Игрок удален');
+            console.log('Player soft-deleted:', playerId);
+            showToast('Игрок удалён');
             loadPlayers();
         })
         .catch((error) => {
