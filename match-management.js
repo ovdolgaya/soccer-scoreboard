@@ -212,29 +212,18 @@ function openMatch(matchIdToOpen) {
 
             // Show/hide sections based on match status
             const isEnded = match.status === 'ended';
-            document.getElementById('widgetUrlSection').style.display = isEnded ? 'none' : 'block';
-            document.getElementById('timeControlsSection').style.display = isEnded ? 'none' : 'block';
-
-            // Show widget URL (for non-ended matches)
-            if (!isEnded) {
-                let basePath = window.location.pathname;
-                
-                // Remove trailing slash if present
-                if (basePath.endsWith('/')) {
-                    basePath = basePath.slice(0, -1);
-                }
-                
-                // Remove index.html if present
-                if (basePath.endsWith('/index.html')) {
-                    basePath = basePath.replace('/index.html', '');
-                } else if (basePath.endsWith('index.html')) {
-                    basePath = basePath.replace('index.html', '');
-                }
-                
-                // Add widget.html
-                const widgetUrl = window.location.origin + basePath + '/widget.html?match=' + matchId;
-                document.getElementById('widgetUrl').value = widgetUrl;
+            
+            // Show championship editor only for ended matches
+            const championshipEditSection = document.getElementById('championshipEditSection');
+            if (isEnded) {
+                championshipEditSection.style.display = 'block';
+                loadChampionshipsForMatch(match.championshipTitle);
+            } else {
+                championshipEditSection.style.display = 'none';
             }
+            
+            // Hide widget URL section for ended matches (consolidated in resources)
+            document.getElementById('timeControlsSection').style.display = isEnded ? 'none' : 'block';
 
             // Update button states based on match status
             updateButtonStates(match);
@@ -380,22 +369,40 @@ function copyMatchId(matchIdToCopy) {
 }
 
 function copyWidgetUrl() {
-    const urlInput = document.getElementById('widgetUrl');
+    if (!matchId) {
+        alert('Матч не выбран');
+        return;
+    }
+    
+    // Generate widget URL
+    let basePath = window.location.pathname;
+    
+    // Remove trailing slash if present
+    if (basePath.endsWith('/')) {
+        basePath = basePath.slice(0, -1);
+    }
+    
+    // Remove index.html if present
+    if (basePath.endsWith('/index.html')) {
+        basePath = basePath.replace('/index.html', '');
+    } else if (basePath.endsWith('index.html')) {
+        basePath = basePath.replace('index.html', '');
+    }
+    
+    // Add widget.html
+    const widgetUrl = window.location.origin + basePath + '/widget.html?match=' + matchId;
+    
+    // Copy to clipboard
     const copyMessage = document.getElementById('copyMessage');
     
-    urlInput.select();
-    urlInput.setSelectionRange(0, 99999);
-    
     try {
-        navigator.clipboard.writeText(urlInput.value).then(function() {
+        navigator.clipboard.writeText(widgetUrl).then(function() {
             showCopyMessage();
         }).catch(function() {
-            document.execCommand('copy');
-            showCopyMessage();
+            fallbackCopyTextToClipboard(widgetUrl);
         });
     } catch (err) {
-        document.execCommand('copy');
-        showCopyMessage();
+        fallbackCopyTextToClipboard(widgetUrl);
     }
     
     function showCopyMessage() {
@@ -460,4 +467,41 @@ function showToast(message) {
             document.body.removeChild(toast);
         }, 300);
     }, 2000);
+}
+
+// ========================================
+// LOAD CHAMPIONSHIPS FOR MATCH EDIT
+// ========================================
+
+function loadChampionshipsForMatch(currentChampionship) {
+    const select = document.getElementById('matchChampionshipEdit');
+    select.innerHTML = '<option value="">-- Выберите чемпионат --</option>';
+    
+    database.ref('championships').once('value')
+        .then(function(snapshot) {
+            const championships = [];
+            snapshot.forEach(function(childSnapshot) {
+                championships.push(childSnapshot.val());
+            });
+            
+            // Sort by title
+            championships.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
+            
+            // Add options
+            championships.forEach(function(championship) {
+                const option = document.createElement('option');
+                option.value = championship.title;
+                option.textContent = championship.title;
+                
+                // Select current championship if it matches
+                if (championship.title === currentChampionship) {
+                    option.selected = true;
+                }
+                
+                select.appendChild(option);
+            });
+        })
+        .catch(function(error) {
+            console.error('Error loading championships:', error);
+        });
 }

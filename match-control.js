@@ -486,6 +486,69 @@ function updateMatchDate() {
     });
 }
 
+function updateMatchChampionship() {
+    if (!matchId) {
+        alert('Матч не выбран');
+        return;
+    }
+
+    const championshipSelect = document.getElementById('matchChampionshipEdit');
+    const championshipTitle = championshipSelect.options[championshipSelect.selectedIndex].text;
+    
+    if (!championshipTitle || championshipTitle === '-- Выберите чемпионат --') {
+        alert('Выберите чемпионат');
+        return;
+    }
+
+    database.ref('matches/' + matchId).update({
+        championshipTitle: championshipTitle
+    })
+    .then(function() {
+        showToast('✓ Чемпионат обновлен!');
+        // The match data will update automatically via Firebase listeners
+        // No need to reload - the real-time listener handles it
+    })
+    .catch(function(error) {
+        alert('Ошибка обновления чемпионата: ' + error.message);
+    });
+}
+
+function downloadTeamRoster() {
+    // Get default team from settings
+    firebase.database().ref('settings/defaultTeam').once('value')
+        .then(snapshot => {
+            const defaultTeam = snapshot.val();
+            
+            if (!defaultTeam) {
+                alert('Пожалуйста, выберите команду по умолчанию на странице "Состав"');
+                return;
+            }
+            
+            // Show loading message
+            showToast('Подготовка состава команды...');
+            
+            // Generate roster thumbnail using helper
+            generateRosterThumbnailHelper(defaultTeam, function(blob, teamName) {
+                if (blob) {
+                    // Download the image
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `roster-${teamName}.png`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    showToast('✓ Состав команды скачан!');
+                } else {
+                    alert('Ошибка создания изображения');
+                }
+            });
+        })
+        .catch(error => {
+            alert('Ошибка загрузки настроек: ' + error.message);
+        });
+}
+
 // ========================================
 // CHAMPIONSHIP MANAGEMENT
 // ========================================
@@ -566,7 +629,7 @@ function generateThumbnail() {
         canvas.width = 1280;
         canvas.height = 720;
         
-        // Background - more solid (70% opacity)
+        // Background - more solid (90% opacity)
         ctx.fillStyle = 'rgba(59, 131, 246, 0.7)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         

@@ -13,6 +13,9 @@
     <!-- Firebase Configuration -->
     <script src="firebase-config.js"></script>
     
+    <!-- Roster Thumbnail Helper -->
+    <script src="roster-thumbnail-helper.js"></script>
+    
     <!-- Application Scripts -->
     <script src="auth.js"></script>
     <script src="match-management.js"></script>
@@ -183,29 +186,41 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Championship Editor (for past matches) -->
+                <div class="form-group" id="championshipEditSection" style="margin-top: 15px; display: none;">
+                    <label for="matchChampionshipEdit">Чемпионат:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="matchChampionshipEdit" style="flex: 1; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; background: white;">
+                            <option value="">-- Выберите чемпионат --</option>
+                        </select>
+                        <button class="button secondary" onclick="updateMatchChampionship()" style="white-space: nowrap; margin: 0;">
+                            <i class="fas fa-save"></i> Сохранить
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div class="widget-url" id="widgetUrlSection">
-                <strong>URL виджета для стрима:</strong><br>
-                <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap;">
-                    <input type="text" id="widgetUrl" readonly style="flex: 1; min-width: 200px; padding: 10px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; background: white;">
-                    <button class="button" onclick="copyWidgetUrl()" style="white-space: nowrap;">
-                        📋 Копировать URL
+            <!-- Match Resources Section (Consolidated) -->
+            <div class="match-resources" id="matchResourcesSection" style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #e2e8f0;">
+                <h3 style="margin-bottom: 15px; color: #1e293b;">📦 Ресурсы матча</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <button class="button" onclick="copyWidgetUrl()" title="Копировать ссылку на табло">
+                        <i class="fas fa-tv"></i> Табло
+                    </button>
+                    <button class="button" onclick="generateThumbnail()" title="Скачать заставку для трансляции">
+                        <i class="fas fa-image"></i> Заставка
+                    </button>
+                    <button class="button" onclick="downloadTeamRoster()" title="Скачать состав команды">
+                        <i class="fas fa-users"></i> Команда
+                    </button>
+                    <button class="button" disabled title="Статистика (скоро)">
+                        <i class="fas fa-chart-bar"></i> Статистика
                     </button>
                 </div>
-                <div id="copyMessage" style="color: #10b981; font-weight: bold; display: none; margin-top: 5px;">
-                    ✓ URL скопирован!
+                <div id="copyMessage" style="color: #10b981; font-weight: bold; display: none; margin-top: 10px; text-align: center;">
+                    ✓ Ссылка скопирована!
                 </div>
-                <small>Вставьте этот URL как Browser Source в OBS или Web Overlay в Larix/Prism</small>
-            </div>
-
-            <!-- Thumbnail Generator -->
-            <div class="thumbnail-generator" id="thumbnailSection" style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 2px solid #e2e8f0;">
-                <strong style="font-size: 16px; color: #1e293b;">🖼️ Заставка для трансляции:</strong>
-                <p style="color: #64748b; font-size: 14px; margin: 10px 0;">Создайте изображение для превью матча на YouTube</p>
-                <button class="button" onclick="generateThumbnail()" style="width: 100%;">
-                    <i class="fas fa-download"></i> Скачать заставку
-                </button>
             </div>
 
             <div class="time-controls" id="timeControlsSection">
