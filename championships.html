@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чемпионаты — Soccer Scoreboard</title>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <!-- Shared nav -->
+    <script src="match-helpers.js"></script>
+    <script src="nav.js"></script>
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="app-layout.css">
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        }
+
+        /* ── Auth gate ── */
+        #authGate {
+            background: white;
+            border-radius: 16px;
+            padding: 48px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        }
+
+        #authGate h2 { color: #334155; margin-bottom: 12px; }
+        #authGate p  { color: #64748b; margin-bottom: 24px; }
+
+        /* ── Main content ── */
+        #mainContent { display: none; }
+
+        /* ── Loading / empty states ── */
+        .state-box {
+            background: white;
+            border-radius: 16px;
+            padding: 60px 32px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            color: #94a3b8;
+        }
+
+        .state-box .icon { font-size: 56px; margin-bottom: 16px; opacity: 0.45; }
+        .state-box h3    { color: #64748b; font-size: 20px; margin-bottom: 8px; }
+        .state-box p     { font-size: 14px; }
+
+        /* ── Championship card ── */
+        .champ-card {
+            background: white;
+            border-radius: 14px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.09);
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+
+        .champ-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.14); }
+
+        .champ-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .champ-icon {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+        }
+
+        .champ-title {
+            flex: 1;
+            font-size: 17px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .champ-badges {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .badge.ended   { background: #dcfce7; color: #15803d; }
+        .badge.sched   { background: #dbeafe; color: #1d4ed8; }
+        .badge.active  { background: #fef3c7; color: #b45309; }
+
+        .champ-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px;
+            transition: all 0.18s;
+        }
+
+        .icon-btn.thumb  { background: #eff6ff; color: #3b82f6; }
+        .icon-btn.thumb:hover  { background: #3b82f6; color: white; }
+        .icon-btn.expand { background: #f1f5f9; color: #64748b; }
+        .icon-btn.expand:hover { background: #e2e8f0; color: #334155; }
+        .icon-btn.expand.open  { background: #e2e8f0; color: #334155; }
+
+        /* ── Expanded match subtable ── */
+        .champ-matches {
+            display: none;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .champ-matches.open { display: block; }
+
+        .match-row {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr auto;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            border-bottom: 1px solid #f8fafc;
+            transition: background 0.15s;
+        }
+
+        .match-row:last-child { border-bottom: none; }
+        .match-row:hover { background: #fafafa; }
+
+        .match-team {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .match-team.right {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+
+        .team-logo-sm {
+            width: 28px; height: 28px;
+            object-fit: contain;
+            border-radius: 4px;
+            background: #f1f5f9;
+            padding: 2px;
+            flex-shrink: 0;
+        }
+
+        .team-logo-placeholder {
+            width: 28px; height: 28px;
+            border-radius: 4px;
+            background: #e2e8f0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; color: #94a3b8; flex-shrink: 0;
+        }
+
+        .match-score-cell {
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .match-score {
+            font-size: 18px;
+            font-weight: 800;
+            color: #1e293b;
+        }
+
+        .match-score.ended-score { color: #3b82f6; }
+
+        .match-date {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .match-meta-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .match-link {
+            font-size: 12px;
+            color: #3b82f6;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: #eff6ff;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: all 0.15s;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .match-link:hover { background: #3b82f6; color: white; }
+
+        /* Match status pills — same as styles.css .match-status */
+        .match-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+        }
+
+        .status-ended     { background: #64748b; }
+        .status-scheduled { background: #3b82f6; }
+        .status-playing   { background: linear-gradient(135deg, #10b981, #059669); }
+        .status-waiting   { background: #f59e0b; }
+
+        /* ── Thumbnail generation button (loading state) ── */
+        .icon-btn.loading { animation: spin 0.8s linear infinite; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Toast ── */
+        .champ-toast {
+            position: fixed;
+            bottom: 28px; right: 28px;
+            background: #1e293b;
+            color: white;
+            padding: 14px 22px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+            z-index: 9999;
+            animation: toastIn 0.3s ease;
+            display: none;
+        }
+
+        @keyframes toastIn {
+            from { opacity:0; transform: translateY(12px); }
+            to   { opacity:1; transform: translateY(0); }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            .match-row {
+                grid-template-columns: 1fr auto 1fr;
+            }
+            .match-meta-cell { display: none; }
+            .champ-badges    { display: none; }
+            .page-title      { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Nav injected by nav.js -->
+
+<div class="page-wrap">
+    <!-- Auth gate -->
+    <div id="authGate" style="display:none;">
+        <div style="font-size:48px; margin-bottom:16px;">🏆</div>
+        <h2>Требуется авторизация</h2>
+        <p>Пожалуйста, войдите в систему через <a href="index.html" style="color:#3b82f6;">главную страницу</a>.</p>
+    </div>
+
+    <!-- Main content (shown when logged in) -->
+    <div id="mainContent" style="display:none;">
+        <div class="page-header">
+            <div class="page-title">
+                <i class="fas fa-trophy"></i>
+                Чемпионаты
+            </div>
+        </div>
+
+        <div id="champListWrap">
+            <div class="state-box">
+                <div class="icon">🏆</div>
+                <h3>Загрузка...</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="champ-toast" id="champToast"></div>
+
+<!-- Hidden canvas for thumbnail generation -->
+<canvas id="thumbCanvas" style="display:none;"></canvas>
+
+<script>
+// ============================================
+// STATE
+// ============================================
+let currentUser  = null;
+let allMatches   = [];       // raw match array from Firebase
+let champGroups  = {};       // { title: { matches: [], endedCount, scheduledCount } }
+
+// ============================================
+// AUTH
+// ============================================
+auth.onAuthStateChanged(function(user) {
+    currentUser = user;
+    renderNav(user);
+
+    if (user) {
+        document.getElementById('authGate').style.display    = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        loadData();
+    } else {
+        document.getElementById('authGate').style.display    = 'block';
+        document.getElementById('mainContent').style.display = 'none';
+    }
+});
+
+// ============================================
+// DATA LOADING
+// ============================================
+function loadData() {
+    Promise.all([
+        database.ref('matches').once('value'),
+        database.ref('championships').once('value')
+    ]).then(function(results) {
+        const matchSnap = results[0];
+        const champSnap = results[1];
+
+        // Load championship logos
+        const champMeta = {};
+        if (champSnap.val()) {
+            champSnap.forEach(function(child) {
+                champMeta[child.key] = child.val();
+            });
+        }
+
+        allMatches = [];
+        matchSnap.forEach(function(child) {
+            const m = child.val();
+            m.id = child.key;
+            allMatches.push(m);
+        });
+
+        // Group by championshipTitle
+        champGroups = {};
+        allMatches.forEach(function(m) {
+            const title = (m.championshipTitle || '').trim();
+            if (!title) return;
+            if (!champGroups[title]) {
+                const key  = sanitizeChampKey(title);
+                const meta = champMeta[key] || {};
+                champGroups[title] = { title: title, matches: [], endedCount: 0, scheduledCount: 0, activeCount: 0, logo: meta.logo || null };
+            }
+            champGroups[title].matches.push(m);
+            if (m.status === 'ended')                                           champGroups[title].endedCount++;
+            else if (m.status === 'playing')                                    champGroups[title].activeCount++;
+            else if (m.status === 'scheduled' || m.status === 'waiting')        champGroups[title].scheduledCount++;
+        });
+
+        renderList();
+    }).catch(function(err) {
+        showToast('❌ Ошибка загрузки: ' + err.message);
+    });
+}
+
+// ============================================
+// RENDER LIST
+// ============================================
+function renderList() {
+    const wrap  = document.getElementById('champListWrap');
+    const groups = Object.values(champGroups).sort(function(a,b) {
+        return a.title.localeCompare(b.title, 'ru');
+    });
+
+    if (!groups.length) {
+        wrap.innerHTML = `
+            <div class="state-box">
+                <div class="icon">🏆</div>
+                <h3>Чемпионатов пока нет</h3>
+                <p>Создайте матч с названием чемпионата — он появится здесь.</p>
+            </div>`;
+        return;
+    }
+
+    wrap.innerHTML = groups.map(function(g, i) {
+        return renderChampCard(g, i);
+    }).join('');
+}
+
+function renderChampCard(g, idx) {
+    const badges = [
+        g.endedCount    ? `<span class="badge ended"><i class="fas fa-check"></i>${g.endedCount} сыграно</span>` : '',
+        g.scheduledCount ? `<span class="badge sched"><i class="fas fa-calendar"></i>${g.scheduledCount} запланировано</span>` : '',
+        g.activeCount   ? `<span class="badge active"><i class="fas fa-circle"></i>${g.activeCount} сейчас</span>` : '',
+    ].filter(Boolean).join('');
+
+    const id = 'champ_' + idx;
+
+    // Logo icon — shows uploaded logo if available, otherwise trophy emoji
+    const iconHtml = g.logo
+        ? `<img src="${escAttr(g.logo)}" style="width:44px;height:44px;object-fit:contain;border-radius:10px;background:#f1f5f9;padding:4px;cursor:pointer;" title="Изменить логотип" onclick="event.stopPropagation();uploadChampLogo('${escAttr(g.title)}')">`
+        : `<div class="champ-icon" title="Загрузить логотип" onclick="event.stopPropagation();uploadChampLogo('${escAttr(g.title)}')" style="cursor:pointer;">🏆</div>`;
+
+    return `
+        <div class="champ-card" id="card_${id}">
+            <div class="champ-header" onclick="toggleMatches('${id}')">
+                ${iconHtml}
+                <div class="champ-title">${escHtml(g.title)}</div>
+                <div class="champ-badges">${badges || '<span class="badge sched">0 матчей</span>'}</div>
+                <div class="champ-actions" onclick="event.stopPropagation()">
+                    <button class="icon-btn thumb" title="Скачать thumbnail" data-title="${escAttr(g.title)}" onclick="generateChampThumbnail(this.dataset.title, this)">
+                        <i class="fas fa-image"></i>
+                    </button>
+                    <button class="icon-btn expand" id="exp_${id}" title="Развернуть матчи" onclick="toggleMatches('${id}')">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="champ-matches" id="matches_${id}">
+                ${renderMatchTable(g.matches)}
+            </div>
+        </div>`;
+}
+
+function renderMatchTable(matches) {
+    if (!matches.length) return '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:14px;">Матчей нет</div>';
+
+    const sorted = sortMatches(matches.slice());
+
+    return sorted.map(function(m) {
+        const dateStr = formatMatchDate(m);
+        const scoreHtml = buildScoreHtml(m);
+        const statusHtml = buildStatusBadge(m);
+
+        const t1Logo = m.team1Logo
+            ? `<img class="team-logo-sm" src="${escAttr(m.team1Logo)}" alt="">`
+            : `<div class="team-logo-placeholder">⚽</div>`;
+
+        const t2Logo = m.team2Logo
+            ? `<img class="team-logo-sm" src="${escAttr(m.team2Logo)}" alt="">`
+            : `<div class="team-logo-placeholder">⚽</div>`;
+
+        return `
+            <div class="match-row">
+                <div class="match-team">${t1Logo}<span>${escHtml(m.team1Name||'')}</span></div>
+                <div class="match-score-cell">
+                    <div class="match-score ${m.status==='ended'?'ended-score':''}">${scoreHtml}</div>
+                    <div class="match-date">${dateStr}</div>
+                </div>
+                <div class="match-team right"><span>${escHtml(m.team2Name||'')}</span>${t2Logo}</div>
+                <div class="match-meta-cell">
+                    ${statusHtml}
+                    <button class="match-link" onclick="openStatsModal('${escAttr(m.id)}')" title="Статистика матча">
+                        <i class="fas fa-chart-bar"></i> Статистика
+                    </button>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+// ============================================
+// TOGGLE EXPAND
+// ============================================
+function toggleMatches(id) {
+    const matchesDiv = document.getElementById('matches_' + id);
+    const expBtn     = document.getElementById('exp_'     + id);
+    if (!matchesDiv) return;
+
+    const isOpen = matchesDiv.classList.contains('open');
+    matchesDiv.classList.toggle('open');
+    if (expBtn) {
+        expBtn.classList.toggle('open');
+        expBtn.innerHTML = isOpen
+            ? '<i class="fas fa-chevron-down"></i>'
+            : '<i class="fas fa-chevron-up"></i>';
+    }
+}
+
+// ============================================
+// HELPERS
+// ============================================
+// PLAYED_STATUSES, formatMatchDate, matchSortKey, formatDate, formatDateTime, sanitizeChampKey — see match-helpers.js
+
+function buildScoreHtml(m) {
+    if (m.status === 'ended' || m.status === 'playing' || m.status === 'half1_ended' || m.status === 'half2_ended') {
+        return (m.score1 || 0) + ' : ' + (m.score2 || 0);
+    }
+    return '— : —';
+}
+
+
+function buildStatusBadge(m) {
+    const map = {
+        ended:       ['status-ended',     'Завершён'],
+        playing:     ['status-playing',   '● Идёт'],
+        half1_ended: ['status-playing',   'Перерыв'],
+        half2_ended: ['status-playing',   '2 тайм окончен'],
+        scheduled:   ['status-scheduled', 'Запланирован'],
+        waiting:     ['status-waiting',   'Ожидание'],
+    };
+    const [cls, label] = map[m.status] || ['status-waiting', m.status || 'Неизвестно'];
+    return `<span class="match-status-badge ${cls}">${label}</span>`;
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escAttr(s) { return escHtml(s); }
+
+// ============================================
+// TOAST
+// ============================================
+let toastTimer = null;
+
+function showToast(msg) {
+    const el = document.getElementById('champToast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { el.style.display = 'none'; }, 3000);
+}
+
+// ============================================
+// ============================================
+// CHAMPIONSHIP LOGO UPLOAD
+// ============================================
+function uploadChampLogo(champTitle) {
+    const input = document.createElement('input');
+    input.type   = 'file';
+    input.accept = 'image/*';
+    input.onchange = function() {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const base64 = e.target.result;
+            const key    = sanitizeChampKey(champTitle);
+
+            database.ref('championships/' + key).set({ logo: base64 })
+                .then(function() {
+                    // Update in-memory group and re-render
+                    if (champGroups[champTitle]) champGroups[champTitle].logo = base64;
+                    renderList();
+                    showToast('✓ Логотип сохранён!');
+                })
+                .catch(function(err) {
+                    showToast('❌ Ошибка: ' + err.message);
+                });
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
+}
+
+// ============================================
+// THUMBNAIL GENERATOR
+// ============================================
+// Matches the existing app style: blue background, team cards grid, championship title header.
+// Layout: up to 3 columns × 5 rows = 15 match cards.
+// If > 15 matches, switches to a compact table view.
+//
+// Card shows: team1 logo+name | score | team2 name+logo | date
+
+const THUMB_W = 1280;
+const THUMB_H = 720;
+const THUMB_BG = 'rgba(59, 131, 246, 0.85)';
+const MAX_CARDS = 15;
+const COLS = 3;
+
+function generateChampThumbnail(champTitle, btn) {
+    const group = champGroups[champTitle];
+    if (!group) return;
+
+    // Loading state on button
+    btn.innerHTML = '<i class="fas fa-spinner"></i>';
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    const matches = group.matches.slice().sort(function(a,b) {
+        const aDate = matchSortKey(a);
+        const bDate = matchSortKey(b);
+        if (aDate < bDate) return -1;
+        if (aDate > bDate) return 1;
+        return 0; // Chronological for thumbnail
+    });
+
+    // Collect unique logo URLs to pre-load (team logos + championship logo)
+    const logoUrls = {};
+    matches.forEach(function(m) {
+        if (m.team1Logo) logoUrls[m.team1Logo] = null;
+        if (m.team2Logo) logoUrls[m.team2Logo] = null;
+    });
+    if (group.logo) logoUrls[group.logo] = null;
+
+    const urlList = Object.keys(logoUrls);
+    let loaded = 0;
+
+    function onAllLoaded() {
+        const champLogoImg = group.logo ? logoUrls[group.logo] : null;
+        drawThumbnail(champTitle, matches, logoUrls, champLogoImg);
+        btn.innerHTML = '<i class="fas fa-image"></i>';
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+
+    if (!urlList.length) {
+        onAllLoaded();
+        return;
+    }
+
+    urlList.forEach(function(url) {
+        function loadViaImg(src, useAnonymous) {
+            const img = new Image();
+            if (useAnonymous) img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                logoUrls[url] = (img.naturalWidth > 0) ? img : null;
+                loaded++;
+                if (loaded === urlList.length) onAllLoaded();
+            };
+            img.onerror = function() {
+                logoUrls[url] = null;
+                loaded++;
+                if (loaded === urlList.length) onAllLoaded();
+            };
+            img.src = src;
+        }
+
+        if (url.startsWith('data:')) {
+            loadViaImg(url, false);
+            return;
+        }
+
+        const cacheBustUrl = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+        fetch(cacheBustUrl, { mode: 'cors' })
+            .then(function(resp) {
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                return resp.blob();
+            })
+            .then(function(blob) {
+                const blobUrl = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = function() {
+                    logoUrls[url] = img;
+                    setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 10000);
+                    loaded++;
+                    if (loaded === urlList.length) onAllLoaded();
+                };
+                img.onerror = function() {
+                    URL.revokeObjectURL(blobUrl);
+                    logoUrls[url] = null;
+                    loaded++;
+                    if (loaded === urlList.length) onAllLoaded();
+                };
+                img.src = blobUrl;
+            })
+            .catch(function() {
+                loadViaImg(cacheBustUrl, true);
+            });
+    });
+}
+
+function drawThumbnail(champTitle, matches, logos, champLogoImg) {
+    const canvas = document.getElementById('thumbCanvas');
+    const ctx    = canvas.getContext('2d');
+    canvas.width  = THUMB_W;
+    canvas.height = THUMB_H;
+
+    // ── Background ──
+    ctx.fillStyle = 'rgba(59, 131, 246, 0.9)';
+    ctx.fillRect(0, 0, THUMB_W, THUMB_H);
+
+    // ── Header ──
+    const headerH  = 100;
+    const logoSize = 68;  // championship logo size in header
+    const pad      = (headerH - logoSize) / 2;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(0, 0, THUMB_W, headerH);
+
+    // Draw championship logo left of title (if available)
+    let titleOffsetX = 0;
+    if (champLogoImg && champLogoImg.naturalWidth > 0) {
+        // Scale proportionally so longest edge = logoSize
+        const scale = logoSize / Math.max(champLogoImg.naturalWidth, champLogoImg.naturalHeight);
+        const lw    = champLogoImg.naturalWidth  * scale;
+        const lh    = champLogoImg.naturalHeight * scale;
+        const lx    = pad;
+        const ly    = (headerH - lh) / 2;
+
+        // White rounded square background — same style as team logos
+        const lpad = logoSize * 0.1;
+        ctx.fillStyle     = 'white';
+        ctx.shadowColor   = 'rgba(0,0,0,0.12)';
+        ctx.shadowBlur    = 6;
+        ctx.shadowOffsetY = 2;
+        roundRect(ctx, lx - lpad, ly - lpad, lw + lpad * 2, lh + lpad * 2, 8);
+        ctx.fill();
+        ctx.shadowColor   = 'transparent';
+        ctx.shadowBlur    = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.drawImage(champLogoImg, lx, ly, lw, lh);
+
+        // Shift title right so it's centred in the remaining space
+        titleOffsetX = lx + lw + pad;
+    }
+
+    // Title centred in the space to the right of the logo
+    const titleAreaLeft  = titleOffsetX;
+    const titleAreaWidth = THUMB_W - titleAreaLeft;
+    ctx.fillStyle    = 'white';
+    ctx.font         = 'bold 52px Calibri, sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(champTitle, titleAreaLeft + titleAreaWidth / 2, headerH / 2 + 2);
+
+    // ── Decide layout ──
+    const useCards = matches.length <= MAX_CARDS;
+    if (useCards) {
+        drawCardGrid(ctx, matches, logos, headerH);
+    } else {
+        drawTableLayout(ctx, matches, headerH);
+    }
+
+    // ── Download ──
+    canvas.toBlob(function(blob) {
+        const url  = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href     = url;
+        link.download = 'championship-' + champTitle.replace(/[^a-z0-9]/gi, '_') + '.png';
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast('✓ Thumbnail скачан!');
+    });
+}
+
+// ── CARD GRID (≤ 15 matches) ──────────────────────────────────────────────
+
+function drawCardGrid(ctx, matches, logos, headerH) {
+    const rows     = Math.ceil(matches.length / COLS);
+    const padX     = 28;
+    const padY     = 18;
+    const gapX     = 14;
+    const gapY     = 12;
+    const areaH    = THUMB_H - headerH - padY * 2;
+    const areaW    = THUMB_W - padX * 2;
+
+    const cardW = (areaW - gapX * (COLS - 1)) / COLS;
+    const cardH = (areaH - gapY * (rows - 1)) / rows;
+
+    matches.forEach(function(m, i) {
+        const col = i % COLS;
+        const row = Math.floor(i / COLS);
+        const x   = padX + col * (cardW + gapX);
+        const y   = headerH + padY + row * (cardH + gapY);
+
+        drawMatchCard(ctx, m, logos, x, y, cardW, cardH);
+    });
+}
+
+function drawMatchCard(ctx, m, logos, x, y, w, h) {
+    // ── Card background ──
+    ctx.fillStyle = 'rgba(255,255,255,0.93)';
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.fill();
+
+    const isEnded = ['ended','half1_ended','half2_ended','playing'].includes(m.status);
+    const scoreStr = isEnded ? (m.score1||0) + ' : ' + (m.score2||0) : '? : ?';
+
+    // ── Layout ──
+    const dateH    = Math.max(16, h * 0.14);  // date strip at very bottom
+    const innerH   = h - dateH;               // content zone
+
+    // Score font — sized relative to card height
+    const scoreSize = Math.max(20, Math.min(38, innerH * 0.28));
+    const nameSize  = Math.max(9,  Math.min(14, innerH * 0.12));
+
+    // Logo square — takes up most of available space after score + name
+    const logoSize  = Math.min(innerH * 0.46, w * 0.18, 64);
+
+    // Vertical positions (everything centred in innerH)
+    // Stack: [logoSize] [4px gap] [nameSize] — centred in innerH
+    const blockH   = logoSize + 4 + nameSize;
+    const blockTop = y + (innerH - blockH) / 2;
+    const logoY    = blockTop;
+    const nameY    = blockTop + logoSize + 4;
+
+    // Each team half: exactly half the card width
+    const halfW = w / 2;
+
+    // Centre of each half
+    const t1cx = x + halfW / 2;          // left half centre
+    const t2cx = x + halfW + halfW / 2;  // right half centre
+
+    // ── Team 1 — left half ──
+    drawTeamLogoSquare(ctx, logos[m.team1Logo] || null, t1cx - logoSize/2, logoY, logoSize);
+    ctx.fillStyle    = '#1e293b';
+    ctx.font         = 'bold ' + nameSize + 'px Calibri, sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    drawClippedText(ctx, m.team1Name || '', t1cx, nameY, halfW - 8, nameSize);
+
+    // ── Team 2 — right half ──
+    drawTeamLogoSquare(ctx, logos[m.team2Logo] || null, t2cx - logoSize/2, logoY, logoSize);
+    ctx.fillStyle    = '#1e293b';
+    ctx.font         = 'bold ' + nameSize + 'px Calibri, sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    drawClippedText(ctx, m.team2Name || '', t2cx, nameY, halfW - 8, nameSize);
+
+    // ── Score — centred on the split line ──
+    ctx.fillStyle    = isEnded ? '#1e40af' : '#94a3b8';
+    ctx.font         = 'bold ' + scoreSize + 'px Calibri, sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(scoreStr, x + w / 2, y + innerH / 2);
+
+    // ── Date — bottom strip ──
+    const dateStr = formatMatchDate(m);
+    ctx.fillStyle    = '#1e293b';
+    ctx.font         = Math.max(9, Math.min(11, dateH * 0.7)) + 'px Calibri, sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(dateStr, x + w / 2, y + h - 10);
+}
+
+function drawTeamLogoSquare(ctx, img, x, y, size) {
+    const r = size * 0.18;  // corner radius ~18% of size
+
+    // White rounded-square background
+    ctx.fillStyle = 'white';
+    // Draw with slight drop shadow
+    ctx.shadowColor   = 'rgba(0,0,0,0.12)';
+    ctx.shadowBlur    = 6;
+    ctx.shadowOffsetY = 2;
+    roundRect(ctx, x, y, size, size, r);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur  = 0;
+    ctx.shadowOffsetY = 0;
+
+    if (img && img.naturalWidth > 0) {
+        // Draw logo centred in the square with padding (80% of size)
+        const pad    = size * 0.1;
+        const avail  = size - pad * 2;
+        const scale  = Math.min(avail / img.naturalWidth, avail / img.naturalHeight);
+        const sw     = img.naturalWidth  * scale;
+        const sh     = img.naturalHeight * scale;
+        ctx.drawImage(img, x + pad + (avail - sw) / 2, y + pad + (avail - sh) / 2, sw, sh);
+    } else {
+        // Placeholder
+        ctx.fillStyle = '#e2e8f0';
+        roundRect(ctx, x + 2, y + 2, size - 4, size - 4, r - 1);
+        ctx.fill();
+        ctx.fillStyle    = '#94a3b8';
+        ctx.font         = Math.floor(size * 0.45) + 'px sans-serif';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚽', x + size / 2, y + size / 2);
+    }
+}
+
+// Keep old circle version unused (referenced nowhere now)
+function drawTeamLogo(ctx, img, x, y, size) {
+    drawTeamLogoSquare(ctx, img, x, y, size);
+}
+
+function drawClippedText(ctx, text, cx, y, maxW, fontSize) {
+    // Ellipsis helper
+    let str = text;
+    while (str.length > 1 && ctx.measureText(str).width > maxW) {
+        str = str.slice(0, -1);
+    }
+    if (str !== text) str += '…';
+    ctx.fillText(str, cx, y);
+}
+
+// ── TABLE LAYOUT (> 15 matches) ───────────────────────────────────────────
+
+function drawTableLayout(ctx, matches, headerH) {
+    const padX   = 36;
+    const padY   = 16;
+    const startY = headerH + padY;
+    const rowH   = Math.min(32, (THUMB_H - headerH - padY * 2) / matches.length);
+
+    ctx.font = '13px Calibri, sans-serif';
+    ctx.textBaseline = 'middle';
+
+    matches.forEach(function(m, i) {
+        const rowY = startY + i * rowH;
+
+        // Alternating row background
+        if (i % 2 === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.12)';
+            ctx.fillRect(padX - 8, rowY, THUMB_W - padX * 2 + 16, rowH);
+        }
+
+        const midY = rowY + rowH / 2;
+
+        // Date
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.textAlign = 'left';
+        ctx.fillText(formatMatchDate(m), padX, midY);
+
+        // Team 1
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'right';
+        ctx.fillText((m.team1Name || '').substring(0, 20), THUMB_W / 2 - 50, midY);
+
+        // Score
+        const isEnded = (m.status === 'ended' || m.status === 'playing');
+        const scoreStr = isEnded ? (m.score1||0) + ':' + (m.score2||0) : '?:?';
+        ctx.font = 'bold 14px Calibri, sans-serif';
+        ctx.fillStyle = '#fcd34d';
+        ctx.textAlign = 'center';
+        ctx.fillText(scoreStr, THUMB_W / 2, midY);
+        ctx.font = '13px Calibri, sans-serif';
+
+        // Team 2
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'left';
+        ctx.fillText((m.team2Name || '').substring(0, 20), THUMB_W / 2 + 50, midY);
+    });
+}
+
+// ── Canvas utility ────────────────────────────────────────────────────────
+function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════
+     MATCH STATS MODAL
+═══════════════════════════════════════════════ -->
+<div id="statsModal" style="display:none; position:fixed; inset:0; z-index:800; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); overflow-y:auto;">
+    <div style="min-height:100%; display:flex; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:#fff; border-radius:20px; width:100%; max-width:560px; overflow:hidden; box-shadow:0 25px 60px rgba(0,0,0,0.3);">
+
+            <!-- Header -->
+            <div id="statsModalHeader" style="background:linear-gradient(135deg,#1e40af,#3b82f6); padding:20px 24px; color:#fff;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div style="flex:1; min-width:0;">
+                        <div id="statsMatchTitle" style="font-size:15px; font-weight:700; margin-bottom:4px;">—</div>
+                        <div id="statsMatchMeta" style="font-size:12px; opacity:.75;">—</div>
+                    </div>
+                    <div id="statsScoreBadge" style="background:rgba(255,255,255,0.2); border-radius:10px; padding:8px 16px; font-size:26px; font-weight:900; letter-spacing:2px; margin-left:16px; white-space:nowrap;">— : —</div>
+                </div>
+                <button onclick="closeStatsModal()" style="position:absolute; top:14px; right:16px; background:rgba(255,255,255,0.2); border:none; color:#fff; width:32px; height:32px; border-radius:50%; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;">×</button>
+            </div>
+
+            <!-- Body -->
+            <div id="statsModalBody" style="padding:20px; min-height:120px;">
+                <div style="text-align:center; color:#94a3b8; padding:40px 0; font-size:14px;">Загрузка...</div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================
+// MATCH STATS MODAL
+// ============================================
+const TABLE_MAX_GOALS = 10;
+let statsPlayersCache = {};
+
+function openStatsModal(matchId) {
+    const modal = document.getElementById('statsModal');
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+
+    // Reset
+    document.getElementById('statsMatchTitle').textContent = '—';
+    document.getElementById('statsMatchMeta').textContent  = '—';
+    document.getElementById('statsScoreBadge').textContent = '— : —';
+    document.getElementById('statsModalBody').innerHTML =
+        '<div style="text-align:center;color:#94a3b8;padding:40px 0;font-size:14px;">Загрузка...</div>';
+
+    // Fetch match + goals in parallel
+    Promise.all([
+        database.ref('matches/' + matchId).once('value'),
+        database.ref('goals').orderByChild('matchId').equalTo(matchId).once('value')
+    ]).then(function(results) {
+        const match = results[0].val();
+        const goalsSnap = results[1];
+
+        if (!match) {
+            document.getElementById('statsModalBody').innerHTML =
+                '<div style="text-align:center;color:#ef4444;padding:40px 0;">Матч не найден</div>';
+            return;
+        }
+
+        // Populate header
+        document.getElementById('statsMatchTitle').textContent =
+            (match.team1Name || '?') + '  vs  ' + (match.team2Name || '?');
+
+        const statusMap = { ended:'Завершён', playing:'Идёт', half1_ended:'Перерыв', waiting:'Ожидание', scheduled:'Запланирован' };
+        const champInfo = match.championshipTitle ? match.championshipTitle + '  ·  ' : '';
+        document.getElementById('statsMatchMeta').textContent =
+            champInfo + (statusMap[match.status] || match.status || '');
+
+        document.getElementById('statsScoreBadge').textContent =
+            (match.score1 || 0) + ' : ' + (match.score2 || 0);
+
+        // Set team color CSS var for badges
+        const color = match.team1Color || '#08399A';
+        document.getElementById('statsModal').style.setProperty('--team1-color', color);
+
+        // Collect goals
+        const goalsData = {};
+        goalsSnap.forEach(function(child) { goalsData[child.key] = child.val(); });
+
+        // Fetch missing players then render
+        const needed = [];
+        Object.values(goalsData).forEach(function(g) {
+            if (g.playerId && !statsPlayersCache[g.playerId]) needed.push(g.playerId);
+        });
+
+        const fetches = needed.map(function(pid) {
+            return database.ref('players/' + pid).once('value').then(function(snap) {
+                if (snap.val()) statsPlayersCache[pid] = snap.val();
+            });
+        });
+
+        Promise.all(fetches).then(function() {
+            renderStatsBody(match, goalsData);
+        });
+
+    }).catch(function(err) {
+        document.getElementById('statsModalBody').innerHTML =
+            '<div style="text-align:center;color:#ef4444;padding:40px 0;">Ошибка: ' + err.message + '</div>';
+    });
+}
+
+function closeStatsModal() {
+    document.getElementById('statsModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Close on backdrop click
+document.getElementById('statsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeStatsModal();
+});
+
+// ── Render ────────────────────────────────────────────────────────────────
+function renderStatsBody(match, goalsData) {
+    const goals = Object.values(goalsData).sort(function(a, b) {
+        if ((a.half||0) !== (b.half||0)) return (a.half||0) - (b.half||0);
+        return (a.matchTime||'').localeCompare(b.matchTime||'');
+    });
+
+    const body = document.getElementById('statsModalBody');
+
+    if (!goals.length) {
+        const pre = (match.status === 'waiting' || match.status === 'scheduled');
+        body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:48px 0;font-size:15px;">' +
+            (pre ? 'Матч ещё не начался' : 'Голов не забито') + '</div>';
+        return;
+    }
+
+    if (goals.length <= TABLE_MAX_GOALS) {
+        body.innerHTML = buildStatsTable(goals);
+    } else {
+        body.innerHTML = buildStatsCards(aggregateStatsScorers(goalsData));
+    }
+}
+
+function buildStatsTable(goals) {
+    const color = getComputedStyle(document.getElementById('statsModal'))
+        .getPropertyValue('--team1-color').trim() || '#08399A';
+
+    let html = '<table style="width:100%; border-collapse:collapse;">';
+    let curHalf = null;
+
+    goals.forEach(function(g, idx) {
+        if (g.half && g.half !== curHalf) {
+            curHalf = g.half;
+            const label = g.half === 1 ? '1-й тайм' : g.half === 2 ? '2-й тайм' : g.half + '-й тайм';
+            html += '<tr><td colspan="4" style="padding:10px 16px 6px; font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid #f1f5f9;">' + label + '</td></tr>';
+        }
+
+        const timeStr = g.matchTime || '—';
+        let badgeHtml, nameHtml;
+
+        if (g.isOwnGoal) {
+            badgeHtml = '<span style="display:inline-block;background:#e2e8f0;color:#64748b;border-radius:6px;padding:3px 8px;font-size:13px;font-weight:700;">АГ</span>';
+            nameHtml  = '<span style="color:#64748b;">Автогол</span>';
+        } else {
+            const p  = g.playerId ? (statsPlayersCache[g.playerId] || null) : null;
+            const num = p ? p.number : (g.playerNumber || '?');
+            const fn  = p ? (p.firstName || '') : '';
+            const ln  = p ? (p.lastName || '').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
+            badgeHtml = '<span style="display:inline-block;background:' + color + ';color:#fff;border-radius:6px;padding:3px 8px;font-size:13px;font-weight:700;">#' + num + '</span>';
+            nameHtml  = (fn ? '<span style="font-size:13px;color:#64748b;margin-right:5px;">' + fn + '</span>' : '') +
+                        '<span style="font-weight:700;color:#1e293b;">' + ln + '</span>';
+        }
+
+        const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+        html += '<tr style="background:' + rowBg + '; border-bottom:1px solid #f1f5f9;">' +
+            '<td style="padding:10px 8px 10px 16px; font-size:13px; font-weight:700; color:#3b82f6; font-family:monospace; white-space:nowrap; width:60px;">' + timeStr + '</td>' +
+            '<td style="padding:10px 8px; width:56px;">' + badgeHtml + '</td>' +
+            '<td style="padding:10px 8px; font-size:14px;">' + nameHtml + '</td>' +
+            '<td style="padding:10px 16px 10px 0; text-align:right; font-size:16px;">⚽</td>' +
+        '</tr>';
+    });
+
+    html += '</table>';
+    return html;
+}
+
+function aggregateStatsScorers(goalsData) {
+    const scorers = {};
+    Object.values(goalsData).forEach(function(g) {
+        if (g.isOwnGoal) {
+            scorers['og_' + g.timestamp] = { isOwnGoal:true, goals:1, times:[g.matchTime||''] };
+            return;
+        }
+        const pid = g.playerId || 'unknown';
+        if (!scorers[pid]) scorers[pid] = { playerId:pid, isOwnGoal:false, goals:0, times:[] };
+        scorers[pid].goals++;
+        scorers[pid].times.push(g.matchTime||'');
+    });
+    return Object.values(scorers).sort(function(a,b) {
+        if (a.isOwnGoal && !b.isOwnGoal) return 1;
+        if (!a.isOwnGoal && b.isOwnGoal) return -1;
+        return b.goals - a.goals;
+    });
+}
+
+function buildStatsCards(scorers) {
+    const color = getComputedStyle(document.getElementById('statsModal'))
+        .getPropertyValue('--team1-color').trim() || '#08399A';
+
+    function goalLabel(n) { return n===1?'гол':n>=2&&n<=4?'гола':'голов'; }
+
+    const cards = scorers.map(function(s) {
+        if (s.isOwnGoal) {
+            return '<div style="display:flex;align-items:center;gap:12px;background:#f8fafc;border-radius:12px;padding:12px 16px;border-left:4px solid #94a3b8;">' +
+                '<div style="font-size:22px;">⚽</div>' +
+                '<div style="flex:1;font-weight:700;color:#64748b;">Автогол</div>' +
+                '<div style="font-size:22px;font-weight:900;color:#94a3b8;">' + s.goals + '</div>' +
+            '</div>';
+        }
+        const p   = statsPlayersCache[s.playerId] || null;
+        const num = p ? ('#' + p.number) : '?';
+        const fn  = p ? (p.firstName || '') : '';
+        const ln  = p ? (p.lastName  || '').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
+        const photo = p ? (p.photo || '') : '';
+
+        const avatar = photo
+            ? '<img src="' + photo + '" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
+            : '<div style="width:40px;height:40px;border-radius:50%;background:' + color + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">' + num + '</div>';
+
+        return '<div style="display:flex;align-items:center;gap:12px;background:#f8fafc;border-radius:12px;padding:12px 16px;border-left:4px solid ' + color + ';">' +
+            avatar +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="font-size:12px;font-weight:700;color:' + color + ';">' + num + '</div>' +
+                (fn ? '<div style="font-size:12px;color:#64748b;">' + fn + '</div>' : '') +
+                '<div style="font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + ln + '</div>' +
+            '</div>' +
+            '<div style="text-align:center;flex-shrink:0;">' +
+                '<div style="font-size:28px;font-weight:900;color:' + color + ';line-height:1;">' + s.goals + '</div>' +
+                '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;">' + goalLabel(s.goals) + '</div>' +
+            '</div>' +
+        '</div>';
+    });
+
+    return '<div style="display:flex;flex-direction:column;gap:8px;">' + cards.join('') + '</div>';
+}
+</script>
+</body>
+</html>

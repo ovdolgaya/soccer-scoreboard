@@ -21,6 +21,7 @@
     
     <!-- Application Scripts -->
     <script src="auth.js"></script>
+    <script src="match-helpers.js"></script>
     <script src="match-management.js"></script>
     <script src="match-control.js"></script>
     
@@ -29,8 +30,16 @@
     
     <!-- Application Styles -->
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="app-layout.css">
+
+    <!-- Shared Navigation -->
+    <script src="nav.js"></script>
 </head>
 <body>
+    <div class="page-wrap">
+    <div class="page-title" id="pageTitle" style="display:none;">
+        <i class="fas fa-futbol"></i> Матчи
+    </div>
     <div class="container">
         <h1>⚽ Управление табло</h1>
 
@@ -61,20 +70,10 @@
 
         <!-- Match Dashboard -->
         <div class="dashboard" id="dashboard">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>Мои матчи</h2>
-                <button class="button secondary" onclick="logoutUser()" style="padding: 8px 15px; font-size: 14px;">
-                    🚪 Выход
-                </button>
-            </div>
-
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
                 <button class="button" onclick="showSetupForm()" style="flex: 1;">
                     <i class="fas fa-plus-circle"></i> Создать новый матч
                 </button>
-                <a href="roster.html" class="button" style="flex: 1; text-decoration: none; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #1e40af 100%);">
-                    <i class="fas fa-users"></i> Состав команды
-                </a>
             </div>
 
             <div style="margin-bottom: 20px;">
@@ -272,9 +271,8 @@
                 <button class="button secondary" onclick="backToDashboard()">← К списку матчей</button>
             </div>
         </div>
-    </div>
-
-    <!-- Halftime Break Popup -->
+    </div><!-- /.container -->
+    </div><!-- /.page-wrap -->
     <div id="halftimePopup" class="halftime-popup" style="display: none;">
         <div class="halftime-popup-overlay" onclick="closeHalftimePopup()"></div>
         <div class="halftime-popup-content">

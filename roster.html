@@ -4,25 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Состав команды - Soccer Scoreboard</title>
+    <!-- Shared Navigation (Firebase loaded at bottom before this) -->
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="roster-styles.css">
+    <link rel="stylesheet" href="app-layout.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <div class="page-wrap">
     <div class="roster-container">
-        <!-- Back Button -->
-        <a href="index.html" class="back-button">
-            <i class="fas fa-arrow-left"></i>
-            Назад к списку матчей
-        </a>
-
         <!-- Header -->
         <div class="roster-header">
             <h1>
                 <i class="fas fa-users"></i>
-                Состав команды
+                Команда
             </h1>
-            <p>Управление игроками вашей команды</p>
         </div>
 
         <!-- Team Selector -->
@@ -282,7 +278,8 @@
             <h3>Команда не выбрана</h3>
             <p>Выберите команду выше, чтобы управлять её составом</p>
         </div>
-    </div>
+    </div><!-- /.roster-container -->
+    </div><!-- /.page-wrap -->
 
     <!-- Player Form Modal -->
     <div id="playerModal" class="modal hidden">
@@ -372,5 +369,13 @@
 
     <!-- Roster Management Script -->
     <script src="roster.js"></script>
+
+    <!-- Shared Navigation (must come after Firebase + config) -->
+    <script src="nav.js"></script>
+    <script>
+        auth.onAuthStateChanged(function(user) {
+            if (typeof renderNav === 'function') renderNav(user);
+        });
+    </script>
 </body>
 </html>

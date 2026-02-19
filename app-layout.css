@@ -1,0 +1,134 @@
+/* ============================================================
+   app-layout.css
+   Shared layout: blue gradient body, white page-title floating
+   above white rounded content cards. Layered on top of styles.css
+   and roster-styles.css without breaking their component rules.
+   ============================================================ */
+
+/* ── Reset body padding/bg set by styles.css ── */
+body {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    min-height: 100vh;
+    padding: 0;
+}
+
+/* ── Page wrapper ── */
+.page-wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+}
+
+/* ── Page title (white, floats on the blue bg) ── */
+.page-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+/* ── White content card ── */
+.page-card {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+    margin-bottom: 20px;
+}
+
+/* Tighter card for denser sections */
+.page-card-sm {
+    background: white;
+    border-radius: 14px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.09);
+    margin-bottom: 16px;
+}
+
+/* ── Override: .container becomes transparent passthrough ──
+   index.html wraps everything in .container — we keep it as
+   a layout passthrough so all child panel rules still work.  */
+.container {
+    max-width: none;
+    margin: 0;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* ── Override: h1 on index.html (now shown as .page-title) ── */
+.container > h1 {
+    display: none; /* replaced by .page-title in HTML */
+}
+
+/* ── Dashboard / setup-form / control-panel become white cards ── */
+.dashboard.active,
+.setup-form.active,
+.control-panel.active {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Login card ── */
+.password-form.active {
+    background: white;
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+/* ── Roster: remove old gradient header, roster-container becomes passthrough ── */
+.roster-container {
+    max-width: none;
+    padding: 0;
+    margin: 0;
+}
+
+.roster-header {
+    background: none;
+    box-shadow: none;
+    padding: 0;
+    margin-bottom: 0;
+    border-radius: 0;
+}
+
+.roster-header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: white;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.roster-header p {
+    display: none; /* subtitle not needed in new layout */
+}
+
+/* ── All roster white sections get card shadow ── */
+.team-selector,
+.players-section,
+.add-player-section {
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.09);
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .page-wrap { padding: 20px 12px 40px; }
+    .page-title { font-size: 20px; }
+    .page-card  { padding: 20px; }
+    .dashboard.active,
+    .setup-form.active,
+    .control-panel.active { padding: 20px; }
+    .password-form.active  { padding: 24px; }
+}

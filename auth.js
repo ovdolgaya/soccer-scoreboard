@@ -16,11 +16,19 @@ let matchListListener = null; // For real-time dashboard updates
 auth.onAuthStateChanged(function(user) {
     if (user) {
         currentUser = user;
+        // Render the shared nav bar (from nav.js)
+        if (typeof renderNav === 'function') renderNav(user);
+        // Show the floating page title
+        const pt = document.getElementById('pageTitle');
+        if (pt) pt.style.display = 'flex';
         // Show dashboard if not already in control panel
         if (!document.getElementById('controlPanel').classList.contains('active') && 
             !document.getElementById('setupForm').classList.contains('active')) {
             showDashboard();
         }
+    } else {
+        // Hide nav when logged out
+        if (typeof renderNav === 'function') renderNav(null);
     }
 });
 

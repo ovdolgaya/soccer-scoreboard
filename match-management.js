@@ -36,12 +36,8 @@ function loadMatches(reset = true) {
             matches.push(match);
         });
 
-        // Sort by date DESC (newest/future first)
-        matches.sort(function(a, b) {
-            const aDate = a.scheduledTime || a.createdAt || 0;
-            const bDate = b.scheduledTime || b.createdAt || 0;
-            return bDate - aDate; // Descending order
-        });
+        // Sort: upcoming first (soonest), then played desc by matchDate
+        sortMatches(matches);
 
         // Cache all matches
         allMatchesCache = matches;
@@ -111,24 +107,7 @@ function getStatusText(status) {
     return statusTexts[status] || 'Неизвестен';
 }
 
-function formatDateTime(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${day}.${month}.${year} ${hours}:${minutes}`;
-}
-
-function formatDate(dateString) {
-    if (!dateString) return '';
-    // dateString format: YYYY-MM-DD
-    const parts = dateString.split('-');
-    if (parts.length !== 3) return dateString;
-    return `${parts[2]}.${parts[1]}.${parts[0]}`;  // DD.MM.YYYY
-}
+// formatDate, formatDateTime, sortMatches — see match-helpers.js
 
 function renderMatchCard(match) {
     const status = getMatchStatus(match);
