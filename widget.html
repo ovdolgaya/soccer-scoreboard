@@ -103,6 +103,7 @@
             margin: 0 10px;
         }
 
+        /* Timer container — goal card matches this height */
         .timer-container {
             background: rgba(255, 255, 255, 0.5);
             border-radius: 10px;
@@ -126,7 +127,7 @@
             display: inline-block;
             font-size: 24px;
             font-weight: bold;
-            color: #08399a;
+            color: #667eea;
             margin-right: 10px;
         }
 
@@ -158,33 +159,149 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
         }
 
+        /* =============================================
+           GOAL NOTIFICATION CARD
+           Same width as .scoreboard (max-width 800px + 10px side padding).
+           Height = 56px — mirrors .timer-container visual height
+           (15px top padding + ~26px content + 15px bottom padding).
+        ============================================= */
+
+        #goalNotification {
+            max-width: 800px;
+            padding: 0 10px;        /* mirrors .scoreboard side padding */
+            margin-top: 0;
+            opacity: 0;
+            transform: translateY(10px);
+            pointer-events: none;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        #goalNotification.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #goalNotification.hiding {
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .goal-card {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .goal-card-inner {
+            position: relative;
+            display: flex;
+            width: 100%;
+            height: 56px;           /* same visual height as .timer-container */
+            align-items: stretch;
+        }
+
+        /* Left coloured section — number or icon */
+        .goal-card-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--goal-team-color, #08399A);
+            min-width: 80px;
+            padding: 0 16px;
+            flex-shrink: 0;
+        }
+
+        .goal-card-number span {
+            font-size: 20px;
+            font-weight: 900;
+            color: white;
+            line-height: 1;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+
+        .goal-card-number.own-goal  { background: #64748b; }
+        .goal-card-number.opponent  { background: var(--goal-team-color, #4A90E2); }
+
+        /* Centre info */
+        .goal-card-info {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 0 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .goal-card-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            line-height: 1;
+        }
+
+        .goal-card-name {
+            font-size: 17px;
+            font-weight: 800;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        .goal-card-name .first-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+            margin-right: 5px;
+        }
+
+        .own-goal-text,
+        .opponent-text {
+            font-size: 15px;
+            color: #475569;
+            font-weight: 700;
+        }
+
+        /* Right ball icon */
+        .goal-card-ball {
+            background: rgba(255, 255, 255, 0.92);
+            padding: 0 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+            border-left: 1px solid rgba(0,0,0,0.06);
+        }
+
+        /* Countdown progress bar at bottom */
+        .goal-card-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            width: 100%;
+            animation: progressShrink 5s linear forwards;
+        }
+
+        @keyframes progressShrink {
+            from { width: 100%; }
+            to   { width: 0%; }
+        }
+
         @media (max-width: 768px) {
-            .team-name {
-                font-size: 18px;
-            }
-
-            .score {
-                font-size: 36px;
-                min-width: 50px;
-                padding: 0 10px;
-            }
-
-            .team-logo {
-                width: 40px;
-                height: 40px;
-            }
-
-            .timer {
-                font-size: 24px;
-            }
-
-            .half-indicator {
-                font-size: 18px;
-            }
-
-            .timer-card {
-                padding: 8px 15px;
-            }
+            .team-name { font-size: 18px; }
+            .score { font-size: 36px; min-width: 50px; padding: 0 10px; }
+            .team-logo { width: 40px; height: 40px; }
+            .timer { font-size: 24px; }
+            .half-indicator { font-size: 18px; }
+            .timer-card { padding: 8px 15px; }
         }
     </style>
 </head>
@@ -195,32 +312,89 @@
         </div>
     </div>
 
+    <!-- Lives outside #scoreboard so re-renders don't destroy the card -->
+    <div id="goalNotification"></div>
+
     <script>
         // ========================================
         // VARIABLES
         // ========================================
-        let matchId = null;
-        let timerInterval = null;
+        let matchId          = null;
+        let timerInterval    = null;
+        let currentMatchData = null;
 
-        // Get match ID from URL
+        // Notification timers
+        let notifTimeout     = null;
+        let notifHideTimeout = null;
+
+        // Player cache — avoids repeated Firebase reads for the same player
+        let playersCache = {};
+
+        // Home-team goals listener guard
+        let goalsInitialized = false;
+
+        // Opponent score baseline.
+        // -1 = "not yet seen" — first snapshot sets it without showing a card.
+        let lastOpponentScore = -1;
+
+        // ========================================
+        // INIT
+        // ========================================
         const urlParams = new URLSearchParams(window.location.search);
         matchId = urlParams.get('match');
 
         if (!matchId) {
             document.getElementById('waitingMessage').textContent = 'Ошибка: не указан ID матча';
         } else {
-            // Listen to Firebase for real-time updates
+
+            // ── 1. Match listener: scoreboard + opponent goal detection ──
             database.ref('matches/' + matchId).on('value', function(snapshot) {
-                const matchData = snapshot.val();
-                updateScoreboard(matchData);
+                const newData = snapshot.val();
+
+                if (newData) {
+                    const opponentScore = newData.score2 || 0;
+
+                    if (lastOpponentScore === -1) {
+                        // First load — set baseline, no card
+                        lastOpponentScore = opponentScore;
+                    } else if (opponentScore > lastOpponentScore) {
+                        // Score increased — opponent scored
+                        showOpponentGoalCard(newData);
+                        lastOpponentScore = opponentScore;
+                    } else {
+                        lastOpponentScore = opponentScore;
+                    }
+                }
+
+                currentMatchData = newData;
+                updateScoreboard(newData);
             });
+
+            // ── 2. Home-team goal listener ──
+            // once('value') fires after all existing children are delivered,
+            // so child_added events after that point are guaranteed to be new.
+            database.ref('goals')
+                .orderByChild('matchId')
+                .equalTo(matchId)
+                .once('value', function() {
+                    goalsInitialized = true;
+                });
+
+            database.ref('goals')
+                .orderByChild('matchId')
+                .equalTo(matchId)
+                .on('child_added', function(snapshot) {
+                    if (!goalsInitialized) return;
+                    const goal = snapshot.val();
+                    if (goal) handleNewGoal(goal);
+                });
         }
 
         // ========================================
         // COLOR HELPER
         // ========================================
         function lightenColor(hex, percent) {
-            const num = parseInt(hex.replace('#', ''), 16);
+            const num = parseInt((hex || '#08399A').replace('#', ''), 16);
             const amt = Math.round(2.55 * percent);
             const R = Math.min(255, (num >> 16) + amt);
             const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
@@ -229,19 +403,18 @@
         }
 
         // ========================================
-        // UPDATE SCOREBOARD
+        // SCOREBOARD
         // ========================================
         function updateScoreboard(matchData) {
             if (!matchData) {
-                document.getElementById('scoreboard').innerHTML = 
+                document.getElementById('scoreboard').innerHTML =
                     '<div class="waiting-message">Ожидание начала матча...</div>';
                 return;
             }
 
-            // Set CSS variables for team colors
             const team1ColorLight = lightenColor(matchData.team1Color || '#08399A', 10);
             const team2ColorLight = lightenColor(matchData.team2Color || '#4A90E2', 10);
-            
+
             document.documentElement.style.setProperty('--team1-color', matchData.team1Color || '#08399A');
             document.documentElement.style.setProperty('--team1-color-light', team1ColorLight);
             document.documentElement.style.setProperty('--team2-color', matchData.team2Color || '#4A90E2');
@@ -268,78 +441,182 @@
 
             document.getElementById('scoreboard').innerHTML = scoreboardHtml;
 
-            // Handle timer
             if (matchData.status === 'playing') {
                 if (!timerInterval) {
-                    timerInterval = setInterval(function() {
-                        updateTimer(matchData);
-                    }, 100);
+                    timerInterval = setInterval(function() { updateTimer(matchData); }, 100);
                 }
             } else {
-                if (timerInterval) {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                }
+                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
             }
         }
 
         function getTimerContent(matchData) {
             const status = getMatchStatus(matchData);
-            
+
             if (status === 'scheduled') {
-                const scheduledDate = new Date(matchData.scheduledTime);
-                const day = String(scheduledDate.getDate()).padStart(2, '0');
-                const month = String(scheduledDate.getMonth() + 1).padStart(2, '0');
-                const hours = String(scheduledDate.getHours()).padStart(2, '0');
-                const minutes = String(scheduledDate.getMinutes()).padStart(2, '0');
-                return `<div class="status-message">Матч начнется ${day}.${month} в ${hours}:${minutes}</div>`;
-            } else if (status === 'waiting') {
-                return '<div class="status-message">Ожидание начала матча</div>';
-            } else if (status === 'ended') {
-                return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
-            } else if (status === 'half1_ended') {
-                return '<div class="status-message">1 ТАЙМ ОКОНЧЕН</div>';
-            } else if (status === 'half2_ended') {
-                return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
-            } else if (status === 'playing') {
+                const d = new Date(matchData.scheduledTime);
+                const day  = String(d.getDate()).padStart(2, '0');
+                const mon  = String(d.getMonth() + 1).padStart(2, '0');
+                const hrs  = String(d.getHours()).padStart(2, '0');
+                const mins = String(d.getMinutes()).padStart(2, '0');
+                return `<div class="status-message">Матч начнется ${day}.${mon} в ${hrs}:${mins}</div>`;
+            }
+            if (status === 'waiting')     return '<div class="status-message">Ожидание начала матча</div>';
+            if (status === 'ended')       return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
+            if (status === 'half1_ended') return '<div class="status-message">1 ТАЙМ ОКОНЧЕН</div>';
+            if (status === 'half2_ended') return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
+            if (status === 'playing') {
                 const halfText = matchData.currentHalf === 1 ? '1 ТАЙМ' : '2 ТАЙМ';
                 return `
-                        <span class="half-indicator">${halfText}:</span>
-                        <span class="timer" id="timerDisplay">${matchData.time || '00:00:00'}</span>
-                    `;
+                    <span class="half-indicator">${halfText}:</span>
+                    <span class="timer" id="timerDisplay">${matchData.time || '00:00:00'}</span>
+                `;
             }
-            
             return '<div class="timer">00:00:00</div>';
         }
 
         function getMatchStatus(matchData) {
-            if (matchData.scheduledTime && matchData.scheduledTime > Date.now()) {
-                return 'scheduled';
-            }
+            if (matchData.scheduledTime && matchData.scheduledTime > Date.now()) return 'scheduled';
             return matchData.status || 'waiting';
         }
 
         function updateTimer(matchData) {
             if (matchData.status !== 'playing') return;
+            const elapsed  = Date.now() - matchData.startTime;
+            const totalSec = Math.floor(elapsed / 1000);
+            const h = Math.floor(totalSec / 3600);
+            const m = Math.floor((totalSec % 3600) / 60);
+            const s = totalSec % 60;
+            const timeString =
+                String(h).padStart(2, '0') + ':' +
+                String(m).padStart(2, '0') + ':' +
+                String(s).padStart(2, '0');
+            const el = document.getElementById('timerDisplay');
+            if (el) el.textContent = timeString;
+        }
 
-            const elapsed = Date.now() - matchData.startTime;
-            const seconds = Math.floor(elapsed / 1000);
-            const minutes = Math.floor(seconds / 60);
-            const hours = Math.floor(minutes / 60);
+        // ========================================
+        // GOAL HANDLERS
+        // ========================================
 
-            const displaySeconds = String(seconds % 60).padStart(2, '0');
-            const displayMinutes = String(minutes % 60).padStart(2, '0');
-            const displayHours = String(hours).padStart(2, '0');
-
-            const timeString = `${displayHours}:${displayMinutes}:${displaySeconds}`;
-
-            const timerDisplay = document.getElementById('timerDisplay');
-            if (timerDisplay) {
-                timerDisplay.textContent = timeString;
+        // Called when a new /goals record arrives (home team only)
+        function handleNewGoal(goal) {
+            if (goal.isOwnGoal) {
+                showOwnGoalCard();
+                return;
             }
-            
-            // Note: Widget only reads from Firebase, doesn't write
-            // Timer updates are calculated locally from startTime
+            if (goal.playerId) {
+                if (playersCache[goal.playerId]) {
+                    showPlayerGoalCard(goal, playersCache[goal.playerId]);
+                } else {
+                    database.ref('players/' + goal.playerId).once('value', function(snap) {
+                        const player = snap.val();
+                        if (player) playersCache[goal.playerId] = player;
+                        showPlayerGoalCard(goal, player);
+                    });
+                }
+            } else {
+                showPlayerGoalCard(goal, null);
+            }
+        }
+
+        function showPlayerGoalCard(goal, player) {
+            const teamColor = currentMatchData ? (currentMatchData.team1Color || '#08399A') : '#08399A';
+            let numberHtml, nameHtml;
+            if (player) {
+                const num = player.number || goal.playerNumber || '?';
+                const fn  = player.firstName || '';
+                const ln  = (player.lastName  || '').toUpperCase();
+                numberHtml = `<span>#${num}</span>`;
+                nameHtml   = `${fn ? `<span class="first-name">${fn}</span>` : ''}${ln}`;
+            } else {
+                numberHtml = `<span>#${goal.playerNumber || '?'}</span>`;
+                nameHtml   = 'НЕИЗВЕСТНЫЙ';
+            }
+            renderNotification(
+                buildCardHtml({ teamColor, numberClass: '', numberContent: numberHtml,
+                                 label: 'Гол!', nameContent: nameHtml }),
+                teamColor
+            );
+        }
+
+        // Called when score2 increases (detected in the match listener)
+        function showOpponentGoalCard(matchData) {
+            const teamColor = matchData.team2Color || '#4A90E2';
+            const teamName  = matchData.team2Name  || 'Соперник';
+            renderNotification(
+                buildCardHtml({ teamColor, numberClass: 'opponent',
+                                 numberContent: '<span>⚽</span>',
+                                 label: 'Гол!',
+                                 nameContent: `<span class="opponent-text">${teamName}</span>` }),
+                teamColor
+            );
+        }
+
+        function showOwnGoalCard() {
+            renderNotification(
+                buildCardHtml({ teamColor: '#64748b', numberClass: 'own-goal',
+                                 numberContent: '<span>⚽</span>',
+                                 label: 'Автогол',
+                                 nameContent: '<span class="own-goal-text">Автогол</span>' }),
+                '#64748b'
+            );
+        }
+
+        // ========================================
+        // CARD HTML BUILDER
+        // ========================================
+        function buildCardHtml({ teamColor, numberClass, numberContent, label, nameContent }) {
+            return `
+                <div class="goal-card">
+                    <div class="goal-card-inner">
+                        <div class="goal-card-number ${numberClass}" style="--goal-team-color:${teamColor}">
+                            ${numberContent}
+                        </div>
+                        <div class="goal-card-info">
+                            <div class="goal-card-label" style="color:${teamColor}">${label}</div>
+                            <div class="goal-card-name">${nameContent}</div>
+                        </div>
+                        <div class="goal-card-ball">⚽</div>
+                        <div class="goal-card-progress" style="background:${teamColor}"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ========================================
+        // RENDER + ANIMATE
+        // ========================================
+        function renderNotification(cardHtml, teamColor) {
+            const el = document.getElementById('goalNotification');
+
+            // Cancel any in-progress hide
+            if (notifTimeout)     { clearTimeout(notifTimeout);     notifTimeout     = null; }
+            if (notifHideTimeout) { clearTimeout(notifHideTimeout); notifHideTimeout = null; }
+
+            el.style.setProperty('--goal-team-color', teamColor);
+
+            // Instantly reset to hidden (no transition), inject new content
+            el.classList.remove('visible', 'hiding');
+            el.style.transition = 'none';
+            el.innerHTML = cardHtml;
+
+            // Force reflow so browser registers the hidden state
+            void el.offsetHeight;
+
+            // Now animate in
+            el.style.transition = '';
+            el.classList.add('visible');
+
+            // After 5s, fade out
+            notifTimeout = setTimeout(function() {
+                el.classList.remove('visible');
+                el.classList.add('hiding');
+                notifHideTimeout = setTimeout(function() {
+                    el.classList.remove('hiding');
+                    el.innerHTML = '';
+                }, 600);
+            }, 5000);
         }
     </script>
 </body>
