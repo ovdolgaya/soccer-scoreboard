@@ -467,9 +467,16 @@
             if (status === 'half2_ended') return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
             if (status === 'playing') {
                 const halfText = matchData.currentHalf === 1 ? '1 ТАЙМ' : '2 ТАЙМ';
+                // Compute initial display from startTime directly (avoids stale matchData.time)
+                const initElapsed = Math.max(0, Date.now() - matchData.startTime);
+                const initSec = Math.floor(initElapsed / 1000);
+                const ih = String(Math.floor(initSec / 3600)).padStart(2, '0');
+                const im = String(Math.floor((initSec % 3600) / 60)).padStart(2, '0');
+                const is = String(initSec % 60).padStart(2, '0');
+                const initTime = ih + ':' + im + ':' + is;
                 return `
                     <span class="half-indicator">${halfText}:</span>
-                    <span class="timer" id="timerDisplay">${matchData.time || '00:00:00'}</span>
+                    <span class="timer" id="timerDisplay">${initTime}</span>
                 `;
             }
             return '<div class="timer">00:00:00</div>';
@@ -482,7 +489,7 @@
 
         function updateTimer(matchData) {
             if (matchData.status !== 'playing') return;
-            const elapsed  = Date.now() - matchData.startTime;
+            const elapsed  = Math.max(0, Date.now() - matchData.startTime);
             const totalSec = Math.floor(elapsed / 1000);
             const h = Math.floor(totalSec / 3600);
             const m = Math.floor((totalSec % 3600) / 60);
