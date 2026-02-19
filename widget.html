@@ -441,12 +441,10 @@
 
             document.getElementById('scoreboard').innerHTML = scoreboardHtml;
 
+            // Always restart interval on each Firebase update so matchData is never stale
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
             if (matchData.status === 'playing') {
-                if (!timerInterval) {
-                    timerInterval = setInterval(function() { updateTimer(matchData); }, 100);
-                }
-            } else {
-                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+                timerInterval = setInterval(function() { updateTimer(matchData); }, 100);
             }
         }
 
