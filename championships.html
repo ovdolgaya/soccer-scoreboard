@@ -812,11 +812,12 @@ function drawMatchCard(ctx, m, logos, x, y, w, h) {
     const logoSize  = Math.min(innerH * 0.46, w * 0.18, 64);
 
     // Vertical positions (everything centred in innerH)
-    // Stack: [logoSize] [4px gap] [nameSize] — centred in innerH
-    const blockH   = logoSize + 4 + nameSize;
+    // Stack: [logoSize] [10px gap] [nameSize] — centred in innerH
+    const logoNameGap = 10;
+    const blockH   = logoSize + logoNameGap + nameSize;
     const blockTop = y + (innerH - blockH) / 2;
     const logoY    = blockTop;
-    const nameY    = blockTop + logoSize + 4;
+    const nameY    = blockTop + logoSize + logoNameGap;
 
     // Each team half: exactly half the card width
     const halfW = w / 2;
