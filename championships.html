@@ -358,11 +358,19 @@ function loadData() {
         const matchSnap = results[0];
         const champSnap = results[1];
 
-        // Load championship logos
-        const champMeta = {};
+        // Index championships by their title field so we can look up logo + Firebase key
+        // Championships are stored as /championships/champ_XXXX { title, logo, ... }
+        const champMetaByTitle = {};
         if (champSnap.val()) {
             champSnap.forEach(function(child) {
-                champMeta[child.key] = child.val();
+                const val = child.val();
+                const t = (val.title || '').trim();
+                if (t) {
+                    // Keep the node with a logo if duplicates exist, otherwise last wins
+                    if (!champMetaByTitle[t] || val.logo) {
+                        champMetaByTitle[t] = { firebaseKey: child.key, logo: val.logo || null };
+                    }
+                }
             });
         }
 
@@ -379,9 +387,16 @@ function loadData() {
             const title = (m.championshipTitle || '').trim();
             if (!title) return;
             if (!champGroups[title]) {
-                const key  = sanitizeChampKey(title);
-                const meta = champMeta[key] || {};
-                champGroups[title] = { title: title, matches: [], endedCount: 0, scheduledCount: 0, activeCount: 0, logo: meta.logo || null };
+                const meta = champMetaByTitle[title] || {};
+                champGroups[title] = {
+                    title:       title,
+                    matches:     [],
+                    endedCount:  0,
+                    scheduledCount: 0,
+                    activeCount: 0,
+                    logo:        meta.logo || null,
+                    firebaseKey: meta.firebaseKey || null  // existing champ_ node key
+                };
             }
             champGroups[title].matches.push(m);
             if (m.status === 'ended')                                           champGroups[title].endedCount++;
@@ -558,6 +573,9 @@ function showToast(msg) {
 // CHAMPIONSHIP LOGO UPLOAD
 // ============================================
 function uploadChampLogo(champTitle) {
+    const group = champGroups[champTitle];
+    if (!group) return;
+
     const input = document.createElement('input');
     input.type   = 'file';
     input.accept = 'image/*';
@@ -568,12 +586,14 @@ function uploadChampLogo(champTitle) {
         const reader = new FileReader();
         reader.onload = function(e) {
             const base64 = e.target.result;
-            const key    = sanitizeChampKey(champTitle);
 
-            database.ref('championships/' + key).set({ logo: base64 })
+            // Write logo into the existing championship node (champ_XXXX)
+            // If no existing node is known, fall back to a sanitized-title key
+            const key = group.firebaseKey || sanitizeChampKey(champTitle);
+
+            database.ref('championships/' + key + '/logo').set(base64)
                 .then(function() {
-                    // Update in-memory group and re-render
-                    if (champGroups[champTitle]) champGroups[champTitle].logo = base64;
+                    group.logo = base64;
                     renderList();
                     showToast('✓ Логотип сохранён!');
                 })
