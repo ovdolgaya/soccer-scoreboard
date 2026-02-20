@@ -29,6 +29,9 @@ auth.onAuthStateChanged(function(user) {
     } else {
         // Hide nav when logged out
         if (typeof renderNav === 'function') renderNav(null);
+        // Show login form only now — avoids flash on load for logged-in users
+        const pf = document.getElementById('passwordForm');
+        if (pf) { pf.style.visibility = ''; pf.classList.add('active'); }
     }
 });
 
@@ -66,7 +69,7 @@ function logoutUser() {
             // Reset everything
             clearMatchLocal();
             hideAllViews();
-            document.getElementById('passwordForm').classList.add('active');
+            const pf = document.getElementById('passwordForm'); if (pf) { pf.style.visibility = ''; pf.classList.add('active'); }
             document.getElementById('emailInput').value = '';
             document.getElementById('passwordInput').value = '';
         });
