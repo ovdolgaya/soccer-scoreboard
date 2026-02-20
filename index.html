@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="Scoreboard">
     <title>Управление табло</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -28,6 +28,7 @@
     
     <!-- Application Scripts -->
     <script src="auth.js"></script>
+    <script src="match-helpers.js"></script>
     <script src="match-management.js"></script>
     <script src="match-control.js"></script>
     
@@ -369,7 +370,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('sw.js')
                     .then(function(reg) { console.log('SW registered:', reg.scope); })
                     .catch(function(err) { console.warn('SW registration failed:', err); });
             });

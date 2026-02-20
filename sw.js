@@ -5,20 +5,20 @@
 const CACHE_NAME = 'scoreboard-v1';
 
 const STATIC_SHELL = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/app-layout.css',
-  '/match-helpers.js',
-  '/match-management.js',
-  '/match-control.js',
-  '/goal-tracking.js',
-  '/roster-thumbnail-helper.js',
-  '/auth.js',
-  '/nav.js',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  './',
+  './index.html',
+  './styles.css',
+  './app-layout.css',
+  './match-helpers.js',
+  './match-management.js',
+  './match-control.js',
+  './goal-tracking.js',
+  './roster-thumbnail-helper.js',
+  './auth.js',
+  './nav.js',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 // Install: cache static shell
