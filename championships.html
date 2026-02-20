@@ -153,7 +153,7 @@
         }
 
         .match-row:last-child { border-bottom: none; }
-        .match-row:hover { background: #fafafa; }
+        .match-row:hover { background: #f0f4ff; cursor: pointer; }
 
         .match-team {
             display: flex;
@@ -488,7 +488,7 @@ function renderMatchTable(matches) {
             : `<div class="team-logo-placeholder">⚽</div>`;
 
         return `
-            <div class="match-row">
+            <div class="match-row" onclick="openStatsModal('${escAttr(m.id)}')" title="Статистика матча">
                 <div class="match-team">${t1Logo}<span>${escHtml(m.team1Name||'')}</span></div>
                 <div class="match-score-cell">
                     <div class="match-score ${m.status==='ended'?'ended-score':''}">${scoreHtml}</div>
@@ -497,7 +497,7 @@ function renderMatchTable(matches) {
                 <div class="match-team right"><span>${escHtml(m.team2Name||'')}</span>${t2Logo}</div>
                 <div class="match-meta-cell">
                     ${statusHtml}
-                    <button class="match-link" onclick="openStatsModal('${escAttr(m.id)}')" title="Статистика матча">
+                    <button class="match-link" onclick="event.stopPropagation();openStatsModal('${escAttr(m.id)}')" title="Статистика матча">
                         <i class="fas fa-chart-bar"></i> Статистика
                     </button>
                 </div>
