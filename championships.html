@@ -165,7 +165,7 @@
         }
 
         .match-team.right {
-            flex-direction: row-reverse;
+            justify-content: flex-end;
             text-align: right;
         }
 
@@ -1118,7 +1118,7 @@ function renderStatsBody(match, goalsData) {
     if (!goals.length) {
         const pre = (match.status === 'waiting' || match.status === 'scheduled');
         body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:48px 0;font-size:15px;">' +
-            (pre ? 'Матч ещё не начался' : 'Нет статистики по голам') + '</div>';
+            (pre ? 'Матч ещё не начался' : 'Голов не забито') + '</div>';
         return;
     }
 
