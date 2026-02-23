@@ -780,7 +780,7 @@ function drawThumbnail(champTitle, matches, logos, champLogoImg) {
         const url  = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href     = url;
-        link.download = 'championship-' + champTitle.replace(/[^a-z0-9]/gi, '_') + '.png';
+        link.download = 'championship-' + champTitle.replace(/[^a-zа-яёА-ЯЁ0-9]/gi, '_') + '.png';
         link.click();
         URL.revokeObjectURL(url);
         showToast('✓ Thumbnail скачан!');
