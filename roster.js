@@ -609,6 +609,10 @@ function deletePlayer(playerId) {
         .then(() => {
             console.log('Player soft-deleted:', playerId);
             showToast('Игрок удалён');
+            // Remove immediately from in-memory list and re-render — no round-trip wait
+            allPlayers = allPlayers.filter(p => p.id !== playerId);
+            displayPlayers();
+            // Also sync with Firebase in background
             loadPlayers();
         })
         .catch((error) => {
@@ -957,300 +961,47 @@ function generateRosterThumbnail() {
         return;
     }
 
-    // Create canvas
-    const canvas = document.getElementById('rosterThumbnailCanvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Set canvas size (YouTube thumbnail: 1280x720)
-    canvas.width = 1280;
-    canvas.height = 720;
-    
-    // Separate goalkeepers and field players, excluding absent players
-    const goalkeepers = allPlayers.filter(p => p.isGoalkeeper && !p.isAbsent);
-    const fieldPlayers = allPlayers.filter(p => !p.isGoalkeeper && !p.isAbsent);
-    
-    // Prepare image loading array
-    const imagesToLoad = [];
-    const loadedImages = {};
-    
-    // Add team logo
-    imagesToLoad.push({
-        key: 'teamLogo',
-        src: currentDefaultTeamData.logo
+    generateRosterThumbnailHelper(currentDefaultTeam, function(blob, teamName) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `roster-${teamName}.png`;
+        link.click();
+        URL.revokeObjectURL(url);
+        alert('✓ Состав команды скачан!');
     });
-    
-    // Add badge icons from team settings (only if configured)
-    // These can be configured in team settings to customize the badges
-    const goalkeeperBadge = currentDefaultTeamData.goalkeeperBadge;
-    const fieldPlayerBadge = currentDefaultTeamData.fieldPlayerBadge;
-    
-    if (goalkeeperBadge) {
-        imagesToLoad.push({
-            key: 'goalkeeperBadge',
-            src: goalkeeperBadge
-        });
-    }
-    
-    if (fieldPlayerBadge) {
-        imagesToLoad.push({
-            key: 'fieldPlayerBadge',
-            src: fieldPlayerBadge
-        });
-    }
-    
-    // Add coach photo if exists
-    if (currentCoachData && currentCoachData.name) {
-        imagesToLoad.push({
-            key: 'coachPhoto',
-            src: currentCoachData.photo || currentDefaultTeamData.logo
-        });
-    }
-    
-    // Add goalkeeper photos (max 3)
-    const gksToShow = goalkeepers.slice(0, 3);
-    gksToShow.forEach((gk, index) => {
-        imagesToLoad.push({
-            key: `gk_${index}`,
-            src: gk.photo || currentDefaultTeamData.logo,
-            player: gk
-        });
-    });
-    
-    // Add field player photos (max 15 - 3 rows of 5)
-    const playersToShow = fieldPlayers.slice(0, 15);
-    playersToShow.forEach((player, index) => {
-        imagesToLoad.push({
-            key: `player_${index}`,
-            src: player.photo || currentDefaultTeamData.logo,
-            player: player
-        });
-    });
-    
-    // Load all images first
-    let imagesLoaded = 0;
-    const totalImages = imagesToLoad.length;
-    
-    imagesToLoad.forEach(imgData => {
-        const img = new Image();
-        // Only set crossOrigin for HTTP(S) URLs, not for data URIs
-        if (imgData.src.startsWith('http://') || imgData.src.startsWith('https://')) {
-            img.crossOrigin = "anonymous";  // Enable CORS to avoid tainted canvas
-        }
-        img.onload = function() {
-            loadedImages[imgData.key] = {
-                img: img,
-                player: imgData.player
-            };
-            imagesLoaded++;
-            if (imagesLoaded === totalImages) {
-                drawEverything();
-            }
-        };
-        img.onerror = function() {
-            imagesLoaded++;
-            if (imagesLoaded === totalImages) {
-                drawEverything();
-            }
-        };
-        img.src = imgData.src;
-    });
-    
-    function drawEverything() {
-        // Clear and redraw background
-        ctx.fillStyle = 'rgba(59, 131, 246, 0.7)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        let currentY = 60;
-        
-        // ========================================
-        // 1. HEADER ROW: Logo (left) and Coach (center)
-        // ========================================
-        
-        const headerY = currentY;
-        const logoSquareSize = 90;
-        const logoMaxSize = 70;
-        
-        // Draw white rounded square for team logo (LEFT SIDE)
-        const logoSquareX = 80;
-        const cornerRadius = 15;
-        
-        ctx.fillStyle = 'white';
-        ctx.beginPath();
-        ctx.roundRect(logoSquareX, headerY, logoSquareSize, logoSquareSize, cornerRadius);
-        ctx.fill();
-        
-        // Draw team logo inside square
-        if (loadedImages['teamLogo']) {
-            const img = loadedImages['teamLogo'].img;
-            
-            // Calculate proportional size
-            let width = img.width;
-            let height = img.height;
-            
-            if (width > height) {
-                if (width > logoMaxSize) {
-                    height = (height * logoMaxSize) / width;
-                    width = logoMaxSize;
-                }
-            } else {
-                if (height > logoMaxSize) {
-                    width = (width * logoMaxSize) / height;
-                    height = logoMaxSize;
-                }
-            }
-            
-            // Center logo in square
-            const logoX = logoSquareX + (logoSquareSize - width) / 2;
-            const logoY = headerY + (logoSquareSize - height) / 2;
-            ctx.drawImage(img, logoX, logoY, width, height);
-        }
-        
-        // Coach (centered horizontally, same vertical line as logo) - if exists
-        if (currentCoachData && currentCoachData.name && loadedImages['coachPhoto']) {
-            const coachPhotoSize = 70;
-            const centerX = canvas.width / 2;
-            const coachPhotoY = headerY + (logoSquareSize - coachPhotoSize) / 2; // Vertically center with logo
-            
-            drawRoundedImage(loadedImages['coachPhoto'].img, centerX - coachPhotoSize / 2, coachPhotoY, coachPhotoSize);
-            
-            // Coach name (centered below photo, on same row)
-            ctx.fillStyle = 'white';
-            ctx.font = '22px Calibri, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Тренер: ' + currentCoachData.name, centerX, coachPhotoY + coachPhotoSize + 25);
-        }
-        
-        currentY = headerY + logoSquareSize + 40;
-        
-        // ========================================
-        // 2. GOALKEEPERS ROW (1-3 keepers, equal cells)
-        // ========================================
-        
-        if (gksToShow.length > 0) {
-            const gkSize = 100;
-            const gkCellWidth = canvas.width / gksToShow.length; // Equal width cells
-            const badgeSize = 32;  // Badge icon size
-            
-            gksToShow.forEach((gk, index) => {
-                const cellX = index * gkCellWidth;
-                const centerX = cellX + gkCellWidth / 2;
-                
-                const imgData = loadedImages[`gk_${index}`];
-                
-                if (imgData) {
-                    // Draw photo centered in cell
-                    const photoX = centerX - gkSize / 2;
-                    drawRoundedImage(imgData.img, photoX, currentY, gkSize);
-                    
-                    // Draw goalkeeper badge next to photo (bottom-right, not overlaying)
-                    if (loadedImages['goalkeeperBadge']) {
-                        const badgeX = photoX + gkSize + 5; // 5px gap from photo
-                        const badgeY = currentY + gkSize - badgeSize; // Align to bottom of photo
-                        ctx.drawImage(loadedImages['goalkeeperBadge'].img, badgeX, badgeY, badgeSize, badgeSize);
-                    }
-                    
-                    // Draw name (no card, no truncation)
-                    const textY = currentY + gkSize + 35;
-                    ctx.fillStyle = 'white';
-                    ctx.font = 'bold 24px Calibri, sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`#${gk.number} ${gk.firstName} ${gk.lastName}`, centerX, textY);
-                }
-            });
-            
-            currentY += gkSize + 70;
-        }
-        
-        // ========================================
-        // 3. FIELD PLAYERS GRID (5 per row, equal cells)
-        // ========================================
-        
-        if (playersToShow.length > 0) {
-            const playerSize = 85;
-            const playersPerRow = 5;
-            const playerCellWidth = canvas.width / playersPerRow; // 20% each
-            const rowSpacing = 150;  // Increased from 120 to prevent overlap
-            const badgeSize = 28;  // Badge icon size
-            
-            playersToShow.forEach((player, index) => {
-                const row = Math.floor(index / playersPerRow);
-                const col = index % playersPerRow;
-                
-                const cellX = col * playerCellWidth;
-                const centerX = cellX + playerCellWidth / 2;
-                const y = currentY + (row * rowSpacing);
-                
-                const imgData = loadedImages[`player_${index}`];
-                
-                if (imgData) {
-                    // Draw photo centered in cell
-                    const photoX = centerX - playerSize / 2;
-                    drawRoundedImage(imgData.img, photoX, y, playerSize);
-                    
-                    // Draw field player badge next to photo (bottom-right, not overlaying)
-                    if (loadedImages['fieldPlayerBadge']) {
-                        const badgeX = photoX + playerSize + 3; // 3px gap from photo
-                        const badgeY = y + playerSize - badgeSize; // Align to bottom of photo
-                        ctx.drawImage(loadedImages['fieldPlayerBadge'].img, badgeX, badgeY, badgeSize, badgeSize);
-                    }
-                    
-                    // Draw name (no card, no truncation)
-                    const textY = y + playerSize + 35;
-                    ctx.fillStyle = 'white';
-                    ctx.font = 'bold 22px Calibri, sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`#${player.number} ${player.firstName} ${player.lastName}`, centerX, textY);
-                }
-            });
-        }
-        
-        // Now download
-        downloadRosterThumbnail();
-    }
-    
-    function downloadRosterThumbnail() {
-        // Convert to image and download
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `roster-${currentDefaultTeamData.name}.png`;
-            link.click();
-            URL.revokeObjectURL(url);
-            alert('✓ Состав команды скачан!');
-        });
-    }
-    
-    // Helper function to draw rounded image
-    function drawRoundedImage(img, x, y, size) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        
-        // Calculate scaling to cover the circle
-        const scale = Math.max(size / img.width, size / img.height);
-        const scaledWidth = img.width * scale;
-        const scaledHeight = img.height * scale;
-        const offsetX = x + (size - scaledWidth) / 2;
-        const offsetY = y + (size - scaledHeight) / 2;
-        
-        ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
-        ctx.restore();
-        
-        // White border
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI * 2);
-        ctx.stroke();
-    }
 }
+
 
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
+
+// Simple toast notification (self-contained, no DOM element needed)
+let _toastTimer = null;
+function showToast(msg) {
+    let el = document.getElementById('rosterToast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'rosterToast';
+        el.style.cssText = [
+            'position:fixed', 'bottom:24px', 'left:50%', 'transform:translateX(-50%)',
+            'background:rgba(30,41,59,0.92)', 'color:#fff', 'padding:12px 24px',
+            'border-radius:10px', 'font-size:15px', 'font-weight:600',
+            'box-shadow:0 4px 16px rgba(0,0,0,0.25)', 'z-index:9999',
+            'transition:opacity .2s', 'pointer-events:none'
+        ].join(';');
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = '1';
+    el.style.display = 'block';
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function() {
+        el.style.opacity = '0';
+        setTimeout(function() { el.style.display = 'none'; }, 200);
+    }, 3000);
+}
 
 // Handle page visibility to reload data when returning to page
 document.addEventListener('visibilitychange', () => {
