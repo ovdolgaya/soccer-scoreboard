@@ -29,13 +29,17 @@ function startMatch() {
     let initialStatus = 'waiting';
     
     if (matchDateTime) {
-        scheduledTime = new Date(matchDateTime).getTime();
-        // Extract date only (YYYY-MM-DD format)
-        const dateObj = new Date(matchDateTime);
-        matchDate = dateObj.getFullYear() + '-' + 
-                   String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + 
-                   String(dateObj.getDate()).padStart(2, '0');
-        
+        // datetime-local input gives "YYYY-MM-DDTHH:MM" with no timezone.
+        // new Date() would treat it as UTC, shifting the time by the local offset.
+        // Parse manually so it's always interpreted as local time.
+        const [datePart, timePart] = matchDateTime.split('T');
+        const [year, month, day]   = datePart.split('-').map(Number);
+        const [hour, minute]       = (timePart || '00:00').split(':').map(Number);
+        const localDate = new Date(year, month - 1, day, hour, minute);
+
+        scheduledTime = localDate.getTime();
+        matchDate     = datePart;  // already YYYY-MM-DD — no timezone shift needed
+
         if (scheduledTime > Date.now()) {
             initialStatus = 'scheduled';
         }
