@@ -615,8 +615,8 @@ function uploadChampLogo(champTitle) {
 //
 // Card shows: team1 logo+name | score | team2 name+logo | date
 
-const THUMB_W = 1280;
-const THUMB_H = 720;
+const THUMB_W = 2560;
+const THUMB_H = 1440;
 const THUMB_BG = 'rgba(59, 131, 246, 0.85)';
 const MAX_CARDS = 15;
 const COLS = 3;
@@ -723,9 +723,11 @@ function drawThumbnail(champTitle, matches, logos, champLogoImg) {
     ctx.fillStyle = 'rgba(59, 131, 246, 0.9)';
     ctx.fillRect(0, 0, THUMB_W, THUMB_H);
 
+    const SCALE = THUMB_W / 1280;  // 2 when canvas is 2560×1440
+
     // ── Header ──
-    const headerH  = 100;
-    const logoSize = 68;  // championship logo size in header
+    const headerH  = Math.round(100 * SCALE);
+    const logoSize = Math.round(68  * SCALE);
     const pad      = (headerH - logoSize) / 2;
 
     ctx.fillStyle = 'rgba(0,0,0,0.18)';
@@ -745,9 +747,9 @@ function drawThumbnail(champTitle, matches, logos, champLogoImg) {
         const lpad = logoSize * 0.1;
         ctx.fillStyle     = 'white';
         ctx.shadowColor   = 'rgba(0,0,0,0.12)';
-        ctx.shadowBlur    = 6;
-        ctx.shadowOffsetY = 2;
-        roundRect(ctx, lx - lpad, ly - lpad, lw + lpad * 2, lh + lpad * 2, 8);
+        ctx.shadowBlur    = Math.round(6 * SCALE);
+        ctx.shadowOffsetY = Math.round(2 * SCALE);
+        roundRect(ctx, lx - lpad, ly - lpad, lw + lpad * 2, lh + lpad * 2, Math.round(8 * SCALE));
         ctx.fill();
         ctx.shadowColor   = 'transparent';
         ctx.shadowBlur    = 0;
@@ -762,7 +764,7 @@ function drawThumbnail(champTitle, matches, logos, champLogoImg) {
     const titleAreaLeft  = titleOffsetX;
     const titleAreaWidth = THUMB_W - titleAreaLeft;
     ctx.fillStyle    = 'white';
-    ctx.font         = 'bold 52px Calibri, sans-serif';
+    ctx.font         = `bold ${Math.round(52 * SCALE)}px Calibri, sans-serif`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(champTitle, titleAreaLeft + titleAreaWidth / 2, headerH / 2 + 2);
@@ -770,9 +772,9 @@ function drawThumbnail(champTitle, matches, logos, champLogoImg) {
     // ── Decide layout ──
     const useCards = matches.length <= MAX_CARDS;
     if (useCards) {
-        drawCardGrid(ctx, matches, logos, headerH);
+        drawCardGrid(ctx, matches, logos, headerH, SCALE);
     } else {
-        drawTableLayout(ctx, matches, headerH);
+        drawTableLayout(ctx, matches, headerH, SCALE);
     }
 
     // ── Download ──
@@ -789,12 +791,13 @@ function drawThumbnail(champTitle, matches, logos, champLogoImg) {
 
 // ── CARD GRID (≤ 15 matches) ──────────────────────────────────────────────
 
-function drawCardGrid(ctx, matches, logos, headerH) {
+function drawCardGrid(ctx, matches, logos, headerH, SCALE) {
+    SCALE = SCALE || 1;
     const rows     = Math.ceil(matches.length / COLS);
-    const padX     = 28;
-    const padY     = 18;
-    const gapX     = 14;
-    const gapY     = 12;
+    const padX     = Math.round(28 * SCALE);
+    const padY     = Math.round(18 * SCALE);
+    const gapX     = Math.round(14 * SCALE);
+    const gapY     = Math.round(12 * SCALE);
     const areaH    = THUMB_H - headerH - padY * 2;
     const areaW    = THUMB_W - padX * 2;
 
@@ -807,14 +810,15 @@ function drawCardGrid(ctx, matches, logos, headerH) {
         const x   = padX + col * (cardW + gapX);
         const y   = headerH + padY + row * (cardH + gapY);
 
-        drawMatchCard(ctx, m, logos, x, y, cardW, cardH);
+        drawMatchCard(ctx, m, logos, x, y, cardW, cardH, SCALE);
     });
 }
 
-function drawMatchCard(ctx, m, logos, x, y, w, h) {
+function drawMatchCard(ctx, m, logos, x, y, w, h, SCALE) {
+    SCALE = SCALE || 1;
     // ── Card background ──
     ctx.fillStyle = 'rgba(255,255,255,0.93)';
-    roundRect(ctx, x, y, w, h, 12);
+    roundRect(ctx, x, y, w, h, Math.round(12 * SCALE));
     ctx.fill();
 
     const isEnded = ['ended','half1_ended','half2_ended','playing'].includes(m.status);
@@ -829,11 +833,11 @@ function drawMatchCard(ctx, m, logos, x, y, w, h) {
     const nameSize  = Math.max(9,  Math.min(14, innerH * 0.12));
 
     // Logo square — takes up most of available space after score + name
-    const logoSize  = Math.min(innerH * 0.46, w * 0.18, 64);
+    const logoSize  = Math.min(innerH * 0.46, w * 0.18, Math.round(64 * SCALE));
 
     // Vertical positions (everything centred in innerH)
     // Stack: [logoSize] [10px gap] [nameSize] — centred in innerH
-    const logoNameGap = 10;
+    const logoNameGap = Math.round(10 * SCALE);
     const blockH   = logoSize + logoNameGap + nameSize;
     const blockTop = y + (innerH - blockH) / 2;
     const logoY    = blockTop;
@@ -872,10 +876,10 @@ function drawMatchCard(ctx, m, logos, x, y, w, h) {
     // ── Date — bottom strip ──
     const dateStr = formatMatchDate(m);
     ctx.fillStyle    = '#1e293b';
-    ctx.font         = Math.max(9, Math.min(11, dateH * 0.7)) + 'px Calibri, sans-serif';
+    ctx.font         = Math.max(Math.round(9 * SCALE), Math.min(Math.round(11 * SCALE), dateH * 0.7)) + 'px Calibri, sans-serif';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(dateStr, x + w / 2, y + h - 10);
+    ctx.fillText(dateStr, x + w / 2, y + h - Math.round(10 * SCALE));
 }
 
 function drawTeamLogoSquare(ctx, img, x, y, size) {
@@ -884,9 +888,10 @@ function drawTeamLogoSquare(ctx, img, x, y, size) {
     // White rounded-square background
     ctx.fillStyle = 'white';
     // Draw with slight drop shadow
+    const _sc = size / (68 * 0.46 || 1);  // rough scale from size
     ctx.shadowColor   = 'rgba(0,0,0,0.12)';
-    ctx.shadowBlur    = 6;
-    ctx.shadowOffsetY = 2;
+    ctx.shadowBlur    = Math.round(6 * _sc);
+    ctx.shadowOffsetY = Math.round(2 * _sc);
     roundRect(ctx, x, y, size, size, r);
     ctx.fill();
     ctx.shadowColor = 'transparent';
@@ -931,13 +936,14 @@ function drawClippedText(ctx, text, cx, y, maxW, fontSize) {
 
 // ── TABLE LAYOUT (> 15 matches) ───────────────────────────────────────────
 
-function drawTableLayout(ctx, matches, headerH) {
-    const padX   = 36;
-    const padY   = 16;
+function drawTableLayout(ctx, matches, headerH, SCALE) {
+    SCALE = SCALE || 1;
+    const padX   = Math.round(36 * SCALE);
+    const padY   = Math.round(16 * SCALE);
     const startY = headerH + padY;
-    const rowH   = Math.min(32, (THUMB_H - headerH - padY * 2) / matches.length);
+    const rowH   = Math.min(Math.round(32 * SCALE), (THUMB_H - headerH - padY * 2) / matches.length);
 
-    ctx.font = '13px Calibri, sans-serif';
+    ctx.font = `${Math.round(13 * SCALE)}px Calibri, sans-serif`;
     ctx.textBaseline = 'middle';
 
     matches.forEach(function(m, i) {
@@ -959,21 +965,21 @@ function drawTableLayout(ctx, matches, headerH) {
         // Team 1
         ctx.fillStyle = 'white';
         ctx.textAlign = 'right';
-        ctx.fillText((m.team1Name || '').substring(0, 20), THUMB_W / 2 - 50, midY);
+        ctx.fillText((m.team1Name || '').substring(0, 20), THUMB_W / 2 - Math.round(50 * SCALE), midY);
 
         // Score
         const isEnded = (m.status === 'ended' || m.status === 'playing');
         const scoreStr = isEnded ? (m.score1||0) + ':' + (m.score2||0) : '?:?';
-        ctx.font = 'bold 14px Calibri, sans-serif';
+        ctx.font = `bold ${Math.round(14 * SCALE)}px Calibri, sans-serif`;
         ctx.fillStyle = '#fcd34d';
         ctx.textAlign = 'center';
         ctx.fillText(scoreStr, THUMB_W / 2, midY);
-        ctx.font = '13px Calibri, sans-serif';
+        ctx.font = `${Math.round(13 * SCALE)}px Calibri, sans-serif`;
 
         // Team 2
         ctx.fillStyle = 'white';
         ctx.textAlign = 'left';
-        ctx.fillText((m.team2Name || '').substring(0, 20), THUMB_W / 2 + 50, midY);
+        ctx.fillText((m.team2Name || '').substring(0, 20), THUMB_W / 2 + Math.round(50 * SCALE), midY);
     });
 }
 

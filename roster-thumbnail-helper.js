@@ -70,8 +70,8 @@ function generateRosterImage(teamData, players, coachData, callback) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    canvas.width  = 1280;
-    canvas.height = 720;
+    canvas.width  = 2560;
+    canvas.height = 1440;
 
     const goalkeepers  = players.filter(p => p.isGoalkeeper);
     const fieldPlayers = players.filter(p => !p.isGoalkeeper);
@@ -133,36 +133,37 @@ function generateRosterImage(teamData, players, coachData, callback) {
 }
 
 function drawRosterOnCanvas(canvas, ctx, teamData, coachData, gksToShow, playersToShow, layout, loadedImages, callback) {
-    const W = canvas.width;   // 1280
-    const H = canvas.height;  // 720
+    const W = canvas.width;   // 2560
+    const H = canvas.height;  // 1440
 
-    // Shared card constants — same for GKs and field players
-    const CARD_H    = 90;
-    const PHOTO_SZ  = CARD_H;
-    const BADGE_SZ  = 22;
-    const PADDING   = 40;   // left/right page margin
-    const GAP_X     = 10;
-    const BOTTOM_PAD = 20;
+    // Shared card constants — all scaled relative to canvas size (base: 1280×720)
+    const SCALE      = W / 1280;  // 2 when canvas is 2560×1440
+    const CARD_H     = Math.round(90  * SCALE);
+    const PHOTO_SZ   = CARD_H;
+    const BADGE_SZ   = Math.round(22  * SCALE);
+    const PADDING    = Math.round(40  * SCALE);
+    const GAP_X      = Math.round(10  * SCALE);
+    const BOTTOM_PAD = Math.round(20  * SCALE);
 
     // ── Background ──
     ctx.fillStyle = 'rgba(59, 131, 246, 0.7)';
     ctx.fillRect(0, 0, W, H);
 
-    let currentY = 40;
+    let currentY = Math.round(40 * SCALE);
 
     // ============================================
     // HEADER: Team logo (left) + Coach (centre)
     // ============================================
-    const logoSquareSize = 75;
-    const logoMaxSize    = 58;
-    const logoSquareX    = 70;
+    const logoSquareSize = Math.round(75 * SCALE);
+    const logoMaxSize    = Math.round(58 * SCALE);
+    const logoSquareX    = Math.round(70 * SCALE);
 
     ctx.fillStyle     = 'white';
     ctx.shadowColor   = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur    = 10;
-    ctx.shadowOffsetY = 4;
+    ctx.shadowBlur    = Math.round(10 * SCALE);
+    ctx.shadowOffsetY = Math.round(4  * SCALE);
     ctx.beginPath();
-    ctx.roundRect(logoSquareX, currentY, logoSquareSize, logoSquareSize, 12);
+    ctx.roundRect(logoSquareX, currentY, logoSquareSize, logoSquareSize, Math.round(12 * SCALE));
     ctx.fill();
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
@@ -179,41 +180,41 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, gksToShow, players
     // Coach — centred, same row as logo
     let headerH = logoSquareSize;
     if (coachData && coachData.name && loadedImages['coachPhoto']) {
-        const coachSize = 58;
+        const coachSize = Math.round(58 * SCALE);
         const cx = W / 2;
         const cy = currentY + (logoSquareSize - coachSize) / 2;
         drawRoundedImage(ctx, loadedImages['coachPhoto'].img, cx - coachSize / 2, cy, coachSize);
 
         ctx.fillStyle   = 'white';
-        ctx.font        = '18px Calibri, sans-serif';
+        ctx.font        = `bold ${Math.round(18 * SCALE)}px Calibri, sans-serif`;
         ctx.textAlign   = 'center';
         ctx.shadowColor = 'rgba(0,0,0,0.25)';
-        ctx.shadowBlur  = 6;
-        ctx.fillText('Тренер: ' + coachData.name, cx, cy + coachSize + 20);
+        ctx.shadowBlur  = Math.round(6 * SCALE);
+        ctx.fillText('Тренер: ' + coachData.name, cx, cy + coachSize + Math.round(20 * SCALE));
         ctx.shadowBlur = 0;
-        headerH = Math.max(logoSquareSize, coachSize + 20 + 16);
+        headerH = Math.max(logoSquareSize, coachSize + Math.round(20 * SCALE) + Math.round(16 * SCALE));
     }
 
     // Bigger gap after coach block
-    currentY += headerH + 40;
+    currentY += headerH + Math.round(40 * SCALE);
 
     // ── Calculate layout constants needed for title centering and grid ──
     const totalRows   = (gksToShow.length > 0 ? 1 : 0) + layout.rows;
     const cardW       = Math.floor((W - PADDING * 2 - GAP_X * (layout.cols - 1)) / layout.cols);
 
     // Gap between rows: 2× bigger when ≤2 rows
-    const GAP_Y = totalRows <= 2 ? 40 : 20;
+    const GAP_Y = totalRows <= 2 ? Math.round(40 * SCALE) : Math.round(20 * SCALE);
 
     // ============================================
     // TITLE: "Состав команды" — centred above the table
     // ============================================
-    const TITLE_H = 44;   // total height reserved for title + gap below it
+    const TITLE_H = Math.round(44 * SCALE);
     ctx.fillStyle   = 'rgba(255,255,255,0.92)';
-    ctx.font        = 'bold 26px Calibri, sans-serif';
+    ctx.font        = `bold ${Math.round(26 * SCALE)}px Calibri, sans-serif`;
     ctx.textAlign   = 'center';
     ctx.shadowColor = 'rgba(0,0,0,0.35)';
-    ctx.shadowBlur  = 6;
-    ctx.fillText('Состав команды', W / 2, currentY + 22);
+    ctx.shadowBlur  = Math.round(6 * SCALE);
+    ctx.fillText('Состав команды', W / 2, currentY + Math.round(22 * SCALE));
     ctx.shadowBlur  = 0;
     currentY += TITLE_H;
 
@@ -270,17 +271,18 @@ function drawPlayerCard(ctx, cardX, cardY, cardW, cardH, photoSz, badgeSz,
     // Card background
     ctx.fillStyle     = 'rgba(255,255,255,0.93)';
     ctx.shadowColor   = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur    = 10;
-    ctx.shadowOffsetY = 3;
+    const _sc = cardH / 90;  // local scale derived from card height
+    ctx.shadowBlur    = Math.round(10 * _sc);
+    ctx.shadowOffsetY = Math.round(3  * _sc);
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, cardW, cardH, 12);
+    ctx.roundRect(cardX, cardY, cardW, cardH, Math.round(12 * _sc));
     ctx.fill();
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
     // Left accent bar
     ctx.fillStyle = accentColor;
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, 5, cardH, [12, 0, 0, 12]);
+    ctx.roundRect(cardX, cardY, Math.round(5 * _sc), cardH, [Math.round(12 * _sc), 0, 0, Math.round(12 * _sc)]);
     ctx.fill();
 
     // Circular photo, vertically centred
@@ -311,8 +313,10 @@ function drawPlayerCard(ctx, cardX, cardY, cardW, cardH, photoSz, badgeSz,
     }
 
     // Text block
-    const textX  = cardX + 5 + photoSz + 10;
-    const availW = cardW - photoSz - 5 - 10 - 6;
+    const _bar  = Math.round(5  * (cardH / 90));
+    const _gap  = Math.round(10 * (cardH / 90));
+    const textX  = cardX + _bar + photoSz + _gap;
+    const availW = cardW - photoSz - _bar - _gap - _gap;
 
     ctx.save();
     ctx.beginPath();
@@ -320,17 +324,18 @@ function drawPlayerCard(ctx, cardX, cardY, cardW, cardH, photoSz, badgeSz,
     ctx.clip();
 
     ctx.textAlign = 'left';
+    const _s = cardH / 90;  // derive scale from card height
 
     ctx.fillStyle = accentColor;
-    ctx.font      = 'bold 13px Calibri, sans-serif';
+    ctx.font      = `bold ${Math.round(13 * _s)}px Calibri, sans-serif`;
     ctx.fillText('#' + number, textX, cardY + cardH * 0.30);
 
     ctx.fillStyle = '#475569';
-    ctx.font      = '12px Calibri, sans-serif';
+    ctx.font      = `${Math.round(12 * _s)}px Calibri, sans-serif`;
     ctx.fillText(firstName, textX, cardY + cardH * 0.55);
 
     ctx.fillStyle = '#1e293b';
-    ctx.font      = 'bold 14px Calibri, sans-serif';
+    ctx.font      = `bold ${Math.round(14 * _s)}px Calibri, sans-serif`;
     ctx.fillText(lastName, textX, cardY + cardH * 0.82);
 
     ctx.restore();
@@ -354,7 +359,7 @@ function drawRoundedImage(ctx, img, x, y, size) {
     ctx.restore();
 
     ctx.strokeStyle = 'white';
-    ctx.lineWidth   = 3;
+    ctx.lineWidth   = Math.max(1, Math.round(3 * (size / 58)));  // scale with image size
     ctx.beginPath();
     ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
     ctx.stroke();

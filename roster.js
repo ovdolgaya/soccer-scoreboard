@@ -496,23 +496,20 @@ function savePlayer() {
         }
     }
 
-    // Handle photo upload (will override existing photo if new one is selected)
+    // Handle photo upload — resize to 400×400 before saving as base64
     if (photoInput.files.length > 0) {
         const file = photoInput.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            playerData.photo = e.target.result;
-            savePlayerToFirebase(playerData, saveBtn);
-        };
-        
-        reader.onerror = function() {
-            alert('Ошибка при чтении файла фото');
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = '<i class="fas fa-save"></i> Сохранить игрока';
-        };
-        
-        reader.readAsDataURL(file);
+        resizeImageFile(file, 400, 400, 0.88,
+            function(dataUrl) {
+                playerData.photo = dataUrl;
+                savePlayerToFirebase(playerData, saveBtn);
+            },
+            function() {
+                alert('Ошибка при чтении файла фото');
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Сохранить игрока';
+            }
+        );
     } else {
         // No new photo uploaded, save with existing photo (if editing) or without photo (if new)
         savePlayerToFirebase(playerData, saveBtn);
@@ -754,21 +751,18 @@ function saveCoach() {
         updatedAt: Date.now()
     };
 
-    // Handle photo upload
+    // Handle photo upload — resize to 400×400 before saving as base64
     if (photoInput.files.length > 0) {
         const file = photoInput.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            coachData.photo = e.target.result;
-            saveCoachToFirebase(coachData);
-        };
-        
-        reader.onerror = function() {
-            alert('Ошибка при чтении файла фото');
-        };
-        
-        reader.readAsDataURL(file);
+        resizeImageFile(file, 400, 400, 0.88,
+            function(dataUrl) {
+                coachData.photo = dataUrl;
+                saveCoachToFirebase(coachData);
+            },
+            function() {
+                alert('Ошибка при чтении файла фото');
+            }
+        );
     } else if (currentCoachData && currentCoachData.photo) {
         // Keep existing photo if not changed
         coachData.photo = currentCoachData.photo;
@@ -976,6 +970,36 @@ function generateRosterThumbnail() {
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
+
+// Resize image before saving to Firebase (caps to maxW×maxH).
+// Uses PNG for transparent images (png/gif/webp), JPEG otherwise.
+function resizeImageFile(file, maxW, maxH, quality, onSuccess, onError) {
+    const reader = new FileReader();
+    reader.onerror = onError;
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onerror = onError;
+        img.onload = function() {
+            let w = img.width, h = img.height;
+            if (w > maxW || h > maxH) {
+                const ratio = Math.min(maxW / w, maxH / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, w, h);
+            const isPng = file.type === 'image/png' || file.type === 'image/gif' || file.type === 'image/webp';
+            onSuccess(isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
 
 // Simple toast notification (self-contained, no DOM element needed)
 let _toastTimer = null;
