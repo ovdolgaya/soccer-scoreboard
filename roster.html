@@ -76,8 +76,16 @@
 
                     <div class="form-grid" style="grid-template-columns: 1fr;">
                         <div class="form-group">
-                            <label for="coachName">Имя тренера</label>
-                            <input type="text" id="coachName" placeholder="Введите имя тренера">
+                            <label for="coachLastName">Фамилия тренера</label>
+                            <input type="text" id="coachLastName" placeholder="Введите фамилию">
+                        </div>
+                        <div class="form-group">
+                            <label for="coachFirstName">Имя тренера</label>
+                            <input type="text" id="coachFirstName" placeholder="Введите имя">
+                        </div>
+                        <div class="form-group">
+                            <label for="coachMiddleName">Отчество тренера</label>
+                            <input type="text" id="coachMiddleName" placeholder="Введите отчество">
                         </div>
                     </div>
 
@@ -139,6 +147,10 @@
                         <img id="currentFieldPlayerBadge" src="soccer-player.png" alt="Field Player Badge" class="badge-icon-preview">
                         <span>Полевой игрок</span>
                     </div>
+                    <div class="badge-icon-item">
+                        <img id="currentCoachBadge" src="coach.png" alt="Coach Badge" class="badge-icon-preview">
+                        <span>Тренер</span>
+                    </div>
                 </div>
 
                 <!-- Edit Badge Icons Form (collapsible) -->
@@ -189,6 +201,27 @@
                                         </div>
                                     </div>
                                     <button onclick="clearFieldPlayerBadge()" class="button secondary" style="margin-top: 0.5rem;">
+                                        <i class="fas fa-times"></i>
+                                        Сбросить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Coach Badge -->
+                        <div class="form-group">
+                            <label>Иконка тренера</label>
+                            <div class="badge-upload-item">
+                                <img id="coachBadgePreview" src="coach.png" alt="Preview" class="badge-preview">
+                                <div class="badge-upload-controls">
+                                    <div class="file-input-wrapper">
+                                        <input type="file" id="coachBadgeInput" accept="image/*" onchange="previewCoachBadge(event)">
+                                        <div class="file-input-button">
+                                            <i class="fas fa-upload"></i>
+                                            Загрузить
+                                        </div>
+                                    </div>
+                                    <button onclick="clearCoachBadge()" class="button secondary" style="margin-top: 0.5rem;">
                                         <i class="fas fa-times"></i>
                                         Сбросить
                                     </button>

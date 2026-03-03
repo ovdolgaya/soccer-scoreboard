@@ -669,15 +669,20 @@ function displayCoach() {
     const nameElement = document.getElementById('currentCoachName');
     const photoElement = document.getElementById('currentCoachPhoto');
 
-    if (currentCoachData && currentCoachData.name) {
-        nameElement.textContent = currentCoachData.name;
+    if (currentCoachData && (currentCoachData.lastName || currentCoachData.name)) {
+        // Build display name: lastName firstName middleName (fallback to legacy name field)
+        const parts = [
+            currentCoachData.lastName,
+            currentCoachData.firstName,
+            currentCoachData.middleName
+        ].filter(Boolean);
+        nameElement.textContent = parts.length ? parts.join(' ') : (currentCoachData.name || 'Не указан');
         photoElement.src = currentCoachData.photo || currentDefaultTeamData.logo;
     } else {
         nameElement.textContent = 'Не указан';
         photoElement.src = currentDefaultTeamData.logo || '';
     }
 
-    // Update coach photo preview
     updateCoachPhotoPreview();
 }
 
@@ -686,11 +691,14 @@ function toggleCoachForm() {
     const isHidden = form.classList.contains('hidden');
     
     if (isHidden) {
-        // Show form and populate with current data
         if (currentCoachData) {
-            document.getElementById('coachName').value = currentCoachData.name || '';
+            document.getElementById('coachLastName').value   = currentCoachData.lastName   || '';
+            document.getElementById('coachFirstName').value  = currentCoachData.firstName  || '';
+            document.getElementById('coachMiddleName').value = currentCoachData.middleName || '';
         } else {
-            document.getElementById('coachName').value = '';
+            document.getElementById('coachLastName').value   = '';
+            document.getElementById('coachFirstName').value  = '';
+            document.getElementById('coachMiddleName').value = '';
         }
         updateCoachPhotoPreview();
         form.classList.remove('hidden');
@@ -704,6 +712,9 @@ function cancelEditCoach() {
     const form = document.getElementById('editCoachForm');
     form.classList.add('hidden');
     document.getElementById('editCoachBtn').innerHTML = '<i class="fas fa-edit"></i> Редактировать';
+    document.getElementById('coachLastName').value   = '';
+    document.getElementById('coachFirstName').value  = '';
+    document.getElementById('coachMiddleName').value = '';
     document.getElementById('coachPhotoInput').value = '';
     updateCoachPhotoPreview();
 }
@@ -737,21 +748,26 @@ function updateCoachPhotoPreview() {
 }
 
 function saveCoach() {
-    const name = document.getElementById('coachName').value.trim();
+    const lastName   = document.getElementById('coachLastName').value.trim();
+    const firstName  = document.getElementById('coachFirstName').value.trim();
+    const middleName = document.getElementById('coachMiddleName').value.trim();
     const photoInput = document.getElementById('coachPhotoInput');
 
-    if (!name) {
-        alert('Пожалуйста, введите имя тренера');
+    if (!lastName && !firstName) {
+        alert('Пожалуйста, введите имя или фамилию тренера');
         return;
     }
 
     const coachData = {
-        name: name,
+        lastName,
+        firstName,
+        middleName,
+        // legacy name field for backward compat with old thumbnail / other pages
+        name: [lastName, firstName, middleName].filter(Boolean).join(' '),
         teamId: currentDefaultTeam,
         updatedAt: Date.now()
     };
 
-    // Handle photo upload — resize to 400×400 before saving as base64
     if (photoInput.files.length > 0) {
         const file = photoInput.files[0];
         resizeImageFile(file, 400, 400, 0.88,
@@ -759,16 +775,12 @@ function saveCoach() {
                 coachData.photo = dataUrl;
                 saveCoachToFirebase(coachData);
             },
-            function() {
-                alert('Ошибка при чтении файла фото');
-            }
+            function() { alert('Ошибка при чтении файла фото'); }
         );
     } else if (currentCoachData && currentCoachData.photo) {
-        // Keep existing photo if not changed
         coachData.photo = currentCoachData.photo;
         saveCoachToFirebase(coachData);
     } else {
-        // No photo
         saveCoachToFirebase(coachData);
     }
 }
@@ -797,17 +809,18 @@ function saveCoachToFirebase(coachData) {
 // ============================================
 
 function loadBadgeIcons() {
-    // Display current badge icons or placeholder
-    const goalkeeperBadge = currentDefaultTeamData.goalkeeperBadge || '';
+    const goalkeeperBadge  = currentDefaultTeamData.goalkeeperBadge  || '';
     const fieldPlayerBadge = currentDefaultTeamData.fieldPlayerBadge || '';
-    
-    // Use data URI placeholder for empty badges
+    const coachBadge       = currentDefaultTeamData.coachBadge       || '';
+
     const placeholderBadge = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"%3E%3Crect width="64" height="64" fill="%23e2e8f0"/%3E%3Ctext x="32" y="32" text-anchor="middle" dominant-baseline="middle" font-size="30" fill="%2394a3b8"%3E%3F%3C/text%3E%3C/svg%3E';
-    
-    document.getElementById('currentGoalkeeperBadge').src = goalkeeperBadge || placeholderBadge;
+
+    document.getElementById('currentGoalkeeperBadge').src  = goalkeeperBadge  || placeholderBadge;
     document.getElementById('currentFieldPlayerBadge').src = fieldPlayerBadge || placeholderBadge;
-    document.getElementById('goalkeeperBadgePreview').src = goalkeeperBadge || placeholderBadge;
+    document.getElementById('currentCoachBadge').src       = coachBadge       || placeholderBadge;
+    document.getElementById('goalkeeperBadgePreview').src  = goalkeeperBadge  || placeholderBadge;
     document.getElementById('fieldPlayerBadgePreview').src = fieldPlayerBadge || placeholderBadge;
+    document.getElementById('coachBadgePreview').src       = coachBadge       || placeholderBadge;
 }
 
 function toggleBadgeIconsForm() {
@@ -828,8 +841,9 @@ function cancelEditBadgeIcons() {
     const form = document.getElementById('editBadgeIconsForm');
     form.classList.add('hidden');
     document.getElementById('editBadgeIconsBtn').innerHTML = '<i class="fas fa-edit"></i> Редактировать';
-    document.getElementById('goalkeeperBadgeInput').value = '';
+    document.getElementById('goalkeeperBadgeInput').value  = '';
     document.getElementById('fieldPlayerBadgeInput').value = '';
+    document.getElementById('coachBadgeInput').value       = '';
     loadBadgeIcons();
 }
 
@@ -867,50 +881,54 @@ function clearFieldPlayerBadge() {
     document.getElementById('fieldPlayerBadgePreview').src = defaultBadge;
 }
 
+function previewCoachBadge(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('coachBadgePreview').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function clearCoachBadge() {
+    document.getElementById('coachBadgeInput').value = '';
+    document.getElementById('coachBadgePreview').src = 'coach.png';
+}
+
 function saveBadgeIcons() {
-    const goalkeeperInput = document.getElementById('goalkeeperBadgeInput');
+    const goalkeeperInput  = document.getElementById('goalkeeperBadgeInput');
     const fieldPlayerInput = document.getElementById('fieldPlayerBadgeInput');
+    const coachBadgeInput  = document.getElementById('coachBadgeInput');
     
     let updatesNeeded = 0;
     let updatesCompleted = 0;
-    
     const updates = {};
-    
-    // Check if goalkeeper badge needs update
+
+    function checkDone() {
+        if (++updatesCompleted === updatesNeeded) saveBadgeIconsToFirebase(updates);
+    }
+
     if (goalkeeperInput.files.length > 0) {
         updatesNeeded++;
-        const file = goalkeeperInput.files[0];
         const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            updates.goalkeeperBadge = e.target.result;
-            updatesCompleted++;
-            if (updatesCompleted === updatesNeeded) {
-                saveBadgeIconsToFirebase(updates);
-            }
-        };
-        
-        reader.readAsDataURL(file);
+        reader.onload = e => { updates.goalkeeperBadge = e.target.result; checkDone(); };
+        reader.readAsDataURL(goalkeeperInput.files[0]);
     }
-    
-    // Check if field player badge needs update
     if (fieldPlayerInput.files.length > 0) {
         updatesNeeded++;
-        const file = fieldPlayerInput.files[0];
         const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            updates.fieldPlayerBadge = e.target.result;
-            updatesCompleted++;
-            if (updatesCompleted === updatesNeeded) {
-                saveBadgeIconsToFirebase(updates);
-            }
-        };
-        
-        reader.readAsDataURL(file);
+        reader.onload = e => { updates.fieldPlayerBadge = e.target.result; checkDone(); };
+        reader.readAsDataURL(fieldPlayerInput.files[0]);
     }
-    
-    // If no updates needed, just close the form
+    if (coachBadgeInput.files.length > 0) {
+        updatesNeeded++;
+        const reader = new FileReader();
+        reader.onload = e => { updates.coachBadge = e.target.result; checkDone(); };
+        reader.readAsDataURL(coachBadgeInput.files[0]);
+    }
+
     if (updatesNeeded === 0) {
         alert('Нет изменений для сохранения');
         cancelEditBadgeIcons();
@@ -922,15 +940,9 @@ function saveBadgeIconsToFirebase(updates) {
         .then(() => {
             console.log('Badge icons saved successfully');
             alert('Иконки значков сохранены!');
-            
-            // Update current team data
-            if (updates.goalkeeperBadge) {
-                currentDefaultTeamData.goalkeeperBadge = updates.goalkeeperBadge;
-            }
-            if (updates.fieldPlayerBadge) {
-                currentDefaultTeamData.fieldPlayerBadge = updates.fieldPlayerBadge;
-            }
-            
+            if (updates.goalkeeperBadge)  currentDefaultTeamData.goalkeeperBadge  = updates.goalkeeperBadge;
+            if (updates.fieldPlayerBadge) currentDefaultTeamData.fieldPlayerBadge = updates.fieldPlayerBadge;
+            if (updates.coachBadge)       currentDefaultTeamData.coachBadge       = updates.coachBadge;
             loadBadgeIcons();
             cancelEditBadgeIcons();
         })

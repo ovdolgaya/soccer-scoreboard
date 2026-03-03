@@ -83,8 +83,9 @@ function generateRosterImage(teamData, players, coachData, callback) {
 
     if (teamData.goalkeeperBadge)  imagesToLoad.push({ key: 'goalkeeperBadge',  src: teamData.goalkeeperBadge });
     if (teamData.fieldPlayerBadge) imagesToLoad.push({ key: 'fieldPlayerBadge', src: teamData.fieldPlayerBadge });
+    if (teamData.coachBadge)       imagesToLoad.push({ key: 'coachBadge',       src: teamData.coachBadge });
 
-    if (coachData && coachData.name) {
+    if (coachData && (coachData.lastName || coachData.name)) {
         imagesToLoad.push({ key: 'coachPhoto', src: coachData.photo || teamData.logo });
     }
 
@@ -132,105 +133,118 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, gksToShow, players
 
     const SCALE      = W / 1280;
     const CARD_H     = Math.round(90  * SCALE);
-    const CARD_R     = Math.round(12  * SCALE);  // card corner radius — single source of truth
-    const PHOTO_SZ   = Math.round(80  * SCALE);  // slightly smaller than CARD_H so it stays inside
+    const CARD_R     = Math.round(12  * SCALE);
+    const PHOTO_SZ   = Math.round(80  * SCALE);
     const BADGE_SZ   = Math.round(22  * SCALE);
     const PADDING    = Math.round(40  * SCALE);
     const GAP_X      = Math.round(10  * SCALE);
     const BOTTOM_PAD = Math.round(20  * SCALE);
 
+    // ── Background ──
     ctx.fillStyle = 'rgba(59, 131, 246, 0.7)';
     ctx.fillRect(0, 0, W, H);
 
     let currentY = Math.round(40 * SCALE);
 
-    // ── Header: Team logo (left) + Coach (centre) ──
-    const logoSquareSize = Math.round(75 * SCALE);
-    const logoMaxSize    = Math.round(58 * SCALE);
-    const logoSquareX    = Math.round(70 * SCALE);
+    // ══════════════════════════════════════════
+    // HEADER: Logo (left) + "Состав команды" (right of logo)
+    // ══════════════════════════════════════════
+    const logoSq   = Math.round(75 * SCALE);
+    const logoMax  = Math.round(58 * SCALE);
+    const logoX    = Math.round(70 * SCALE);
 
+    // Logo white square
     ctx.fillStyle     = 'white';
     ctx.shadowColor   = 'rgba(0,0,0,0.18)';
     ctx.shadowBlur    = Math.round(10 * SCALE);
     ctx.shadowOffsetY = Math.round(4  * SCALE);
     ctx.beginPath();
-    ctx.roundRect(logoSquareX, currentY, logoSquareSize, logoSquareSize, CARD_R);
+    ctx.roundRect(logoX, currentY, logoSq, logoSq, CARD_R);
     ctx.fill();
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
     if (loadedImages['teamLogo']) {
         const img = loadedImages['teamLogo'].img;
         let w = img.width, h = img.height;
-        if (w > h) { if (w > logoMaxSize) { h = h * logoMaxSize / w; w = logoMaxSize; } }
-        else        { if (h > logoMaxSize) { w = w * logoMaxSize / h; h = logoMaxSize; } }
-        ctx.drawImage(img,
-            logoSquareX + (logoSquareSize - w) / 2,
-            currentY    + (logoSquareSize - h) / 2, w, h);
+        if (w > h) { if (w > logoMax) { h = h * logoMax / w; w = logoMax; } }
+        else        { if (h > logoMax) { w = w * logoMax / h; h = logoMax; } }
+        ctx.drawImage(img, logoX + (logoSq - w) / 2, currentY + (logoSq - h) / 2, w, h);
     }
 
-    let headerH = logoSquareSize;
-    if (coachData && coachData.name && loadedImages['coachPhoto']) {
-        const coachSize = Math.round(58 * SCALE);
-        const cx = W / 2;
-        const cy = currentY + (logoSquareSize - coachSize) / 2;
-        drawRoundedImage(ctx, loadedImages['coachPhoto'].img, cx - coachSize / 2, cy, coachSize);
-
-        ctx.fillStyle   = 'white';
-        ctx.font        = `bold ${Math.round(18 * SCALE)}px Calibri, sans-serif`;
-        ctx.textAlign   = 'center';
-        ctx.shadowColor = 'rgba(0,0,0,0.25)';
-        ctx.shadowBlur  = Math.round(6 * SCALE);
-        ctx.fillText('Тренер: ' + coachData.name, cx, cy + coachSize + Math.round(20 * SCALE));
-        ctx.shadowBlur = 0;
-        headerH = Math.max(logoSquareSize, coachSize + Math.round(20 * SCALE) + Math.round(16 * SCALE));
-    }
-
-    currentY += headerH + Math.round(40 * SCALE);
-
-    const totalRows = (gksToShow.length > 0 ? 1 : 0) + layout.rows;
-    const cardW     = Math.floor((W - PADDING * 2 - GAP_X * (layout.cols - 1)) / layout.cols);
-    const GAP_Y     = totalRows <= 2 ? Math.round(40 * SCALE) : Math.round(20 * SCALE);
-
-    // ── Title ──
-    const TITLE_H = Math.round(44 * SCALE);
-    ctx.fillStyle   = 'rgba(255,255,255,0.92)';
-    ctx.font        = `bold ${Math.round(26 * SCALE)}px Calibri, sans-serif`;
-    ctx.textAlign   = 'center';
+    // Title text right of logo
+    const titleX = logoX + logoSq + Math.round(24 * SCALE);
+    ctx.fillStyle   = 'rgba(255,255,255,0.95)';
+    ctx.font        = `bold ${Math.round(32 * SCALE)}px Calibri, sans-serif`;
+    ctx.textAlign   = 'left';
     ctx.shadowColor = 'rgba(0,0,0,0.35)';
     ctx.shadowBlur  = Math.round(6 * SCALE);
-    ctx.fillText('Состав команды', W / 2, currentY + Math.round(22 * SCALE));
-    ctx.shadowBlur  = 0;
-    currentY += TITLE_H;
+    ctx.fillText('Состав команды', titleX, currentY + logoSq * 0.62);
+    ctx.shadowBlur = 0;
 
-    const totalGridH = totalRows * CARD_H + (totalRows - 1) * GAP_Y;
+    currentY += logoSq + Math.round(24 * SCALE);
+
+    // ══════════════════════════════════════════
+    // COUNT ROWS: coach (if any) + GK row (if any) + field player rows
+    // ══════════════════════════════════════════
+    const hasCoach = coachData && (coachData.lastName || coachData.firstName || coachData.name);
+    const hasGks   = gksToShow.length > 0;
+
+    const totalRows = (hasCoach ? 1 : 0) + (hasGks ? 1 : 0) + layout.rows;
+    const GAP_Y     = totalRows <= 3 ? Math.round(24 * SCALE) : Math.round(14 * SCALE);
+
+    const cardW     = Math.floor((W - PADDING * 2 - GAP_X * (layout.cols - 1)) / layout.cols);
+
+    const totalGridH = totalRows * CARD_H + (totalRows - 1) * GAP_Y + (hasCoach ? GAP_Y : 0);
     const availableH = H - currentY - BOTTOM_PAD;
     const gridStartY = currentY + Math.max(0, (availableH - totalGridH) / 2);
 
     let rowY = gridStartY;
 
-    // ── Goalkeepers ──
-    if (gksToShow.length > 0) {
+    // ══════════════════════════════════════════
+    // COACH CARD (centred, wider, 3-line name, no number)
+    // ══════════════════════════════════════════
+    if (hasCoach) {
+        const coachCardW = Math.round(cardW * 1.6);  // wider than player cards
+        const coachCardX = (W - coachCardW) / 2;
+        const coachName = {
+            lastName:   coachData.lastName   || '',
+            firstName:  coachData.firstName  || '',
+            middleName: coachData.middleName || ''
+        };
+        // If only legacy `name` field exists, put it all on lastName line
+        if (!coachName.lastName && !coachName.firstName && coachData.name) {
+            coachName.lastName = coachData.name;
+        }
+        drawCoachCard(ctx, coachCardX, rowY, coachCardW, CARD_H, CARD_R, PHOTO_SZ, BADGE_SZ,
+            loadedImages['coachPhoto'], loadedImages['coachBadge'],
+            '#08399A', coachName);
+        rowY += CARD_H + GAP_Y * 2;
+    }
+
+    // ══════════════════════════════════════════
+    // GOALKEEPER ROW (centred)
+    // ══════════════════════════════════════════
+    if (hasGks) {
         const totalW = gksToShow.length * cardW + (gksToShow.length - 1) * GAP_X;
         const startX = (W - totalW) / 2;
-
         gksToShow.forEach((gk, i) => {
             const cardX = startX + i * (cardW + GAP_X);
             drawPlayerCard(ctx, cardX, rowY, cardW, CARD_H, CARD_R, PHOTO_SZ, BADGE_SZ,
                 loadedImages[`gk_${i}`], loadedImages['goalkeeperBadge'],
                 '#08399A', gk.number, gk.firstName, gk.lastName);
         });
-
         rowY += CARD_H + GAP_Y;
     }
 
-    // ── Field players ──
+    // ══════════════════════════════════════════
+    // FIELD PLAYERS GRID
+    // ══════════════════════════════════════════
     if (playersToShow.length > 0 && layout.cols > 0) {
         playersToShow.forEach((player, i) => {
             const row   = Math.floor(i / layout.cols);
             const col   = i % layout.cols;
             const cardX = PADDING + col * (cardW + GAP_X);
             const cardY = rowY + row * (CARD_H + GAP_Y);
-
             drawPlayerCard(ctx, cardX, cardY, cardW, CARD_H, CARD_R, PHOTO_SZ, BADGE_SZ,
                 loadedImages[`player_${i}`], loadedImages['fieldPlayerBadge'],
                 '#08399A', player.number, player.firstName, player.lastName);
@@ -242,8 +256,106 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, gksToShow, players
     });
 }
 
-// ── Card renderer ─────────────────────────────────────────────
-// CARD_R is passed in so accent bar corners match the card exactly
+// ── Coach card renderer ────────────────────────────────────────
+// Wider card, no number, 3 name lines: lastName / firstName / middleName
+function drawCoachCard(ctx, cardX, cardY, cardW, cardH, cardR, photoSz, badgeSz,
+                       imgData, badgeImg, accentColor, coachName) {
+
+    const barW = Math.round(6 * (cardH / 90));
+
+    // ── Card background ──
+    ctx.save();
+    ctx.fillStyle     = 'rgba(255,255,255,0.93)';
+    ctx.shadowColor   = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur    = Math.round(cardR * 0.83);
+    ctx.shadowOffsetY = Math.round(cardR * 0.25);
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
+    ctx.fill();
+    ctx.restore();
+
+    // ── Left accent border ──
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
+    ctx.clip();
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth   = barW * 2;
+    ctx.beginPath();
+    ctx.moveTo(cardX, cardY);
+    ctx.lineTo(cardX, cardY + cardH);
+    ctx.stroke();
+    ctx.restore();
+
+    const photoX = cardX + barW;
+
+    // ── Photo ──
+    if (imgData && imgData.img) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
+        ctx.clip();
+        const srcRatio  = imgData.img.width / imgData.img.height;
+        const destRatio = photoSz / cardH;
+        let sw, sh, sx, sy;
+        if (srcRatio > destRatio) {
+            sh = imgData.img.height; sw = sh * destRatio;
+            sx = (imgData.img.width - sw) / 2; sy = 0;
+        } else {
+            sw = imgData.img.width; sh = sw / destRatio;
+            sx = 0; sy = 0;
+        }
+        ctx.drawImage(imgData.img, sx, sy, sw, sh, photoX, cardY, photoSz, cardH);
+        ctx.restore();
+    }
+
+    // ── Badge top-right ──
+    if (badgeImg && badgeImg.img) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(badgeImg.img,
+            cardX + cardW - badgeSz - Math.round(cardR * 0.5),
+            cardY + Math.round(cardR * 0.5), badgeSz, badgeSz);
+    }
+
+    // ── Text block: 3 lines ──
+    const textGap = Math.round(cardR * 0.83);
+    const textX   = photoX + photoSz + textGap;
+    const availW  = cardX + cardW - textX - Math.round(cardR * 0.5);
+    const _s      = cardH / 90;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(textX, cardY, availW, cardH);
+    ctx.clip();
+    ctx.textAlign = 'left';
+
+    // Тренер label
+    ctx.fillStyle = 'rgba(100,116,139,0.8)';
+    ctx.font      = `${Math.round(10 * _s)}px Calibri, sans-serif`;
+    ctx.fillText('Тренер', textX, cardY + cardH * 0.20);
+
+    // Last name (bold, prominent)
+    ctx.fillStyle = '#1e293b';
+    ctx.font      = `bold ${Math.round(14 * _s)}px Calibri, sans-serif`;
+    ctx.fillText(coachName.lastName, textX, cardY + cardH * 0.42);
+
+    // First name
+    ctx.fillStyle = '#475569';
+    ctx.font      = `${Math.round(12 * _s)}px Calibri, sans-serif`;
+    ctx.fillText(coachName.firstName, textX, cardY + cardH * 0.62);
+
+    // Middle name (Отчество)
+    ctx.fillStyle = '#64748b';
+    ctx.font      = `${Math.round(11 * _s)}px Calibri, sans-serif`;
+    ctx.fillText(coachName.middleName, textX, cardY + cardH * 0.82);
+
+    ctx.restore();
+}
+
+// ── Player card renderer ───────────────────────────────────────
 function drawPlayerCard(ctx, cardX, cardY, cardW, cardH, cardR, photoSz, badgeSz,
                         imgData, badgeImg, accentColor, number, firstName, lastName) {
 
