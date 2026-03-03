@@ -247,44 +247,69 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, gksToShow, players
 function drawPlayerCard(ctx, cardX, cardY, cardW, cardH, cardR, photoSz, badgeSz,
                         imgData, badgeImg, accentColor, number, firstName, lastName) {
 
-    const barW = cardR;  // accent bar width = corner radius — they align perfectly
+    const barW = Math.round(6 * (cardH / 90));  // ~6px at base scale
 
-    // ── Card background ──
+    // ── Card background (with shadow) ──
+    ctx.save();
     ctx.fillStyle     = 'rgba(255,255,255,0.93)';
     ctx.shadowColor   = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur    = Math.round(cardR * 0.83);   // ~10px at base scale
-    ctx.shadowOffsetY = Math.round(cardR * 0.25);   // ~3px at base scale
+    ctx.shadowBlur    = Math.round(cardR * 0.83);
+    ctx.shadowOffsetY = Math.round(cardR * 0.25);
     ctx.beginPath();
     ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
     ctx.fill();
-    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.restore();
 
-    // ── Left accent bar — same corner radius as card so it fits flush ──
-    ctx.fillStyle = accentColor;
+    // ── Left accent border — clip to card shape, stroke a wide line flush to left edge ──
+    // lineWidth is centred on the path; doubling it and placing the path at cardX means
+    // the right half paints inside the card, the left half is clipped away.
+    ctx.save();
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, barW, cardH, [cardR, 0, 0, cardR]);
-    ctx.fill();
+    ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
+    ctx.clip();
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth   = barW * 2;
+    ctx.beginPath();
+    ctx.moveTo(cardX, cardY);
+    ctx.lineTo(cardX, cardY + cardH);
+    ctx.stroke();
+    ctx.restore();
 
-    // ── Circular photo, vertically centred ──
-    const photoOffsetY = (cardH - photoSz) / 2;
-    const photoCX = cardX + barW + photoSz / 2;  // starts right after the bar
-    const photoCY = cardY + photoOffsetY + photoSz / 2;
+    // ── Rectangular photo, full card height, clipped by card rounded corners ──
+    // Photo sits flush against the accent bar; card's roundRect clip handles the corners.
+    const photoX = cardX + barW;
 
     if (imgData && imgData.img) {
         ctx.save();
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
+        // Clip to the card shape so photo corners follow the card's border-radius
         ctx.beginPath();
-        ctx.arc(photoCX, photoCY, photoSz / 2, 0, Math.PI * 2);
-        ctx.closePath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
         ctx.clip();
-        const scale = Math.max(photoSz / imgData.img.width, photoSz / imgData.img.height);
-        const sw = imgData.img.width * scale, sh = imgData.img.height * scale;
-        ctx.drawImage(imgData.img,
-            photoCX - sw / 2,
-            photoCY - sh / 2, sw, sh);
+        // Cover-fit: fill the photo column (photoSz wide, full cardH tall)
+        const srcRatio  = imgData.img.width / imgData.img.height;
+        const destRatio = photoSz / cardH;
+        let sw, sh, sx, sy;
+        if (srcRatio > destRatio) {
+            // image is wider than slot — crop sides
+            sh = imgData.img.height;
+            sw = sh * destRatio;
+            sx = (imgData.img.width - sw) / 2;
+            sy = 0;
+        } else {
+            // image is taller than slot — crop top/bottom, bias toward top (faces)
+            sw = imgData.img.width;
+            sh = sw / destRatio;
+            sx = 0;
+            sy = 0;  // top-aligned so faces aren't cropped
+        }
+        ctx.drawImage(imgData.img, sx, sy, sw, sh, photoX, cardY, photoSz, cardH);
         ctx.restore();
     }
+
+    // Alias photoCX / photoCY so text-layout math below stays unchanged
+    const photoCX = photoX + photoSz / 2;
 
     // ── Badge — top-right corner ──
     if (badgeImg && badgeImg.img) {
@@ -297,7 +322,7 @@ function drawPlayerCard(ctx, cardX, cardY, cardW, cardH, cardR, photoSz, badgeSz
 
     // ── Text block ──
     const textGap = Math.round(cardR * 0.83);  // ~10px at base scale
-    const textX   = photoCX + photoSz / 2 + textGap;
+    const textX   = photoX + photoSz + textGap;
     const availW  = cardX + cardW - textX - Math.round(cardR * 0.5);
 
     ctx.save();
