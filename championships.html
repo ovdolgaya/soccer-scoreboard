@@ -472,7 +472,19 @@ function renderChampCard(g, idx) {
 function renderMatchTable(matches) {
     if (!matches.length) return '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:14px;">Матчей нет</div>';
 
-    const sorted = sortMatches(matches.slice());
+    // Sort by scheduled/match date ascending — earlier matches first
+    const sorted = matches.slice().sort(function(a, b) {
+        // Build a comparable date string: prefer scheduledTime (ms), fall back to matchDate (YYYY-MM-DD), then createdAt
+        function sortKey(m) {
+            if (m.scheduledTime) return m.scheduledTime;           // numeric ms — most precise
+            if (m.matchDate)     return m.matchDate.replace(/-/g, ''); // "20260315" — sorts correctly
+            return m.createdAt || 0;
+        }
+        const ka = sortKey(a), kb = sortKey(b);
+        if (ka < kb) return -1;
+        if (ka > kb) return  1;
+        return 0;
+    });
 
     return sorted.map(function(m) {
         const dateStr = formatMatchDate(m);
@@ -630,12 +642,20 @@ function generateChampThumbnail(champTitle, btn) {
     btn.classList.add('loading');
     btn.disabled = true;
 
-    const matches = group.matches.slice().sort(function(a,b) {
-        const aDate = matchSortKey(a);
-        const bDate = matchSortKey(b);
-        if (aDate < bDate) return -1;
-        if (aDate > bDate) return 1;
-        return 0; // Chronological for thumbnail
+    const matches = group.matches.slice().sort(function(a, b) {
+        // Unified sort key — always returns a comparable value:
+        // scheduledTime (ms number) > matchDate ("YYYY-MM-DD") > createdAt (ms number)
+        // Convert matchDate to a timestamp so everything is numeric and comparable.
+        function key(m) {
+            if (m.scheduledTime) return m.scheduledTime;
+            if (m.matchDate) {
+                // Parse YYYY-MM-DD as local midnight → ms timestamp
+                const p = m.matchDate.split('-');
+                return new Date(+p[0], +p[1] - 1, +p[2]).getTime();
+            }
+            return m.createdAt || 0;
+        }
+        return key(a) - key(b);  // ascending — earliest first
     });
 
     // Collect unique logo URLs to pre-load (team logos + championship logo)
