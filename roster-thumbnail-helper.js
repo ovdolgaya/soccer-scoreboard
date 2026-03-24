@@ -438,10 +438,12 @@ function drawCoachCard(ctx, cardX, cardY, cardW, cardH, cardR,
     const middleNameSize = Math.round(12 * _s);
     const lineGap        = Math.round(6  * SCALE);
 
-    // Stack from bottom up: lastName (bottom), middleName, firstName (top)
-    const bottomY      = cardY + cardH - pad;
-    const middleNameY  = bottomY - lastNameSize - lineGap;
-    const firstNameY   = middleNameY - middleNameSize - lineGap;
+    // Centre the 3-line name block vertically in the card
+    const blockH      = firstNameSize + lineGap + middleNameSize + lineGap + lastNameSize;
+    const blockTop    = cardY + (cardH - blockH) / 2;
+    const firstNameY  = blockTop + firstNameSize;
+    const middleNameY = firstNameY + lineGap + middleNameSize;
+    const bottomY     = middleNameY + lineGap + lastNameSize;
 
     ctx.fillStyle = '#64748b';
     ctx.font      = `${firstNameSize}px Calibri, sans-serif`;
