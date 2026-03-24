@@ -134,8 +134,8 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
     const logoSize  = Math.round(70  * SCALE);
     const logoPad   = (HEADER_H - logoSize) / 2;
 
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.fillRect(0, 0, W, HEADER_H);
+     ctx.fillStyle = 'rgba(0,0,0,0.15';
+     ctx.fillRect(0, 0, W, HEADER_H);
 
     // Team logo — white rounded square
     let titleOffsetX = PADDING;
@@ -145,7 +145,7 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
         const scale = logoSize / Math.max(img.width, img.height);
         const lw    = img.width  * scale;
         const lh    = img.height * scale;
-        const lx    = logoPad;
+        const lx    = PADDING;  // align with coach card left edge
         const ly    = (HEADER_H - lh) / 2;
 
         ctx.fillStyle     = 'white';
