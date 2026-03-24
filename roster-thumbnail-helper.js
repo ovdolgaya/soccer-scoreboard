@@ -433,8 +433,8 @@ function drawCoachCard(ctx, cardX, cardY, cardW, cardH, cardR,
     ctx.textBaseline = 'alphabetic';
 
     const lastNameSize   = Math.round(15 * _s);
-    const firstNameSize  = Math.round(12 * _s);
-    const middleNameSize = Math.round(11 * _s);
+    const firstNameSize  = Math.round(11 * _s);
+    const middleNameSize = Math.round(12 * _s);
     const lineGap        = Math.round(6  * SCALE);
 
     const bottomY     = cardY + cardH - pad;
