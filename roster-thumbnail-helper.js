@@ -123,7 +123,7 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
     const BOTTOM_PAD = Math.round(24  * SCALE);
 
     // ── Single background color — same everywhere ──
-    ctx.fillStyle = 'rgba(59, 131, 246, 0.9)';
+    ctx.fillStyle = 'rgba(59, 131, 246, 0.8)';
     ctx.fillRect(0, 0, W, H);
 
     // ════════════════════════════════════════════════════════
