@@ -130,7 +130,7 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
     // HEADER BAND — dark overlay with logo + "СОСТАВ КОМАНДЫ"
     // Same style as championship thumbnail, only this band differs
     // ════════════════════════════════════════════════════════
-    const HEADER_H  = Math.round(110 * SCALE);
+    const HEADER_H  = Math.round(100 * SCALE);
     const logoSize  = Math.round(70  * SCALE);
     const logoPad   = (HEADER_H - logoSize) / 2;
 
@@ -163,15 +163,14 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
         titleOffsetX = lx + lw + lpad * 2 + Math.round(20 * SCALE);
     }
 
-    // "СОСТАВ КОМАНДЫ" — big bold centred in space right of logo
-    const titleAreaW = W - titleOffsetX;
+    // "СОСТАВ КОМАНДЫ" — left-aligned next to the logo
     ctx.fillStyle    = 'white';
-    ctx.font         = `bold ${Math.round(52 * SCALE)}px Calibri, sans-serif`;
-    ctx.textAlign    = 'center';
+    ctx.font         = `${Math.round(45 * SCALE)}px Calibri, sans-serif`;
+    ctx.textAlign    = 'left';
     ctx.textBaseline = 'middle';
     ctx.shadowColor  = 'rgba(0,0,0,0.30)';
     ctx.shadowBlur   = Math.round(8 * SCALE);
-    ctx.fillText('СОСТАВ КОМАНДЫ', titleOffsetX + titleAreaW / 2, HEADER_H / 2);
+    ctx.fillText('СОСТАВ КОМАНДЫ', titleOffsetX, HEADER_H / 2);
     ctx.shadowBlur   = 0;
     ctx.textBaseline = 'alphabetic';
 
