@@ -39,8 +39,8 @@ function generateRosterThumbnailHelper(teamId, callback) {
 function calcFieldLayout(count) {
     if (count <= 0)  return { cols: 0, rows: 0 };
     if (count <= 5)  return { cols: count, rows: 1 };
-    if (count <= 7)  return { cols: Math.ceil(count / 2), rows: 2 };
-    if (count <= 10) return { cols: Math.ceil(count / 2), rows: 2 };
+    if (count <= 8)  return { cols: Math.ceil(count / 2), rows: 2 };
+    if (count <= 10) return { cols: Math.ceil(count / 3), rows: 3 };
     if (count <= 12) return { cols: 4, rows: 3 };
     if (count <= 14) return { cols: 5, rows: 3 };
     if (count <= 15) return { cols: 5, rows: 3 };
@@ -276,6 +276,57 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
                            loadedImages[`player_${i}`], loadedImages['fieldPlayerBadge'],
                            '#08399A', player.number, player.firstName, player.lastName);
         });
+    }
+
+    // ── Footer — team name with divider lines, only if enough space remains ──
+    // currentY now points to start of field player grid (after LABEL_H increment)
+    // so lastCardBottom = currentY + rows × CARD_H + row gaps
+    const fieldRows     = layout.rows;
+    const fieldGridBase = currentY;  // currentY after LABEL_H increment = start of grid
+    const lastCardBottom = (playersToShow.length > 0)
+        ? fieldGridBase + fieldRows * CARD_H + (fieldRows - 1) * GAP_Y
+        : fieldGridBase;
+
+    const footerMinSpace = Math.round(60 * SCALE);  // minimum gap needed to show footer
+    const footerY        = H - Math.round(48 * SCALE);  // anchor from bottom
+
+    if (footerY - lastCardBottom >= footerMinSpace) {
+        const lineY      = footerY - Math.round(16 * SCALE);
+        const textY      = footerY;
+        const lineColor  = 'rgba(255,255,255,0.25)';
+        const teamName   = (teamData.name || '').toUpperCase();
+
+        // Measure text to know gap width
+        ctx.font = `${Math.round(16 * SCALE)}px Calibri, sans-serif`;
+        const textW    = ctx.measureText(teamName).width;
+        const textGap  = Math.round(20 * SCALE);
+        const lineLeft  = PADDING;
+        const lineRight = W - PADDING;
+        const textCX    = W / 2;
+        const gapLeft   = textCX - textW / 2 - textGap;
+        const gapRight  = textCX + textW / 2 + textGap;
+
+        // Left line
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth   = Math.round(1.5 * SCALE);
+        ctx.beginPath();
+        ctx.moveTo(lineLeft,  lineY);
+        ctx.lineTo(gapLeft,   lineY);
+        ctx.stroke();
+
+        // Right line
+        ctx.beginPath();
+        ctx.moveTo(gapRight,  lineY);
+        ctx.lineTo(lineRight, lineY);
+        ctx.stroke();
+
+        // Team name centred
+        ctx.fillStyle    = 'rgba(255,255,255,0.45)';
+        ctx.font         = `${Math.round(16 * SCALE)}px Calibri, sans-serif`;
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(teamName, textCX, lineY);
+        ctx.textBaseline = 'alphabetic';
     }
 
     canvas.toBlob(blob => { if (callback) callback(blob, teamData.name); });
