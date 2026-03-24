@@ -440,14 +440,14 @@ function drawCoachCard(ctx, cardX, cardY, cardW, cardH, cardR,
     const bottomY     = cardY + cardH - pad;
     const firstNameY  = bottomY - lastNameSize - lineGap;
     const middleNameY = firstNameY - firstNameSize - lineGap;
-
+    
     ctx.fillStyle = '#64748b';
-    ctx.font      = `${middleNameSize}px Calibri, sans-serif`;
-    ctx.fillText(coachName.middleName, textX, middleNameY);
-
-    ctx.fillStyle = '#475569';
     ctx.font      = `${firstNameSize}px Calibri, sans-serif`;
     ctx.fillText(coachName.firstName, textX, firstNameY);
+    
+    ctx.fillStyle = '#475569';
+    ctx.font      = `${middleNameSize}px Calibri, sans-serif`;
+    ctx.fillText(coachName.middleName, textX, middleNameY);
 
     ctx.fillStyle = '#1e293b';
     ctx.font      = `bold ${lastNameSize}px Calibri, sans-serif`;
