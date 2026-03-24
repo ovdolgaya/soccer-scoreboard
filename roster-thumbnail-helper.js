@@ -432,19 +432,21 @@ function drawCoachCard(ctx, cardX, cardY, cardW, cardH, cardR,
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'alphabetic';
 
+   
     const lastNameSize   = Math.round(15 * _s);
     const firstNameSize  = Math.round(11 * _s);
     const middleNameSize = Math.round(12 * _s);
     const lineGap        = Math.round(6  * SCALE);
 
-    const bottomY     = cardY + cardH - pad;
-    const firstNameY  = bottomY - lastNameSize - lineGap;
-    const middleNameY = firstNameY - firstNameSize - lineGap;
-    
+    // Stack from bottom up: lastName (bottom), middleName, firstName (top)
+    const bottomY      = cardY + cardH - pad;
+    const middleNameY  = bottomY - lastNameSize - lineGap;
+    const firstNameY   = middleNameY - middleNameSize - lineGap;
+
     ctx.fillStyle = '#64748b';
     ctx.font      = `${firstNameSize}px Calibri, sans-serif`;
     ctx.fillText(coachName.firstName, textX, firstNameY);
-    
+
     ctx.fillStyle = '#475569';
     ctx.font      = `${middleNameSize}px Calibri, sans-serif`;
     ctx.fillText(coachName.middleName, textX, middleNameY);
