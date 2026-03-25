@@ -123,8 +123,15 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
     const BOTTOM_PAD = Math.round(24  * SCALE);
 
     // ── Single background color — same everywhere ──
-    ctx.fillStyle = 'rgba(59, 131, 246, 0.8)';
-    ctx.fillRect(0, 0, W, H);
+   // ctx.fillStyle = 'rgba(59, 131, 246, 0.8)';
+   // ctx.fillRect(0, 0, W, H);
+       
+   // ── Radial gradient background — stadium spotlight effect ──
+const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.65);
+bgGrad.addColorStop(0, 'rgba(59, 131, 246, 0.8)');  // #003565 at 85%
+bgGrad.addColorStop(1, 'rgba(8,58,154, 0.90)');     // #00142b solid at edges
+ctx.fillStyle = bgGrad;
+ctx.fillRect(0, 0, W, H);
 
     // ════════════════════════════════════════════════════════
     // HEADER BAND — dark overlay with logo + "СОСТАВ КОМАНДЫ"
@@ -134,8 +141,8 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
     const logoSize  = Math.round(70  * SCALE);
     const logoPad   = (HEADER_H - logoSize) / 2;
 
-     ctx.fillStyle = 'rgba(0,0,0,0.15';
-     ctx.fillRect(0, 0, W, HEADER_H);
+     //ctx.fillStyle = 'rgba(0,0,0,0.15';
+     //ctx.fillRect(0, 0, W, HEADER_H);
 
     // Team logo — white rounded square
     let titleOffsetX = PADDING;
@@ -228,7 +235,7 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
                 coachName.lastName = coachData.name;
 
             drawCoachCard(ctx, PADDING, currentY, COACH_CARD_W, COACH_CARD_H, CARD_R,
-                          loadedImages['coachPhoto'], '#08399A', coachName, SCALE);
+                          loadedImages['coachPhoto'], '#08399A ', coachName, SCALE);
         }
 
         // GK cards — same width as field player cardW, centred in GK area
