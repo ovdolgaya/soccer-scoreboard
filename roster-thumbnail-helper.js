@@ -37,15 +37,9 @@ function generateRosterThumbnailHelper(teamId, callback) {
 // LAYOUT CALCULATOR — field players
 // ============================================
 function calcFieldLayout(count) {
-    if (count <= 0)  return { cols: 0, rows: 0 };
-    if (count <= 5)  return { cols: count, rows: 1 };
-    if (count <= 8)  return { cols: Math.ceil(count / 2), rows: 2 };
-    if (count <= 10) return { cols: Math.ceil(count / 3), rows: 3 };
-    if (count <= 12) return { cols: 4, rows: 3 };
-    if (count <= 14) return { cols: 5, rows: 3 };
-    if (count <= 15) return { cols: 5, rows: 3 };
-    if (count <= 18) return { cols: 6, rows: 3 };
-    return             { cols: 7, rows: 3 };
+    if (count <= 0) return { cols: 0, rows: 0 };
+    if (count <= 8) return { cols: count, rows: 1 };
+    return            { cols: Math.ceil(count / 2), rows: 2 };
 }
 
 function generateRosterImage(teamData, players, coachData, callback) {
@@ -63,6 +57,7 @@ function generateRosterImage(teamData, players, coachData, callback) {
     imagesToLoad.push({ key: 'teamLogo', src: teamData.logo });
     if (teamData.goalkeeperBadge)  imagesToLoad.push({ key: 'goalkeeperBadge',  src: teamData.goalkeeperBadge });
     if (teamData.fieldPlayerBadge) imagesToLoad.push({ key: 'fieldPlayerBadge', src: teamData.fieldPlayerBadge });
+    if (teamData.coachBadge) imagesToLoad.push({ key: 'coachBadge', src: teamData.coachBadge })
 
     const hasCoach = coachData && (coachData.lastName || coachData.firstName || coachData.name);
     if (hasCoach) {
@@ -73,8 +68,8 @@ function generateRosterImage(teamData, players, coachData, callback) {
     gksToShow.forEach((gk, i) =>
         imagesToLoad.push({ key: `gk_${i}`, src: gk.photo || teamData.logo, player: gk }));
 
-    const layout     = calcFieldLayout(fieldPlayers.length);
-    const maxPlayers = layout.cols * layout.rows;
+    const layout        = calcFieldLayout(fieldPlayers.length);
+    const maxPlayers    = layout.cols * layout.rows;
     const playersToShow = fieldPlayers.slice(0, maxPlayers);
     playersToShow.forEach((player, i) =>
         imagesToLoad.push({ key: `player_${i}`, src: player.photo || teamData.logo, player }));
@@ -107,53 +102,79 @@ function generateRosterImage(teamData, players, coachData, callback) {
 // ============================================
 function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
                             gksToShow, playersToShow, layout, loadedImages, callback) {
-    const W = canvas.width;   // 2560
-    const H = canvas.height;  // 1440
-    const SCALE = W / 1280;   // 2 at 2560px
+    const W     = canvas.width;   // 2560
+    const H     = canvas.height;  // 1440
+    const SCALE = W / 1280;       // 2 at 2560px
 
-    // ── Shared sizing — all cards the same height ──
-    const CARD_H     = Math.round(90  * SCALE);
-    const CARD_R     = Math.round(12  * SCALE);
-    const PHOTO_SZ   = Math.round(80  * SCALE);
-    const BADGE_SZ   = Math.round(22  * SCALE);
-    const PADDING    = Math.round(40  * SCALE);
-    const GAP_X      = Math.round(10  * SCALE);
-    const GAP_Y      = Math.round(14  * SCALE);
-    const LABEL_H    = Math.round(40  * SCALE);  // section label row height
-    const BOTTOM_PAD = Math.round(24  * SCALE);
+    // ── Fixed structural constants ──
+    const CARD_R   = Math.round(10 * SCALE);
+    const BADGE_SZ = Math.round(22 * SCALE);
+    const PADDING  = Math.round(40 * SCALE);
+    const GAP_X    = Math.round(12 * SCALE);
+    const GAP_Y    = Math.round(12 * SCALE);
+    const LABEL_H  = Math.round(40 * SCALE);  // section label row height
+    const HEADER_H = Math.round(100 * SCALE);
+    const FOOTER_RESERVE = Math.round(60 * SCALE);  // space at bottom for team name footer
 
-    // ── Single background color — same everywhere ──
-   // ctx.fillStyle = 'rgba(59, 131, 246, 0.8)';
-   // ctx.fillRect(0, 0, W, H);
-       
-   // ── Radial gradient background — stadium spotlight effect ──
-const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.65);
-bgGrad.addColorStop(0, 'rgba(59, 131, 246, 0.8)');  // #003565 at 85%
-bgGrad.addColorStop(1, 'rgba(8,58,154, 0.90)');     // #00142b solid at edges
-ctx.fillStyle = bgGrad;
-ctx.fillRect(0, 0, W, H);
+    // ── Dynamic sizing — 3:4 portrait aspect ratio (width:height) ──
+    // Step 1: calculate cardW from available width and column count
+    // Step 2: derive CARD_H = cardW * 4/3
+    // Step 3: verify all rows fit in available height — scale down if needed
+    const hasGks   = gksToShow.length > 0;
+    const showRow1 = hasCoach || hasGks;
+
+    const contentStartY = HEADER_H + Math.round(20 * SCALE);
+    const totalCardRows = (showRow1 ? 1 : 0) + (layout.rows || 0);
+
+    // Fixed vertical overhead (everything except the cards themselves)
+    const fixedVertical = (showRow1 ? LABEL_H : 0)                            // ВРАТАРИ label
+                        + (playersToShow.length > 0 ? LABEL_H : 0)            // ПОЛЕВЫЕ ИГРОКИ label
+                        + (showRow1 ? Math.round(20 * SCALE) : 0)             // gap after GK row
+                        + (layout.rows > 1 ? (layout.rows - 1) * GAP_Y : 0)  // gaps between field rows
+                        + FOOTER_RESERVE;
+
+    const availableHForCards = H - contentStartY - fixedVertical;
+
+    // cardW always fills the full available width for the given column count
+    const availW         = W - PADDING * 2;
+    const cardWFromWidth = Math.floor((availW - GAP_X * (layout.cols - 1)) / layout.cols);
+
+    // CARD_H from 3:4 ratio
+    const cardHFrom3x4 = Math.round(cardWFromWidth * 4 / 3);
+
+    // Max CARD_H that fits all rows vertically
+    const cardHFromHeight = totalCardRows > 0
+        ? Math.floor(availableHForCards / totalCardRows)
+        : cardHFrom3x4;
+
+    // Use whichever is smaller — ratio wins unless we're tight on height
+    const CARD_H = Math.max(Math.round(100 * SCALE), Math.min(cardHFrom3x4, cardHFromHeight));
+
+    // cardW always stretches to fill full width regardless of CARD_H
+    const cardW = cardWFromWidth;
+
+    // ── Radial gradient background — stadium spotlight effect ──
+    const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.65);
+    bgGrad.addColorStop(0, 'rgba(25, 71, 186, 0.8)');
+    bgGrad.addColorStop(1, 'rgba(0, 51, 160, 0.90)');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
 
     // ════════════════════════════════════════════════════════
-    // HEADER BAND — dark overlay with logo + "СОСТАВ КОМАНДЫ"
-    // Same style as championship thumbnail, only this band differs
+    // HEADER BAND — logo + "СОСТАВ КОМАНДЫ"
     // ════════════════════════════════════════════════════════
-    const HEADER_H  = Math.round(100 * SCALE);
-    const logoSize  = Math.round(70  * SCALE);
-    const logoPad   = (HEADER_H - logoSize) / 2;
-
-     //ctx.fillStyle = 'rgba(0,0,0,0.15';
-     //ctx.fillRect(0, 0, W, HEADER_H);
+    const logoSize = Math.round(70 * SCALE);
 
     // Team logo — white rounded square
     let titleOffsetX = PADDING;
     if (loadedImages['teamLogo']) {
-        const img   = loadedImages['teamLogo'].img;
-        const lpad  = logoSize * 0.1;
-        const scale = logoSize / Math.max(img.width, img.height);
-        const lw    = img.width  * scale;
-        const lh    = img.height * scale;
-        const lx    = PADDING;  // align with coach card left edge
-        const ly    = (HEADER_H - lh) / 2;
+        const img  = loadedImages['teamLogo'].img;
+        const lpad = logoSize * 0.1;
+        const sc   = logoSize / Math.max(img.width, img.height);
+        const lw   = img.width  * sc;
+        const lh   = img.height * sc;
+        const lx   = PADDING;
+        const ly   = (HEADER_H - lh) / 2;
 
         ctx.fillStyle     = 'white';
         ctx.shadowColor   = 'rgba(0,0,0,0.18)';
@@ -170,9 +191,9 @@ ctx.fillRect(0, 0, W, H);
         titleOffsetX = lx + lw + lpad * 2 + Math.round(20 * SCALE);
     }
 
-    // "СОСТАВ КОМАНДЫ" — left-aligned next to the logo
+    // "СОСТАВ КОМАНДЫ" title
     ctx.fillStyle    = 'white';
-    ctx.font         = `${Math.round(45 * SCALE)}px Calibri, sans-serif`;
+    ctx.font         = `bold ${Math.round(45 * SCALE)}px Lexend, Calibri, sans-serif`;
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'middle';
     ctx.shadowColor  = 'rgba(0,0,0,0.30)';
@@ -183,16 +204,8 @@ ctx.fillRect(0, 0, W, H);
 
     // ════════════════════════════════════════════════════════
     // CONTENT AREA — coach + GKs row, then field players
-    // All on the same blue background, no extra overlays
     // ════════════════════════════════════════════════════════
-    let currentY = HEADER_H + Math.round(20 * SCALE);
-
-    // Calculate cardW based on field player columns (used for all cards)
-    const cardW = Math.floor((W - PADDING * 2 - GAP_X * (layout.cols - 1)) / layout.cols);
-
-    // ── Row 1: Coach (25% width) + "ВРАТАРИ" label + GK cards (75%) ──
-    const hasGks    = gksToShow.length > 0;
-    const showRow1  = hasCoach || hasGks;
+    let currentY = contentStartY;
 
     if (showRow1) {
         const ROW1_INNER_W = W - PADDING * 2;
@@ -201,20 +214,18 @@ ctx.fillRect(0, 0, W, H);
         const GK_AREA_W    = ROW1_INNER_W - COACH_CARD_W - SPLIT_GAP;
         const GK_AREA_X    = PADDING + COACH_CARD_W + SPLIT_GAP;
 
-        // Coach card is taller: it spans LABEL_H (for the ВРАТАРИ title) + CARD_H
-        // so its bottom edge aligns with the GK cards' bottom edge
+        // Coach card spans LABEL_H + CARD_H so its bottom aligns with GK cards' bottom
         const COACH_CARD_H = LABEL_H + CARD_H;
 
-        // "ВРАТАРИ" label above GK cards — left-aligned to GK area
+        // "ВРАТАРИ" label — left-aligned to first GK card
         if (hasGks) {
-            // Calculate where the first GK card will start so the label aligns with it
-            const gkGap      = Math.round(10 * SCALE);
-            const gkCardW    = cardW;
-            const totalGkW   = gksToShow.length * gkCardW + (gksToShow.length - 1) * gkGap;
-            const gkStartX   = GK_AREA_X + Math.max(0, (GK_AREA_W - totalGkW) / 2);
+            const gkGap    = Math.round(10 * SCALE);
+            const gkCardW  = cardW;
+            const totalGkW = gksToShow.length * gkCardW + (gksToShow.length - 1) * gkGap;
+            const gkStartX = GK_AREA_X + Math.max(0, (GK_AREA_W - totalGkW) / 2);
 
-            ctx.fillStyle    = 'rgba(255,255,255,0.85)';
-            ctx.font         = `bold ${Math.round(20 * SCALE)}px Calibri, sans-serif`;
+            ctx.fillStyle    = 'rgba(166, 200, 255, 0.75)';
+            ctx.font         = `bold ${Math.round(20 * SCALE)}px Lexend, Calibri, sans-serif`;
             ctx.textAlign    = 'left';
             ctx.textBaseline = 'middle';
             ctx.shadowColor  = 'rgba(0,0,0,0.20)';
@@ -224,7 +235,7 @@ ctx.fillRect(0, 0, W, H);
             ctx.textBaseline = 'alphabetic';
         }
 
-        // Coach card starts at currentY (same as ВРАТАРИ label), spans full COACH_CARD_H
+        // Coach card — starts at currentY, spans full COACH_CARD_H
         if (hasCoach) {
             const coachName = {
                 lastName:   coachData.lastName   || '',
@@ -235,23 +246,21 @@ ctx.fillRect(0, 0, W, H);
                 coachName.lastName = coachData.name;
 
             drawCoachCard(ctx, PADDING, currentY, COACH_CARD_W, COACH_CARD_H, CARD_R,
-                          loadedImages['coachPhoto'], '#08399A ', coachName, SCALE);
+                          loadedImages['coachPhoto'], loadedImages['coachBadge'], coachName, SCALE);
         }
 
-        // GK cards — same width as field player cardW, centred in GK area
+        // GK cards — vertical, centred in GK area
         const cardRowY = currentY + LABEL_H;
         if (hasGks) {
-            const gkGap      = Math.round(10 * SCALE);
-            // Use field player cardW so GK cards match their size
-            const gkCardW    = cardW;
-            const totalGkW   = gksToShow.length * gkCardW + (gksToShow.length - 1) * gkGap;
-            // Centre the GK group within the GK area
-            const gkStartX   = GK_AREA_X + Math.max(0, (GK_AREA_W - totalGkW) / 2);
+            const gkGap    = Math.round(10 * SCALE);
+            const gkCardW  = cardW;
+            const totalGkW = gksToShow.length * gkCardW + (gksToShow.length - 1) * gkGap;
+            const gkStartX = GK_AREA_X + Math.max(0, (GK_AREA_W - totalGkW) / 2);
             gksToShow.forEach((gk, i) => {
                 const gkX = gkStartX + i * (gkCardW + gkGap);
-                drawPlayerCard(ctx, gkX, cardRowY, gkCardW, CARD_H, CARD_R, PHOTO_SZ, BADGE_SZ,
+                drawPlayerCard(ctx, gkX, cardRowY, gkCardW, CARD_H, CARD_R, BADGE_SZ,
                                loadedImages[`gk_${i}`], loadedImages['goalkeeperBadge'],
-                               '#08399A', gk.number, gk.firstName, gk.lastName);
+                               gk.number, gk.firstName, gk.lastName);
             });
         }
 
@@ -261,8 +270,8 @@ ctx.fillRect(0, 0, W, H);
     // ── Field players section ──
     if (playersToShow.length > 0 && layout.cols > 0) {
         // "ПОЛЕВЫЕ ИГРОКИ" label
-        ctx.fillStyle    = 'rgba(255,255,255,0.85)';
-        ctx.font         = `bold ${Math.round(20 * SCALE)}px Calibri, sans-serif`;
+        ctx.fillStyle    = 'rgba(166, 200, 255, 0.75)';
+        ctx.font         = `bold ${Math.round(20 * SCALE)}px Lexend, Calibri, sans-serif`;
         ctx.textAlign    = 'left';
         ctx.textBaseline = 'middle';
         ctx.shadowColor  = 'rgba(0,0,0,0.20)';
@@ -278,32 +287,28 @@ ctx.fillRect(0, 0, W, H);
             const col   = i % layout.cols;
             const cardX = PADDING + col * (cardW + GAP_X);
             const cardY = currentY + row * (CARD_H + GAP_Y);
-            drawPlayerCard(ctx, cardX, cardY, cardW, CARD_H, CARD_R, PHOTO_SZ, BADGE_SZ,
+            drawPlayerCard(ctx, cardX, cardY, cardW, CARD_H, CARD_R, BADGE_SZ,
                            loadedImages[`player_${i}`], loadedImages['fieldPlayerBadge'],
-                           '#08399A', player.number, player.firstName, player.lastName);
+                           player.number, player.firstName, player.lastName);
         });
     }
 
     // ── Footer — team name with divider lines, only if enough space remains ──
-    // currentY now points to start of field player grid (after LABEL_H increment)
-    // so lastCardBottom = currentY + rows × CARD_H + row gaps
-    const fieldRows     = layout.rows;
-    const fieldGridBase = currentY;  // currentY after LABEL_H increment = start of grid
+    const fieldRows      = layout.rows;
+    const fieldGridBase  = currentY;
     const lastCardBottom = (playersToShow.length > 0)
         ? fieldGridBase + fieldRows * CARD_H + (fieldRows - 1) * GAP_Y
         : fieldGridBase;
 
-    const footerMinSpace = Math.round(60 * SCALE);  // minimum gap needed to show footer
-    const footerY        = H - Math.round(48 * SCALE);  // anchor from bottom
+    const footerMinSpace = Math.round(60 * SCALE);
+    const footerY        = H - Math.round(48 * SCALE);
 
     if (footerY - lastCardBottom >= footerMinSpace) {
-        const lineY      = footerY - Math.round(16 * SCALE);
-        const textY      = footerY;
-        const lineColor  = 'rgba(255,255,255,0.25)';
-        const teamName   = (teamData.name || '').toUpperCase();
+        const lineY     = footerY - Math.round(16 * SCALE);
+        const lineColor = 'rgba(166, 200, 255, 0.20)';
+        const teamName  = (teamData.name || '').toUpperCase();
 
-        // Measure text to know gap width
-        ctx.font = `${Math.round(16 * SCALE)}px Calibri, sans-serif`;
+        ctx.font = `${Math.round(16 * SCALE)}px Lexend, Calibri, sans-serif`;
         const textW    = ctx.measureText(teamName).width;
         const textGap  = Math.round(20 * SCALE);
         const lineLeft  = PADDING;
@@ -312,23 +317,20 @@ ctx.fillRect(0, 0, W, H);
         const gapLeft   = textCX - textW / 2 - textGap;
         const gapRight  = textCX + textW / 2 + textGap;
 
-        // Left line
         ctx.strokeStyle = lineColor;
         ctx.lineWidth   = Math.round(1.5 * SCALE);
         ctx.beginPath();
-        ctx.moveTo(lineLeft,  lineY);
-        ctx.lineTo(gapLeft,   lineY);
+        ctx.moveTo(lineLeft, lineY);
+        ctx.lineTo(gapLeft,  lineY);
         ctx.stroke();
 
-        // Right line
         ctx.beginPath();
         ctx.moveTo(gapRight,  lineY);
         ctx.lineTo(lineRight, lineY);
         ctx.stroke();
 
-        // Team name centred
-        ctx.fillStyle    = 'rgba(255,255,255,0.45)';
-        ctx.font         = `${Math.round(16 * SCALE)}px Calibri, sans-serif`;
+        ctx.fillStyle    = 'rgba(166, 200, 255, 0.40)';
+        ctx.font         = `${Math.round(16 * SCALE)}px Lexend, Calibri, sans-serif`;
         ctx.textAlign    = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(teamName, textCX, lineY);
@@ -339,220 +341,297 @@ ctx.fillRect(0, 0, W, H);
 }
 
 // ============================================
-// COACH CARD
-// Taller than player cards (LABEL_H + CARD_H) so it aligns with
-// the ВРАТАРИ label + GK cards on the right.
-// "ТРЕНЕР" is a small yellow pill badge in the top-left corner of the photo.
-// Photo fills full card height, name lines on the right — same as player card.
+// COACH CARD — vertical layout
+// Taller than player cards (LABEL_H + CARD_H) so its bottom aligns
+// with the GK cards on the right.
+// Yellow top accent line distinguishes it from blue player cards.
 // ============================================
 function drawCoachCard(ctx, cardX, cardY, cardW, cardH, cardR,
-                       imgData, accentColor, coachName, SCALE) {
+                       imgData, badgeImg, coachName, SCALE) {
 
-    const barW    = Math.round(6 * (cardH / 90));
-    const badgeR  = Math.round(6 * SCALE);   // small fixed radius — square with rounded corners
-    const badgeSz = Math.round(28 * SCALE);  // coach icon size (top-right)
-    const photoX  = cardX + barW;
-
-    // Photo slot width = same proportion as player card (photoSz/CARD_H × cardH)
-    // Player card: photoSz = 80*SCALE, cardH = 90*SCALE → ratio ≈ 0.889
-    // Apply same ratio to coach cardH so photo is proportionally identical
-    const photoSlotW = Math.round(cardH * (80 / 90));
-    const photoSlotH = cardH;
+    const FOOTER_H = Math.round(cardH * 0.22);  // name strip — ~22% of card height
+    const photoH   = cardH - FOOTER_H;
+    const _s       = cardH / 170;
 
     // ── Card background ──
     ctx.save();
-    ctx.fillStyle     = 'rgba(255,255,255,0.93)';
-    ctx.shadowColor   = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur    = Math.round(cardR * 0.83);
-    ctx.shadowOffsetY = Math.round(cardR * 0.25);
+    ctx.shadowColor   = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur    = Math.round(cardR * 1.2);
+    ctx.shadowOffsetY = Math.round(cardR * 0.3);
     ctx.beginPath();
     ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
+    ctx.fillStyle = '#0d1b3e';
     ctx.fill();
     ctx.restore();
 
-    // ── Left accent bar ──
+    // ── Top accent line — yellow, distinguishes coach from player cards ──
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
     ctx.clip();
-    ctx.strokeStyle = accentColor;
-    ctx.lineWidth   = barW * 2;
-    ctx.beginPath();
-    ctx.moveTo(cardX, cardY);
-    ctx.lineTo(cardX, cardY + cardH);
-    ctx.stroke();
+    ctx.fillStyle = '#FCDC00';
+    ctx.fillRect(cardX, cardY, cardW, Math.round(3 * (cardH / 170)));
     ctx.restore();
 
-    // ── Photo — contain-fit (no crop), bottom-aligned within slot ──
+    // ── Radial glow behind photo — warm yellow tint for coach ──
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, photoH, [cardR, cardR, 0, 0]);
+    ctx.clip();
+    const glow = ctx.createRadialGradient(
+        cardX + cardW / 2, cardY + photoH * 0.6, 0,
+        cardX + cardW / 2, cardY + photoH * 0.6, cardW * 0.75
+    );
+    glow.addColorStop(0,   'rgba(252, 220, 0,   0.12)');
+    glow.addColorStop(0.5, 'rgba(0,   51,  160, 0.35)');
+    glow.addColorStop(1,   'rgba(0,   10,  40,  0.00)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(cardX, cardY, cardW, photoH);
+    ctx.restore();
+
+    // ── Coach photo — contain-fit, pinned to card bottom edge ──
     if (imgData && imgData.img) {
+        const photoTopInset = Math.round(cardH * 0.04);
         ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, cardR);  // clip to full card
+        ctx.clip();
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.beginPath();
-        ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
-        ctx.clip();
-        const scale = Math.min(photoSlotW / imgData.img.width, photoSlotH / imgData.img.height);
-        const dw    = imgData.img.width  * scale;
-        const dh    = imgData.img.height * scale;
-        const dx    = photoX + (photoSlotW - dw) / 2;  // centre horizontally
-        const dy    = cardY  + (photoSlotH - dh);       // bottom-aligned
-        ctx.drawImage(imgData.img, 0, 0, imgData.img.width, imgData.img.height, dx, dy, dw, dh);
+        const availH = cardH - photoTopInset;
+        const scale  = Math.min(cardW / imgData.img.width, availH / imgData.img.height);
+        const dw     = imgData.img.width  * scale;
+        const dh     = imgData.img.height * scale;
+        const dx     = cardX + (cardW - dw) / 2;
+        const dy     = cardY + cardH - dh;   // pin to card bottom
+        ctx.drawImage(imgData.img, dx, dy, dw, dh);
         ctx.restore();
     }
 
-    // ── "ТРЕНЕР" badge — top-right corner, yellow, small fixed corner radius ──
-    const pillH   = Math.round(24 * SCALE);
-    const pillPad = Math.round(14 * SCALE);
-    ctx.font      = `bold ${Math.round(12 * SCALE)}px Calibri, sans-serif`;
-    const pillW   = ctx.measureText('ТРЕНЕР').width + pillPad * 2;
-    const pillX   = cardX + cardW - pillW - Math.round(cardR * 0.5);
-    const pillY   = cardY + Math.round(8 * SCALE);
-
+    // ── Gradient footer overlay — fades smoothly into #0033A0 blue ──
     ctx.save();
-    ctx.fillStyle   = '#fcd34d';
-    ctx.shadowColor = 'rgba(0,0,0,0.15)';
-    ctx.shadowBlur  = Math.round(3 * SCALE);
     ctx.beginPath();
-    ctx.roundRect(pillX, pillY, pillW, pillH, badgeR);
-    ctx.fill();
+    ctx.roundRect(cardX, cardY + photoH - Math.round(cardH * 0.18), cardW,
+                  FOOTER_H + Math.round(cardH * 0.18), [0, 0, cardR, cardR]);
+    ctx.clip();
+    const footGrad = ctx.createLinearGradient(
+        0, cardY + photoH - Math.round(cardH * 0.20),
+        0, cardY + cardH
+    );
+    footGrad.addColorStop(0,    'rgba(0, 51, 160, 0)');
+    footGrad.addColorStop(0.35, 'rgba(0, 51, 160, 0.75)');
+    footGrad.addColorStop(0.65, 'rgba(0, 51, 160, 0.95)');
+    footGrad.addColorStop(1,    'rgba(0, 51, 160, 1.0)');
+    ctx.fillStyle = footGrad;
+    ctx.fillRect(cardX, cardY + photoH - Math.round(cardH * 0.20),
+                 cardW, FOOTER_H + Math.round(cardH * 0.20));
     ctx.restore();
 
-    ctx.fillStyle    = '#1e293b';
-    ctx.font         = `bold ${Math.round(12 * SCALE)}px Calibri, sans-serif`;
+    // ── "ТРЕНЕР" badge — top-left, yellow pill ──
+    const badgeH  = Math.round(cardH * 0.085);
+    const badgeY  = cardY + Math.round(cardR * 0.5) + Math.round(3 * (cardH / 170));
+    ctx.font      = `bold ${Math.round(badgeH * 0.62)}px Lexend, Calibri, sans-serif`;
+    const badgeW  = ctx.measureText('ТРЕНЕР').width + Math.round(cardW * 0.12);
+    const badgeX  = cardX + Math.round(cardR * 0.5);
+    const badgeR2 = Math.round(4 * (cardH / 170));
+
+    ctx.save();
+    ctx.fillStyle = '#FCDC00';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeR2);
+    ctx.fill();
+    ctx.fillStyle    = '#0d1b3e';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('ТРЕНЕР', pillX + pillW / 2, pillY + pillH / 2);
-    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('ТРЕНЕР', badgeX + badgeW / 2, badgeY + badgeH / 2);
+    ctx.restore();
 
-    // ── Text block — name aligned to bottom of card ──
-    const textGap = Math.round(10 * SCALE);
-    const textX   = photoX + photoSlotW + textGap;
-    const availW  = cardX + cardW - textX - Math.round(8 * SCALE);
-    const _s      = cardH / 90;
-    const pad     = Math.round(10 * SCALE);
+    // ── Name block — firstName / LASTNAME, plus icon right-aligned in footer ──
+    const footerTextX  = cardX + Math.round(cardW * 0.08);
+    const footerBottom = cardY + cardH - Math.round(cardH * 0.06);
+    const badgeSz      = Math.round(28 * SCALE);
+    const badgeAreaW   = badgeSz + Math.round(cardW * 0.06);
+    const nameAvailW   = cardW - Math.round(cardW * 0.08) - badgeAreaW;
+    const footerMidY   = cardY + photoH + FOOTER_H / 2;
+
+    const lastNameSize  = Math.round(13 * _s);
+    const firstNameSize = Math.round(9.5 * _s);
+    const lineGap       = Math.round(5   * _s);
+
+    const lastNameY  = footerBottom;
+    const firstNameY = lastNameY - lastNameSize - lineGap;
+
+    // Icon — right side of footer, vertically centred
+    if (badgeImg && badgeImg.img) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(badgeImg.img,
+            cardX + cardW - badgeSz - Math.round(cardW * 0.05),
+            footerMidY - badgeSz / 2,
+            badgeSz, badgeSz);
+    }
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(textX, cardY, availW, cardH);
+    ctx.rect(footerTextX, cardY + photoH, nameAvailW, FOOTER_H);
     ctx.clip();
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'alphabetic';
 
-   
-    const lastNameSize   = Math.round(15 * _s);
-    const firstNameSize  = Math.round(11 * _s);
-    const middleNameSize = Math.round(12 * _s);
-    const lineGap        = Math.round(6  * SCALE);
+    ctx.fillStyle = 'rgba(166, 200, 255, 0.55)';
+    ctx.font      = `${firstNameSize}px Lexend, Calibri, sans-serif`;
+    ctx.fillText(coachName.firstName, footerTextX, firstNameY);
 
-    // Centre the 3-line name block vertically in the card
-    const blockH      = firstNameSize + lineGap + middleNameSize + lineGap + lastNameSize;
-    const blockTop    = cardY + (cardH - blockH) / 2;
-    const firstNameY  = blockTop + firstNameSize;
-    const middleNameY = firstNameY + lineGap + middleNameSize;
-    const bottomY     = middleNameY + lineGap + lastNameSize;
-
-    ctx.fillStyle = '#64748b';
-    ctx.font      = `${firstNameSize}px Calibri, sans-serif`;
-    ctx.fillText(coachName.firstName, textX, firstNameY);
-
-    ctx.fillStyle = '#475569';
-    ctx.font      = `${middleNameSize}px Calibri, sans-serif`;
-    ctx.fillText(coachName.middleName, textX, middleNameY);
-
-    ctx.fillStyle = '#1e293b';
-    ctx.font      = `bold ${lastNameSize}px Calibri, sans-serif`;
-    ctx.fillText(coachName.lastName, textX, bottomY);
+    ctx.fillStyle = '#d4e3ff';
+    ctx.font      = `bold ${lastNameSize}px Lexend, Calibri, sans-serif`;
+    ctx.fillText(coachName.lastName, footerTextX, lastNameY);
 
     ctx.restore();
 }
 
 // ============================================
-// PLAYER / GK CARD
+// PLAYER / GK CARD — vertical layout
+// Photo fills upper area with radial glow behind transparent PNG.
+// Yellow number badge top-left. Gradient footer with name.
+// Used for both field players and goalkeepers.
 // ============================================
-function drawPlayerCard(ctx, cardX, cardY, cardW, cardH, cardR, photoSz, badgeSz,
-                        imgData, badgeImg, accentColor, number, firstName, lastName) {
+function drawPlayerCard(ctx, cardX, cardY, cardW, cardH, cardR, badgeSz,
+                        imgData, badgeImg, number, firstName, lastName) {
 
-    const barW = Math.round(6 * (cardH / 90));
+    const FOOTER_H = Math.round(cardH * 0.26);  // name strip — ~26% of card height
+    const photoH   = cardH - FOOTER_H;
+    const _s       = cardH / 170;
 
     // ── Card background ──
     ctx.save();
-    ctx.fillStyle     = 'rgba(255,255,255,0.93)';
-    ctx.shadowColor   = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur    = Math.round(cardR * 0.83);
-    ctx.shadowOffsetY = Math.round(cardR * 0.25);
+    ctx.shadowColor   = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur    = Math.round(cardR * 1.2);
+    ctx.shadowOffsetY = Math.round(cardR * 0.3);
     ctx.beginPath();
     ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
+    ctx.fillStyle = '#0d1b3e';
     ctx.fill();
     ctx.restore();
 
-    // ── Left accent bar ──
+    // ── Top accent line — blue ──
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
     ctx.clip();
-    ctx.strokeStyle = accentColor;
-    ctx.lineWidth   = barW * 2;
-    ctx.beginPath();
-    ctx.moveTo(cardX, cardY);
-    ctx.lineTo(cardX, cardY + cardH);
-    ctx.stroke();
+    ctx.fillStyle = '#1947BA';
+    ctx.fillRect(cardX, cardY, cardW, Math.round(3 * (cardH / 170)));
     ctx.restore();
 
-    // ── Photo (rectangular, cover-fit, full card height) ──
-    const photoX = cardX + barW;
+    // ── Radial glow behind photo ──
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, photoH, [cardR, cardR, 0, 0]);
+    ctx.clip();
+    const glow = ctx.createRadialGradient(
+        cardX + cardW / 2, cardY + photoH * 0.55, 0,
+        cardX + cardW / 2, cardY + photoH * 0.55, cardW * 0.75
+    );
+    glow.addColorStop(0, 'rgba(0, 51, 160, 0.55)');
+    glow.addColorStop(1, 'rgba(0, 10, 40,  0.00)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(cardX, cardY, cardW, photoH);
+    ctx.restore();
+
+    // ── Player photo — contain-fit, pinned to card bottom edge
+    // Photo is scaled against full cardH so chest-up shots fill the card nicely.
+    // Clipped to the full card roundRect so it doesn't bleed outside rounded corners.
+    // The gradient footer overlay renders on top of the lower portion. ──
     if (imgData && imgData.img) {
+        const photoTopInset = Math.round(cardH * 0.06);  // breathing room from top edge
         ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, cardR);  // clip to full card
+        ctx.clip();
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.beginPath();
-        ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
-        ctx.clip();
-        const srcRatio  = imgData.img.width / imgData.img.height;
-        const destRatio = photoSz / cardH;
-        let sw, sh, sx, sy;
-        if (srcRatio > destRatio) {
-            sh = imgData.img.height; sw = sh * destRatio;
-            sx = (imgData.img.width - sw) / 2; sy = 0;
-        } else {
-            sw = imgData.img.width; sh = sw / destRatio;
-            sx = 0; sy = 0;
-        }
-        ctx.drawImage(imgData.img, sx, sy, sw, sh, photoX, cardY, photoSz, cardH);
+        const availH = cardH - photoTopInset;
+        const scale  = Math.min(cardW / imgData.img.width, availH / imgData.img.height);
+        const dw     = imgData.img.width  * scale;
+        const dh     = imgData.img.height * scale;
+        const dx     = cardX + (cardW - dw) / 2;   // centre horizontally
+        const dy     = cardY + cardH - dh;           // pin to card bottom
+        ctx.drawImage(imgData.img, dx, dy, dw, dh);
         ctx.restore();
     }
 
-    // ── Badge top-right ──
+    // ── Gradient footer overlay — fades photo smoothly into #0033A0 blue ──
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY + photoH - Math.round(cardH * 0.18), cardW,
+                  FOOTER_H + Math.round(cardH * 0.18), [0, 0, cardR, cardR]);
+    ctx.clip();
+    const footGrad = ctx.createLinearGradient(
+        0, cardY + photoH - Math.round(cardH * 0.20),
+        0, cardY + cardH
+    );
+    footGrad.addColorStop(0,    'rgba(0, 51, 160, 0)');
+    footGrad.addColorStop(0.35, 'rgba(0, 51, 160, 0.75)');
+    footGrad.addColorStop(0.65, 'rgba(0, 51, 160, 0.95)');
+    footGrad.addColorStop(1,    'rgba(0, 51, 160, 1.0)');
+    ctx.fillStyle = footGrad;
+    ctx.fillRect(cardX, cardY + photoH - Math.round(cardH * 0.20),
+                 cardW, FOOTER_H + Math.round(cardH * 0.20));
+    ctx.restore();
+
+    // ── Number badge — top-left, yellow square ──
+    const badgeH  = Math.round(cardH * 0.10);   // smaller: 10% of card height
+    const badgeR2 = Math.round(4 * (cardH / 170));
+    ctx.save();
+    ctx.font = `bold ${Math.round(badgeH * 0.65)}px Lexend, Calibri, sans-serif`;
+    const badgeW  = Math.max(
+        ctx.measureText(String(number)).width + Math.round(cardW * 0.10),
+        Math.round(cardW * 0.18)              // minimum width so single digits aren't too narrow
+    );
+    const badgeX  = cardX + Math.round(cardR * 0.5);
+    const badgeY  = cardY + Math.round(cardR * 0.5) + Math.round(3 * (cardH / 170));
+
+    ctx.fillStyle = '#FCDC00';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeR2);
+    ctx.fill();
+    ctx.fillStyle    = '#0d1b3e';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(number), badgeX + badgeW / 2, badgeY + badgeH / 2);
+    ctx.restore();
+
+    // ── Badge icon — right side of footer strip, vertically centred ──
+    // Drawn before name text so text clipping doesn't affect it
+    const footerTextX  = cardX + Math.round(cardW * 0.08);
+    const footerBottom = cardY + cardH - Math.round(cardH * 0.06);
+    const badgeAreaW   = badgeSz + Math.round(cardW * 0.06);  // icon + right margin
+    const nameAvailW   = cardW - Math.round(cardW * 0.08) - badgeAreaW;  // text doesn't overlap icon
+    const footerMidY   = cardY + photoH + FOOTER_H / 2;
+
     if (badgeImg && badgeImg.img) {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(badgeImg.img,
-            cardX + cardW - badgeSz - Math.round(cardR * 0.5),
-            cardY + Math.round(cardR * 0.5), badgeSz, badgeSz);
+            cardX + cardW - badgeSz - Math.round(cardW * 0.05),
+            footerMidY - badgeSz / 2,
+            badgeSz, badgeSz);
     }
 
-    // ── Text block ──
-    const textGap = Math.round(cardR * 0.83);
-    const textX   = photoX + photoSz + textGap;
-    const availW  = cardX + cardW - textX - Math.round(cardR * 0.5);
-    const _s      = cardH / 90;
-
+    // ── Name text in footer ──
     ctx.save();
     ctx.beginPath();
-    ctx.rect(textX, cardY, availW, cardH);
+    ctx.rect(footerTextX, cardY + photoH, nameAvailW, FOOTER_H);
     ctx.clip();
-    ctx.textAlign = 'left';
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'alphabetic';
 
-    ctx.fillStyle = accentColor;
-    ctx.font      = `bold ${Math.round(13 * _s)}px Calibri, sans-serif`;
-    ctx.fillText('#' + number, textX, cardY + cardH * 0.30);
+    ctx.fillStyle = 'rgba(166, 200, 255, 0.65)';
+    ctx.font      = `${Math.round(10 * _s)}px Lexend, Calibri, sans-serif`;
+    ctx.fillText(firstName, footerTextX, footerBottom - Math.round(16 * _s));
 
-    ctx.fillStyle = '#475569';
-    ctx.font      = `${Math.round(12 * _s)}px Calibri, sans-serif`;
-    ctx.fillText(firstName, textX, cardY + cardH * 0.55);
-
-    ctx.fillStyle = '#1e293b';
-    ctx.font      = `bold ${Math.round(14 * _s)}px Calibri, sans-serif`;
-    ctx.fillText(lastName, textX, cardY + cardH * 0.82);
+    ctx.fillStyle = '#d4e3ff';
+    ctx.font      = `bold ${Math.round(13 * _s)}px Lexend, Calibri, sans-serif`;
+    ctx.fillText(lastName, footerTextX, footerBottom);
 
     ctx.restore();
 }
