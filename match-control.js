@@ -637,7 +637,10 @@ function generateThumbnail() {
             const SCALE = W / 1280;  // = 2
 
             // ── Background ──
-            ctx.fillStyle = 'rgba(59, 131, 246, 0.7)';
+            const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.65);
+             bgGrad.addColorStop(0, 'rgba(25, 71, 186, 0.8)');
+             bgGrad.addColorStop(1, 'rgba(0, 51, 160, 0.90)');
+            ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, W, H);
 
             // ── Header — identical to championship thumbnail ──
