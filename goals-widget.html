@@ -29,7 +29,7 @@
             height: 680px;
             border-radius: 18px;
             overflow: hidden;
-            background: rgba(59, 131, 246, 0.7);
+            background: rgba(0, 51, 160, 0.90);
             backdrop-filter: blur(8px);
             display: flex;
             flex-direction: column;
@@ -201,9 +201,23 @@
             to   { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        .player-photo {
+        .player-photo-wrap {
             width: 110px; height: 110px;
-            object-fit: cover; flex-shrink: 0;
+            flex-shrink: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            background: transparent;
+        }
+
+        .player-photo {
+            width: 100%;                 /* fill slot width */
+            height: auto;               /* keep portrait proportions */
+            max-height: 110px;          /* never taller than the card */
+            object-fit: contain;
+            object-position: bottom;    /* anchor to bottom so face stays visible */
+            display: block;
         }
 
         .player-avatar {
@@ -513,9 +527,10 @@
                     const photo = p ? (p.photo || '') : '';
 
                     const photoHtml = photo
-                        ? '<img class="player-photo" src="' + photo + '" alt="' + ln + '" ' +
-                          'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">' +
-                          '<div class="player-avatar" style="display:none">' + num + '</div>'
+                        ? '<div class="player-photo-wrap">' +
+                              '<img class="player-photo" src="' + photo + '" alt="' + ln + '" ' +
+                              'onerror="this.style.display=\'none\'">' +
+                          '</div>'
                         : '<div class="player-avatar">' + num + '</div>';
 
                     // Times: remove display:none from .player-times and uncomment timesStr to restore

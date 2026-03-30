@@ -740,8 +740,11 @@ function drawThumbnail(champTitle, matches, logos, champLogoImg) {
     canvas.height = THUMB_H;
 
     // ── Background ──
-    ctx.fillStyle = 'rgba(59, 131, 246, 0.9)';
-    ctx.fillRect(0, 0, THUMB_W, THUMB_H);
+         const bgGrad = ctx.createRadialGradient(THUMB_W / 2, THUMB_H / 2, 0, THUMB_W / 2, THUMB_H / 2, Math.max(THUMB_W, THUMB_H) * 0.65);
+         bgGrad.addColorStop(0, 'rgba(25, 71, 186, 0.8)');
+         bgGrad.addColorStop(1, 'rgba(0, 51, 160, 0.90)');
+         ctx.fillStyle = bgGrad;
+         ctx.fillRect(0, 0, THUMB_W, THUMB_H);
 
     const SCALE = THUMB_W / 1280;  // 2 when canvas is 2560×1440
 
