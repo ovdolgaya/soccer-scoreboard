@@ -307,12 +307,52 @@
             </div>
         </div>
 
-        <div id="champListWrap">
-            <div class="state-box">
-                <div class="icon">🏆</div>
-                <h3>Загрузка...</h3>
+        <!-- Tab bar -->
+        <div style="display:flex; gap:4px; margin-bottom:20px; background:rgba(255,255,255,0.15);
+                    border-radius:12px; padding:4px;">
+            <button id="tabBtnChamps" onclick="switchChampTab('champs')"
+                    style="flex:1; padding:10px; border:none; border-radius:9px; font-size:14px;
+                           font-weight:600; cursor:pointer; transition:all .2s;
+                           background:white; color:#08399A; box-shadow:0 2px 8px rgba(0,0,0,0.12);">
+                <i class="fas fa-trophy"></i> Чемпионаты
+            </button>
+            <button id="tabBtnManage" onclick="switchChampTab('manage')"
+                    style="flex:1; padding:10px; border:none; border-radius:9px; font-size:14px;
+                           font-weight:600; cursor:pointer; transition:all .2s;
+                           background:transparent; color:rgba(255,255,255,0.85); box-shadow:none;">
+                <i class="fas fa-cog"></i> Управление
+            </button>
+        </div>
+
+        <!-- ══ TAB: ЧЕМПИОНАТЫ ══ -->
+        <div id="tabChamps">
+            <div id="champListWrap">
+                <div class="state-box">
+                    <div class="icon">🏆</div>
+                    <h3>Загрузка...</h3>
+                </div>
             </div>
         </div>
+
+        <!-- ══ TAB: УПРАВЛЕНИЕ ══ -->
+        <div id="tabManage" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="color:white; font-size:20px; font-weight:700; margin:0;">
+                    <i class="fas fa-list"></i> Список чемпионатов
+                </h2>
+                <button onclick="openChampModal(null)"
+                        style="padding:10px 18px; background:white; color:#08399A; border:none;
+                               border-radius:10px; font-size:14px; font-weight:700; cursor:pointer;">
+                    <i class="fas fa-plus"></i> Создать
+                </button>
+            </div>
+            <div id="champManageList">
+                <div style="background:white; border-radius:14px; padding:40px; text-align:center; color:#94a3b8;">
+                    Загрузка...
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -1049,6 +1089,162 @@ function roundRect(ctx, x, y, w, h, r) {
         </div>
     </div>
 </div>
+
+<!-- ══ CHAMPIONSHIP MODAL ══ -->
+<div id="champModal" style="display:none; position:fixed; inset:0; z-index:2000;
+     background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); overflow-y:auto;">
+  <div style="min-height:100%; display:flex; align-items:flex-start; justify-content:center; padding:20px;">
+    <div style="background:#fff; border-radius:20px; width:100%; max-width:460px;
+                overflow:hidden; box-shadow:0 25px 60px rgba(0,0,0,0.3); margin:auto;">
+      <div style="background:linear-gradient(135deg,#08399A,#1e5fd4); padding:20px 24px; color:#fff;
+                  display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:12px; opacity:.8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px;">Чемпионат</div>
+          <h2 style="margin:0; font-size:18px; font-weight:700; color:#fff;" id="champModalTitle">Новый чемпионат</h2>
+        </div>
+        <button onclick="closeChampModal()"
+                style="background:rgba(255,255,255,0.2); border:none; color:#fff; width:36px; height:36px;
+                       border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>
+      </div>
+      <div style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+        <div>
+          <label style="font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:6px;">Название *</label>
+          <input type="text" id="cmTitle" placeholder="Введите название чемпионата"
+                 style="width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:10px; font-size:14px; box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:6px;">Логотип</label>
+          <input type="file" id="cmLogoInput" accept="image/*" onchange="cmPreviewLogo()"
+                 style="width:100%; font-size:13px;">
+          <img id="cmLogoPreview" style="display:none; height:48px; margin-top:8px; border-radius:8px; object-fit:contain;">
+        </div>
+      </div>
+      <div style="padding:16px 20px; border-top:1px solid #f1f5f9; display:flex; gap:10px;">
+        <button onclick="closeChampModal()"
+                style="flex:1; padding:12px; background:#f1f5f9; color:#64748b; border:none;
+                       border-radius:10px; font-size:14px; font-weight:600; cursor:pointer;">Отмена</button>
+        <button onclick="saveChampModal()"
+                style="flex:2; padding:12px; background:linear-gradient(135deg,#08399A,#1e5fd4);
+                       color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer;">
+            <i class="fas fa-save"></i> Сохранить
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchChampTab(tab) {
+    document.getElementById('tabChamps').style.display  = tab === 'champs'  ? '' : 'none';
+    document.getElementById('tabManage').style.display  = tab === 'manage'  ? '' : 'none';
+    const active   = 'background:white; color:#08399A; box-shadow:0 2px 8px rgba(0,0,0,0.12);';
+    const inactive = 'background:transparent; color:rgba(255,255,255,0.85); box-shadow:none;';
+    document.getElementById('tabBtnChamps').setAttribute('style',
+        document.getElementById('tabBtnChamps').getAttribute('style').replace(/background:[^;]+;/g,'').replace(/color:[^;]+;/g,'').replace(/box-shadow:[^;]+;/g,'') +
+        (tab === 'champs' ? active : inactive));
+    document.getElementById('tabBtnManage').setAttribute('style',
+        document.getElementById('tabBtnManage').getAttribute('style').replace(/background:[^;]+;/g,'').replace(/color:[^;]+;/g,'').replace(/box-shadow:[^;]+;/g,'') +
+        (tab === 'manage' ? active : inactive));
+    if (tab === 'manage') loadChampManageList();
+}
+
+// ── Championship management list ───────────────────────────────────────────
+function loadChampManageList() {
+    const wrap = document.getElementById('champManageList');
+    wrap.innerHTML = '<div style="background:white;border-radius:14px;padding:30px;text-align:center;color:#94a3b8;">Загрузка...</div>';
+    database.ref('championships').once('value').then(function(snap) {
+        const items = [];
+        snap.forEach(function(child) { const v = child.val(); v.id = child.key; items.push(v); });
+        items.sort(function(a,b) { return (a.title||'').localeCompare(b.title||'','ru'); });
+        if (!items.length) {
+            wrap.innerHTML = '<div style="background:white;border-radius:14px;padding:40px;text-align:center;color:#94a3b8;"><div style="font-size:40px;margin-bottom:12px;">🏆</div><p>Чемпионатов пока нет. Нажмите «Создать».</p></div>';
+            return;
+        }
+        wrap.innerHTML = items.map(function(c) {
+            const logo = c.logo
+                ? '<img src="' + escAttr(c.logo) + '" style="width:40px;height:40px;object-fit:contain;border-radius:8px;background:#f1f5f9;padding:3px;flex-shrink:0;">'
+                : '<div style="width:40px;height:40px;border-radius:8px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏆</div>';
+            return '<div style="background:white;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">' +
+                logo +
+                '<span style="flex:1;font-size:15px;font-weight:600;color:#1e293b;">' + escHtml(c.title||'') + '</span>' +
+                '<button onclick="openChampModal(\'' + escAttr(c.id) + '\')" style="background:#eff6ff;color:#3b82f6;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:14px;" title="Редактировать"><i class="fas fa-edit"></i></button>' +
+                '<button onclick="deleteChamp(\'' + escAttr(c.id) + '\',\'' + escAttr(c.title||'') + '\')" style="background:#fef2f2;color:#ef4444;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:14px;" title="Удалить"><i class="fas fa-trash"></i></button>' +
+                '</div>';
+        }).join('');
+    });
+}
+
+function deleteChamp(champId, title) {
+    if (!confirm('Удалить чемпионат «' + title + '»?\nМатчи не удаляются.')) return;
+    database.ref('championships/' + champId).remove().then(function() {
+        loadChampManageList();
+        loadData(); // refresh main list too
+    }).catch(function(err) { showToast('❌ ' + err.message); });
+}
+
+// ── Championship modal ─────────────────────────────────────────────────────
+let _cmId   = null;
+let _cmLogo = null;
+
+function openChampModal(champId) {
+    _cmId = champId; _cmLogo = null;
+    document.getElementById('cmTitle').value = '';
+    document.getElementById('cmLogoInput').value = '';
+    document.getElementById('cmLogoPreview').style.display = 'none';
+    document.getElementById('champModalTitle').textContent = champId ? 'Редактировать чемпионат' : 'Новый чемпионат';
+    if (champId) {
+        database.ref('championships/' + champId).once('value').then(function(snap) {
+            const c = snap.val(); if (!c) return;
+            document.getElementById('cmTitle').value = c.title || '';
+            if (c.logo) {
+                _cmLogo = c.logo;
+                const p = document.getElementById('cmLogoPreview');
+                p.src = c.logo; p.style.display = 'block';
+            }
+        });
+    }
+    document.getElementById('champModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeChampModal() {
+    document.getElementById('champModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function cmPreviewLogo() {
+    const file = document.getElementById('cmLogoInput').files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        _cmLogo = e.target.result;
+        const p = document.getElementById('cmLogoPreview');
+        p.src = _cmLogo; p.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+function saveChampModal() {
+    const title = document.getElementById('cmTitle').value.trim();
+    if (!title) { alert('Введите название чемпионата'); return; }
+    const data = { title: title, updatedAt: Date.now() };
+    if (_cmLogo) data.logo = _cmLogo;
+    const promise = _cmId
+        ? database.ref('championships/' + _cmId).update(data)
+        : (data.createdAt = Date.now(), database.ref('championships/champ_' + Date.now()).set(data));
+    promise.then(function() {
+        closeChampModal();
+        loadChampManageList();
+        loadData();
+        showToast('✓ Чемпионат сохранён!');
+    }).catch(function(err) { alert('Ошибка: ' + err.message); });
+}
+
+document.getElementById('champModal').addEventListener('click', function(e) {
+    if (e.target === this) closeChampModal();
+});
+</script>
 
 <script>
 // ============================================

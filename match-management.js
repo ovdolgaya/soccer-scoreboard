@@ -5,6 +5,7 @@
 let currentMatchesDisplayed = 10; // Show 10 initially
 const MATCHES_PER_PAGE = 10;
 let allMatchesCache = []; // Store all matches for pagination
+let activeChampFilter = ''; // Currently selected championship filter
 
 function loadMatches(reset = true) {
     const matchListDiv = document.getElementById('matchList');
@@ -42,6 +43,9 @@ function loadMatches(reset = true) {
         // Cache all matches
         allMatchesCache = matches;
 
+        // Populate championship filter dropdown (no extra Firebase read — derived from cache)
+        _populateChampFilter(matches);
+
         // Display matches
         displayMatches();
     }, function(error) {
@@ -66,15 +70,32 @@ function displayMatches() {
         return;
     }
 
+    // Apply championship filter (client-side, no Firebase read)
+    const filtered = activeChampFilter
+        ? allMatchesCache.filter(function(m) { return (m.championshipTitle || '') === activeChampFilter; })
+        : allMatchesCache;
+
+    if (filtered.length === 0) {
+        matchListDiv.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🏆</div>
+                <h3>Нет матчей по выбранному чемпионату</h3>
+                <p>Выберите другой чемпионат или «Все чемпионаты»</p>
+            </div>
+        `;
+        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+        return;
+    }
+
     // Get matches to display (limited by currentMatchesDisplayed)
-    const matchesToShow = allMatchesCache.slice(0, currentMatchesDisplayed);
+    const matchesToShow = filtered.slice(0, currentMatchesDisplayed);
     matchListDiv.innerHTML = matchesToShow.map(renderMatchCard).join('');
 
     // Show/hide "Load More" button
     if (loadMoreBtn) {
-        if (allMatchesCache.length > currentMatchesDisplayed) {
+        if (filtered.length > currentMatchesDisplayed) {
             loadMoreBtn.style.display = 'block';
-            const remaining = allMatchesCache.length - currentMatchesDisplayed;
+            const remaining = filtered.length - currentMatchesDisplayed;
             loadMoreBtn.querySelector('span').textContent = `Показать ещё (${remaining})`;
         } else {
             loadMoreBtn.style.display = 'none';
@@ -131,6 +152,7 @@ function renderMatchCard(match) {
 
     return `
         <div class="match-card ${cardClass}" onclick="openMatch('${match.id}')">
+            ${match.championshipTitle ? `<div style="font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.06em; padding:10px 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏆 ${match.championshipTitle}</div>` : ''}
             <div class="match-header">
                 <div class="match-row">
                     <span class="match-teams">${match.team1Name}</span>
@@ -151,6 +173,39 @@ function renderMatchCard(match) {
             </div>
         </div>
     `;
+}
+
+// ── Championship filter helpers ──────────────────────────────────────────
+
+function _populateChampFilter(matches) {
+    const sel = document.getElementById('champFilterSelect');
+    if (!sel) return;
+
+    // Collect unique non-empty championship titles from the loaded matches
+    const titles = [];
+    matches.forEach(function(m) {
+        const t = (m.championshipTitle || '').trim();
+        if (t && !titles.includes(t)) titles.push(t);
+    });
+    titles.sort(function(a, b) { return a.localeCompare(b, 'ru'); });
+
+    // Preserve current selection if it still exists in the new list
+    const current = activeChampFilter;
+    sel.innerHTML = '<option value="">Все чемпионаты</option>';
+    titles.forEach(function(t) {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        if (t === current) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function applyChampFilter() {
+    const sel = document.getElementById('champFilterSelect');
+    activeChampFilter = sel ? sel.value : '';
+    currentMatchesDisplayed = MATCHES_PER_PAGE; // reset pagination on filter change
+    displayMatches();
 }
 
 function openMatch(matchIdToOpen) {
@@ -469,19 +524,6 @@ function copyWidgetLinkFromCard(matchIdToCopy, event) {
     }
 }
 
-function copyMatchId(matchIdToCopy) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(matchIdToCopy)
-            .then(function() {
-                showToast('✓ ID матча скопирован!');
-            })
-            .catch(function() {
-                fallbackCopyTextToClipboard(matchIdToCopy);
-            });
-    } else {
-        fallbackCopyTextToClipboard(matchIdToCopy);
-    }
-}
 
 function copyWidgetUrl() {
     if (!matchId) {
@@ -611,39 +653,4 @@ function showToast(message) {
     }, 2000);
 }
 
-// ========================================
-// LOAD CHAMPIONSHIPS FOR MATCH EDIT
-// ========================================
-
-function loadChampionshipsForMatch(currentChampionship) {
-    const select = document.getElementById('matchChampionshipEdit');
-    select.innerHTML = '<option value="">-- Выберите чемпионат --</option>';
-    
-    database.ref('championships').once('value')
-        .then(function(snapshot) {
-            const championships = [];
-            snapshot.forEach(function(childSnapshot) {
-                championships.push(childSnapshot.val());
-            });
-            
-            // Sort by title
-            championships.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
-            
-            // Add options
-            championships.forEach(function(championship) {
-                const option = document.createElement('option');
-                option.value = championship.title;
-                option.textContent = championship.title;
-                
-                // Select current championship if it matches
-                if (championship.title === currentChampionship) {
-                    option.selected = true;
-                }
-                
-                select.appendChild(option);
-            });
-        })
-        .catch(function(error) {
-            console.error('Error loading championships:', error);
-        });
-}
+// loadChampionshipsForMatch removed — championship editing moved to match-edit-modal.js
