@@ -144,13 +144,9 @@ function renderMatchCard(match) {
             </div>
             ${dateInfo}
             ${status === 'playing' ? '<div class="match-info"><span>⏱️</span> <span>' + (match.time || '00:00:00') + '</span></div>' : ''}
-            <div class="match-info" style="font-family: monospace; font-size: 12px;">
-                ID: ${matchIdShort} 
-                <button onclick="event.stopPropagation(); copyMatchId('${match.id}');" style="border: none; background: none; cursor: pointer; padding: 2px 6px; font-size: 12px;">📋</button>
-            </div>
             <div class="match-actions">
-                <button class="button secondary" onclick="event.stopPropagation(); openMatch('${match.id}')">Открыть</button>
-                <button class="button" onclick="event.stopPropagation(); copyWidgetLinkFromCard('${match.id}', event)">📋 Ссылка</button>
+                <button class="button" onclick="event.stopPropagation(); openMatch('${match.id}')">Открыть</button>
+                <button class="button secondary" onclick="event.stopPropagation(); openMatchEditModal('${match.id}')"><i class="fas fa-edit"></i> Изменить</button>
                 <button class="button danger" onclick="event.stopPropagation(); deleteMatch('${match.id}')">Удалить</button>
             </div>
         </div>
@@ -174,35 +170,34 @@ function openMatch(matchIdToOpen) {
             document.getElementById('score1').textContent = match.score1;
             document.getElementById('score2').textContent = match.score2;
 
-            // Update metadata
-            updateMatchMetadata(match);
-
-            // Update match date field
-            if (match.matchDate) {
-                document.getElementById('matchDateEdit').value = match.matchDate;
-            } else {
-                // Set to today's date as default
-                const today = new Date();
-                const todayString = today.getFullYear() + '-' + 
-                                  String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                                  String(today.getDate()).padStart(2, '0');
-                document.getElementById('matchDateEdit').value = todayString;
+            // ── Cockpit header ──
+            const cockpitT1 = document.getElementById('cockpitTeam1');
+            const cockpitT2 = document.getElementById('cockpitTeam2');
+            const cockpitDt = document.getElementById('cockpitDate');
+            const cockpitSt = document.getElementById('cockpitStatus');
+            if (cockpitT1) cockpitT1.textContent = match.team1Name || '';
+            if (cockpitT2) cockpitT2.textContent = match.team2Name || '';
+            if (cockpitDt) {
+                if (match.scheduledTime) {
+                    const d = new Date(match.scheduledTime);
+                    const pad = n => String(n).padStart(2, '0');
+                    cockpitDt.textContent = pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.' + d.getFullYear()
+                                         + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                } else if (match.matchDate) {
+                    const p = match.matchDate.split('-');
+                    cockpitDt.textContent = p[2] + '.' + p[1] + '.' + p[0];
+                } else {
+                    cockpitDt.textContent = '';
+                }
             }
+            if (cockpitSt) cockpitSt.textContent = getStatusText(match.status || 'waiting');
+
+            // Update metadata (created/started timestamps — kept in memory, not shown in UI)
+            updateMatchMetadata(match);
 
             // Show/hide sections based on match status
             const isEnded = match.status === 'ended';
-            
-            // Show championship editor only for ended matches
-            const championshipEditSection = document.getElementById('championshipEditSection');
-            if (championshipEditSection) {
-                if (isEnded) {
-                    championshipEditSection.style.display = 'block';
-                    loadChampionshipsForMatch(match.championshipTitle);
-                } else {
-                    championshipEditSection.style.display = 'none';
-                }
-            }
-            
+
             // Hide time controls for ended matches
             const timeControlsSection = document.getElementById('timeControlsSection');
             if (timeControlsSection) {
@@ -252,8 +247,10 @@ function updateMatchMetadata(match) {
         startedHtml = `<div><strong>Начало матча:</strong> ${formatDateTime(match.matchStartedAt)}</div>`;
     }
     
-    document.getElementById('metadataCreated').innerHTML = createdHtml;
-    document.getElementById('metadataStarted').innerHTML = startedHtml;
+    if (document.getElementById('metadataCreated'))
+        document.getElementById('metadataCreated').innerHTML = createdHtml;
+    if (document.getElementById('metadataStarted'))
+        document.getElementById('metadataStarted').innerHTML = startedHtml;
 }
 
 function updateButtonStates(match) {

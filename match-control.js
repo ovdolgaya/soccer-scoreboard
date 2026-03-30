@@ -71,43 +71,11 @@ function startMatch() {
     // Save to Firebase
     database.ref('matches/' + matchId).set(matchData)
         .then(function() {
-            // Update display
-            document.getElementById('team1NameDisplay').textContent = team1Name;
-            document.getElementById('team2NameDisplay').textContent = team2Name;
-
-            // Show widget URL (use same logic as openMatch)
-            let basePath = window.location.pathname;
-            
-            // Remove trailing slash if present
-            if (basePath.endsWith('/')) {
-                basePath = basePath.slice(0, -1);
-            }
-            
-            // Remove index.html if present
-            if (basePath.endsWith('/index.html')) {
-                basePath = basePath.replace('/index.html', '');
-            } else if (basePath.endsWith('index.html')) {
-                basePath = basePath.replace('index.html', '');
-            }
-            
-            // Widget URL is accessed via copyWidgetUrl() — no input field needed
-
-            // Switch to control panel
-            hideAllViews();
-            document.getElementById('controlPanel').classList.add('active');
-
-            // Show appropriate button
-            if (initialStatus === 'scheduled' || initialStatus === 'waiting') {
-                document.getElementById('startHalf1Btn').classList.remove('hidden');
-            }
-
-            // Listen for changes
-            listenToMatchChanges();
-            // Init goal tracking
-            if (typeof initGoalTracking === 'function') initGoalTracking();
-
-            // Clear form
+            // Clear form and return to match list — user can open from there
             clearSetupForm();
+            hideAllViews();
+            document.getElementById('dashboard').classList.add('active');
+            showToast('✓ Матч сохранён! Откройте его из списка.');
         })
         .catch(function(error) {
             alert('Ошибка создания матча: ' + error.message);

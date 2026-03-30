@@ -31,6 +31,7 @@
     <script src="match-helpers.js"></script>
     <script src="match-management.js"></script>
     <script src="match-control.js"></script>
+    <script src="match-edit-modal.js"></script>
     
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -171,43 +172,35 @@
 
             <div style="display: flex; gap: 10px;">
                 <button class="button secondary" onclick="backToDashboard()">← Назад</button>
-                <button class="button" onclick="startMatch()" style="flex: 1;"><i class="fas fa-play-circle"></i> Сохранить и начать матч</button>
+                <button class="button" onclick="startMatch()" style="flex: 1;"><i class="fas fa-save"></i> Сохранить</button>
             </div>
         </div>
 
         <!-- Control Panel -->
         <div class="control-panel" id="controlPanel">
-            <!-- Match Metadata Section -->
-            <div class="match-metadata" id="matchMetadata" style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #e2e8f0;">
-                <h3 style="margin-bottom: 15px; color: #1e293b;">📋 Информация о матче</h3>
-                <div style="font-size: 14px; color: #64748b; line-height: 1.8;">
-                    <div id="metadataCreated"></div>
-                    <div id="metadataStarted"></div>
-                </div>
-                
-                <!-- Match Date Editor -->
-                <div class="form-group" style="margin-top: 15px;">
-                    <label for="matchDateEdit">Дата матча:</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="date" id="matchDateEdit" style="flex: 1; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; background: white;">
-                        <button class="button secondary" onclick="updateMatchDate()" style="white-space: nowrap; margin: 0;">
-                            <i class="fas fa-save"></i> Сохранить
-                        </button>
-                    </div>
-                </div>
 
-                <!-- Championship Editor (for past matches) -->
-                <div class="form-group" id="championshipEditSection" style="margin-top: 15px; display: none;">
-                    <label for="matchChampionshipEdit">Чемпионат:</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <select id="matchChampionshipEdit" style="flex: 1; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; background: white;">
-                            <option value="">-- Выберите чемпионат --</option>
-                        </select>
-                        <button class="button secondary" onclick="updateMatchChampionship()" style="white-space: nowrap; margin: 0;">
-                            <i class="fas fa-save"></i> Сохранить
-                        </button>
+            <!-- Cockpit header — teams, date, status + edit button -->
+            <div id="cockpitMatchHeader" style="background:linear-gradient(135deg,#08399A,#1e5fd4);
+                 border-radius:14px; padding:18px 20px; margin-bottom:20px; color:#fff;
+                 display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+                <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="font-size:20px; font-weight:800;" id="cockpitTeam1"></span>
+                        <span style="font-size:15px; opacity:.6; font-weight:400;">vs</span>
+                        <span style="font-size:20px; font-weight:800;" id="cockpitTeam2"></span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:6px; flex-wrap:wrap;">
+                        <span style="font-size:13px; opacity:.8;" id="cockpitDate"></span>
+                        <span style="font-size:12px; background:rgba(255,255,255,0.2); padding:3px 10px;
+                               border-radius:20px; font-weight:600;" id="cockpitStatus"></span>
                     </div>
                 </div>
+                <button onclick="openMatchEditModal(matchId)" title="Изменить матч"
+                        style="background:rgba(255,255,255,0.15); border:1.5px solid rgba(255,255,255,0.35);
+                               color:#fff; border-radius:8px; width:36px; height:36px; flex-shrink:0;
+                               font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                    <i class="fas fa-edit"></i>
+                </button>
             </div>
 
             <!-- Match Resources Section (Consolidated) -->
