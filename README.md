@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: March 31, 2026
+## Last Updated: March 31, 2026 (updated)
 
 ---
 
@@ -53,11 +53,19 @@
 - Goal removal modal
 - Resources panel: scoreboard link, match thumbnail, roster thumbnail, stats widget link
 
+### Championships
+- Championships page with expand/collapse match groups
+- **Championship Stats Modal** — analytics button on each card shows:
+  - Match results: Won / Draw / Lost with colour ratio bar and win %
+  - Goals: scored (default team) vs conceded (opponents)
+  - Top scorers: ranked player list from `/goals` table with jersey numbers, bars, medals; own goals noted separately
+- Championship thumbnail generator (2560×1440 PNG)
+- **`isPassed` toggle** — passed championships hidden from match form dropdown; shown greyed in Управление tab with full analytics still accessible
+
 ### Team & Championship Management
 - **Teams** managed on Roster page → Команды tab: create, edit, delete with logo/color
 - **`isActive` toggle on teams** — inactive teams hidden from match dropdowns, shown greyed in Команды tab; existing teams default to active
 - **Championships** managed on Championships page → Управление tab: create, edit, delete with logo
-- **`isPassed` toggle on championships** — passed championships hidden from match dropdowns, shown greyed in Управление tab; still fully visible with analytics on Чемпионаты tab
 - Match create/edit form uses dropdowns — no inline creation needed
 
 ### Roster Management
@@ -275,7 +283,10 @@ Uses `database.ref('goals').on('child_added')` with initial-load guard.
 - [ ] Управление tab: create/edit/delete championships
 - [ ] Управление tab: isPassed toggle — passed championships show ❌, grey card
 - [ ] Passed championships absent from match form championship dropdown
-- [ ] Championships without date show 'Дата уточняется' on page and in thumbnail
+- [ ] Championship stats modal: W/D/L counts correct for default team
+- [ ] Championship stats modal: goals for/against calculated correctly
+- [ ] Championship stats modal: player scorers ranked correctly, own goals shown
+- [ ] Championship stats modal: graceful empty state when no goal data exists
 - [ ] Roster thumbnail: correct layout, photos bottom-aligned, gradient to `#0033A0`
 - [ ] Session cache: second thumbnail generation makes zero Firebase reads
 - [ ] Championship thumbnail: card grid ≤15, table >15
