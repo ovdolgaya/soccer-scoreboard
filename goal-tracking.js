@@ -363,14 +363,119 @@ function removeGoal(goalKey, side) {
 }
 
 // ----------------------------------------
+// RETROACTIVE GOAL ENTRY (ended matches)
+// ----------------------------------------
+
+function openRetroGoalModal() {
+    if (!matchId) return;
+
+    // Ensure players are loaded
+    if (goalTracking.playersCache.length === 0 && goalTracking.defaultTeamId) {
+        loadGoalTrackingPlayers();
+    }
+
+    renderRetroPlayerGrid();
+    document.getElementById('retroGoalModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeRetroGoalModal() {
+    document.getElementById('retroGoalModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function renderRetroPlayerGrid() {
+    const grid = document.getElementById('retroPlayerGrid');
+    if (!grid) return;
+
+    if (goalTracking.playersCache.length === 0) {
+        grid.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;grid-column:1/-1;">' +
+            'Нет активных игроков.<br><small>Проверьте настройки команды.</small></div>';
+        return;
+    }
+
+    grid.innerHTML = goalTracking.playersCache.map(function(player) {
+        const isGK = player.isGoalkeeper;
+        const bg = isGK
+            ? 'linear-gradient(135deg,#7c3aed,#4c1d95)'
+            : 'linear-gradient(135deg,#1e5fd4,#08399A)';
+        const badge = isGK ? '<div style="font-size:9px;opacity:.75;margin-top:2px;">🧤</div>' : '';
+
+        return '<button onclick="confirmRetroGoal(\'' + player.id + '\', false)" ' +
+               'style="background:' + bg + ';color:#fff;border:none;border-radius:14px;' +
+               'padding:16px 8px;font-size:24px;font-weight:800;cursor:pointer;' +
+               'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+               'min-height:72px;transition:transform .1s,box-shadow .1s;' +
+               'box-shadow:0 4px 12px rgba(0,0,0,0.15);" ' +
+               'onmousedown="this.style.transform=\'scale(.94)\'" ' +
+               'onmouseup="this.style.transform=\'scale(1)\'" ' +
+               'onmouseleave="this.style.transform=\'scale(1)\'">' +
+               '#' + player.number + badge +
+               '</button>';
+    }).join('');
+}
+
+function confirmRetroGoal(playerId, isOwnGoal) {
+    if (!matchId) return;
+    closeRetroGoalModal();
+
+    database.ref('matches/' + matchId).once('value').then(function(snap) {
+        const match = snap.val();
+        if (!match) return;
+
+        const goalData = {
+            matchId:    matchId,
+            teamId:     goalTracking.defaultTeamId || null,
+            playerId:   isOwnGoal ? null : (playerId || null),
+            isOwnGoal:  isOwnGoal || false,
+            half:       null,       // no half info for retroactive goals
+            matchTime:  null,       // no time info
+            retroactive: true,      // flag to distinguish from live-tracked goals
+            timestamp:  Date.now(),
+            createdAt:  Date.now()
+        };
+
+        if (!isOwnGoal && playerId) {
+            const player = goalTracking.playersCache.find(function(p) { return p.id === playerId; });
+            if (player) {
+                goalData.playerNumber = player.number;
+                goalData.isGoalkeeper = player.isGoalkeeper || false;
+            }
+        }
+
+        return firebase.database().ref('goals').push(goalData)
+            .then(function() {
+                return resolveDefaultTeamSide(match);
+            })
+            .then(function(side) {
+                const scoreKey = 'score' + (side || 1);
+                const currentScore = match[scoreKey] || 0;
+                return firebase.database().ref('matches/' + matchId).update({
+                    [scoreKey]: currentScore + 1
+                });
+            })
+            .then(function() {
+                showToast('⚽ Гол добавлен!');
+                // Refresh goals stats section
+                if (typeof loadGoalsStats === 'function') loadGoalsStats(matchId);
+            });
+    }).catch(function(err) {
+        console.error('Retro goal save error:', err);
+        showToast('❌ Ошибка сохранения гола');
+    });
+}
+
+// ----------------------------------------
 // CLOSE MODALS ON BACKDROP CLICK
 // ----------------------------------------
 document.addEventListener('click', function(e) {
     const scorerModal = document.getElementById('goalScorerModal');
     const removeModal = document.getElementById('goalRemoveModal');
+    const retroModal  = document.getElementById('retroGoalModal');
 
     if (e.target === scorerModal) closeGoalScorerModal();
     if (e.target === removeModal) closeGoalRemoveModal();
+    if (e.target === retroModal)  closeRetroGoalModal();
 });
 
 // ----------------------------------------
@@ -380,5 +485,6 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeGoalScorerModal();
         closeGoalRemoveModal();
+        closeRetroGoalModal();
     }
 });

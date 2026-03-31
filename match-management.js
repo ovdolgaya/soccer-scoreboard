@@ -357,14 +357,15 @@ function loadGoalsStats(forMatchId) {
                 goals.push(g);
             });
 
-            if (goals.length === 0) {
-                body.innerHTML = '<div style="padding:16px 20px; color:#94a3b8; font-size:14px; font-style:italic;">Голов не зафиксировано</div>';
-                return;
-            }
-
             // Sort by half then by matchTime string (lexicographic works for MM:SS)
+            // Goals without matchTime go at the end
             goals.sort(function(a, b) {
-                if ((a.half || 0) !== (b.half || 0)) return (a.half || 0) - (b.half || 0);
+                const aHalf = a.half || 999;
+                const bHalf = b.half || 999;
+                if (aHalf !== bHalf) return aHalf - bHalf;
+                if (!a.matchTime && !b.matchTime) return 0;
+                if (!a.matchTime) return 1;
+                if (!b.matchTime) return -1;
                 return (a.matchTime || '').localeCompare(b.matchTime || '');
             });
 
@@ -398,17 +399,39 @@ function renderGoalsStats(goals, players, container) {
     let currentHalf = null;
     let html = '';
 
+    // Add goal button at the top
+    html += '<div style="padding:12px 20px 8px; border-bottom:1px solid #f1f5f9;">' +
+            '<button onclick="openRetroGoalModal()" ' +
+            'style="background:linear-gradient(135deg,#08399A,#1e5fd4);color:#fff;border:none;' +
+            'border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;' +
+            'display:inline-flex;align-items:center;gap:6px;">' +
+            '<i class="fas fa-plus"></i> Добавить гол' +
+            '</button>' +
+            '</div>';
+
+    if (goals.length === 0) {
+        html += '<div style="padding:16px 20px; color:#94a3b8; font-size:14px; font-style:italic;">Голов не зафиксировано</div>';
+        container.innerHTML = html;
+        return;
+    }
+
     goals.forEach(function(g) {
-        // Half separator
-        if (g.half && g.half !== currentHalf) {
-            currentHalf = g.half;
-            const halfLabel = g.half === 1 ? '1-й тайм' : g.half === 2 ? '2-й тайм' : (g.half + '-й тайм');
+        // Half separator — goals without half go under "Без тайма"
+        const halfVal = g.half || null;
+        if (halfVal !== currentHalf) {
+            currentHalf = halfVal;
+            const halfLabel = !halfVal
+                ? 'Добавлено вручную'
+                : halfVal === 1 ? '1-й тайм'
+                : halfVal === 2 ? '2-й тайм'
+                : (halfVal + '-й тайм');
             html += '<div style="padding:8px 20px 4px; font-size:11px; font-weight:700; color:#94a3b8; ' +
                     'text-transform:uppercase; letter-spacing:0.08em; background:#f1f5f9; ' +
                     'border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">' +
                     halfLabel + '</div>';
         }
 
+        // Time — show '—' for retroactive goals
         const timeStr = g.matchTime || '—';
 
         let playerNumber = '—';
@@ -428,7 +451,6 @@ function renderGoalsStats(goals, players, container) {
             playerName   = 'Неизвестный игрок';
         }
 
-        // Alternating row background
         const rowBg = 'background: transparent;';
 
         html += '<div style="display:flex; align-items:center; gap:0; padding:10px 20px; ' +
@@ -436,7 +458,7 @@ function renderGoalsStats(goals, players, container) {
 
                 // Match time
                 '<div style="width:56px; flex-shrink:0; font-size:13px; font-weight:700; ' +
-                'color:#64748b; font-family:monospace;">' + timeStr + '</div>' +
+                'color:' + (g.matchTime ? '#64748b' : '#cbd5e1') + '; font-family:monospace;">' + timeStr + '</div>' +
 
                 // Divider
                 '<div style="width:1px; height:28px; background:#e2e8f0; margin-right:16px; flex-shrink:0;"></div>' +
