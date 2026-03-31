@@ -197,7 +197,7 @@
             const items = [];
             snap.forEach(function(child) {
                 const c = child.val();
-                if (c.title) items.push(c.title);
+                if (c.title && c.isPassed !== true) items.push(c.title); // only active championships
             });
             items.sort(function(a,b) { return a.localeCompare(b,'ru'); });
             const sel = document.getElementById('editChampionshipSelect');
