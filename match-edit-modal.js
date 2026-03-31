@@ -177,7 +177,7 @@
             snap.forEach(function(child) {
                 const t = child.val(); t.id = child.key;
                 _teamsCache[child.key] = t;
-                teams.push(t);
+                if (t.isActive !== false) teams.push(t); // only active teams
             });
             teams.sort(function(a,b) { return (a.name||'').localeCompare(b.name||'','ru'); });
             ['editTeam1Select','editTeam2Select'].forEach(function(id) {

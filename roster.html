@@ -9,6 +9,16 @@
     <link rel="stylesheet" href="roster-styles.css">
     <link rel="stylesheet" href="app-layout.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .teams-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        @media (max-width: 600px) {
+            .teams-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
     <div class="page-wrap">
@@ -392,6 +402,24 @@
                        style="width:52px; height:44px; border:2px solid #e2e8f0; border-radius:8px; cursor:pointer; padding:2px;">
               </div>
             </div>
+            <!-- Active toggle -->
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        background:#f8fafc; border-radius:10px; padding:12px 14px; border:2px solid #e2e8f0;">
+              <div>
+                <div style="font-size:13px; font-weight:600; color:#374151;">Активная команда</div>
+                <div style="font-size:12px; color:#94a3b8; margin-top:2px;">Неактивные команды не отображаются при создании матчей</div>
+              </div>
+              <label style="position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; margin-left:12px;">
+                <span id="tmIsActiveSlider"
+                      style="position:absolute; cursor:pointer; inset:0; border-radius:24px;
+                             background:#e2e8f0; transition:background .2s;"
+                      onclick="tmToggleActive()"></span>
+                <span id="tmIsActiveKnob"
+                      style="position:absolute; left:2px; top:2px; width:20px; height:20px;
+                             border-radius:50%; background:white; transition:transform .2s;
+                             box-shadow:0 1px 4px rgba(0,0,0,0.2); pointer-events:none;"></span>
+              </label>
+            </div>
           </div>
           <!-- Footer -->
           <div style="padding:16px 20px; border-top:1px solid #f1f5f9; display:flex; gap:10px;">
@@ -528,15 +556,23 @@
                 wrap.innerHTML = '<div style="background:white;border-radius:14px;padding:40px;text-align:center;color:#94a3b8;"><div style="font-size:40px;margin-bottom:12px;">🛡️</div><p>Команд пока нет. Нажмите «Создать».</p></div>';
                 return;
             }
-            wrap.innerHTML = '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px;">' +
+            wrap.innerHTML = '<div class="teams-grid">' +
                 teams.map(function(t) {
+                const isActive = t.isActive !== false; // default true
+                const cardBg = isActive ? 'white' : '#f1f5f9';
                 const logo = t.logo
-                    ? '<img src="' + t.logo + '" style="width:40px;height:40px;object-fit:contain;border-radius:8px;background:#f1f5f9;padding:3px;flex-shrink:0;">'
+                    ? '<img src="' + t.logo + '" style="width:40px;height:40px;object-fit:contain;border-radius:8px;background:#f1f5f9;padding:3px;flex-shrink:0;' + (isActive ? '' : 'opacity:0.4;') + '">'
                     : '<div style="width:40px;height:40px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🛡️</div>';
-                const colorDot = '<div style="width:18px;height:18px;border-radius:50%;background:' + (t.color||'#08399A') + ';border:2px solid #e2e8f0;flex-shrink:0;"></div>';
-                return '<div style="background:white;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">' +
-                    logo + colorDot +
-                    '<span style="flex:1;font-size:15px;font-weight:600;color:#1e293b;">' + (t.name||'') + '</span>' +
+                const colorDot = '<div style="width:18px;height:18px;border-radius:50%;background:' + (t.color||'#08399A') + ';border:2px solid #e2e8f0;flex-shrink:0;' + (isActive ? '' : 'opacity:0.4;') + '"></div>';
+                const statusIcon = isActive
+                    ? '<span title="Активна" style="font-size:16px;flex-shrink:0;">✅</span>'
+                    : '<span title="Неактивна" style="font-size:16px;flex-shrink:0;">❌</span>';
+                const nameStyle = isActive
+                    ? 'flex:1;font-size:15px;font-weight:600;color:#1e293b;'
+                    : 'flex:1;font-size:15px;font-weight:600;color:#94a3b8;';
+                return '<div style="background:' + cardBg + ';border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">' +
+                    logo + colorDot + statusIcon +
+                    '<span style="' + nameStyle + '">' + (t.name||'') + '</span>' +
                     '<button onclick="openTeamModal(\'' + t.id + '\')" style="background:#eff6ff;color:#3b82f6;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:14px;" title="Редактировать"><i class="fas fa-edit"></i></button>' +
                     '<button onclick="deleteTeam(\'' + t.id + '\',\'' + (t.name||'').replace(/'/g,"\\'") + '\')" style="background:#fef2f2;color:#ef4444;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:14px;" title="Удалить"><i class="fas fa-trash"></i></button>' +
                     '</div>';
@@ -562,6 +598,8 @@
         document.getElementById('tmLogoInput').value = '';
         document.getElementById('tmLogoPreview').style.display = 'none';
         document.getElementById('teamModalTitle').textContent = teamId ? 'Редактировать команду' : 'Новая команда';
+        // Default: active
+        _tmSetActive(true);
 
         if (teamId) {
             firebase.database().ref('teams/' + teamId).once('value').then(function(snap) {
@@ -573,6 +611,7 @@
                     const p = document.getElementById('tmLogoPreview');
                     p.src = t.logo; p.style.display = 'block';
                 }
+                _tmSetActive(t.isActive !== false);
             });
         }
         document.getElementById('teamModal').style.display = 'block';
@@ -603,6 +642,7 @@
             name:      name,
             color:     document.getElementById('tmColor').value,
             logo:      _tmLogo || '',
+            isActive:  _tmIsActiveVal,
             updatedAt: Date.now()
         };
         const promise = _tmId
@@ -614,6 +654,19 @@
             if (typeof loadTeamsDropdown === 'function') loadTeamsDropdown();
         }).catch(function(err) { alert('Ошибка: ' + err.message); });
     }
+
+    // ── Active toggle helpers ──────────────────────────────────
+    let _tmIsActiveVal = true;
+
+    function _tmSetActive(val) {
+        _tmIsActiveVal = !!val;
+        document.getElementById('tmIsActiveSlider').style.background = _tmIsActiveVal ? '#22c55e' : '#e2e8f0';
+        document.getElementById('tmIsActiveKnob').style.transform    = _tmIsActiveVal ? 'translateX(20px)' : 'translateX(0)';
+    }
+
+    window.tmToggleActive = function() {
+        _tmSetActive(!_tmIsActiveVal);
+    };
 
     // Close modal on backdrop click
     document.getElementById('teamModal').addEventListener('click', function(e) {
