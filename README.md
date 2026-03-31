@@ -51,6 +51,7 @@
 - Time management: start/stop halves, halftime countdown popup, end match
 - Score controls with goal scorer modal (player grid + own goal)
 - Goal removal modal
+- **Retroactive goal entry** — ended matches show "Добавить гол" in goals stats section; saves with `retroactive: true`, no time/half; appears under "Добавлено вручную" separator
 - Resources panel: scoreboard link, match thumbnail, roster thumbnail, stats widget link
 
 ### Championships
@@ -58,7 +59,8 @@
 - **Championship Stats Modal** — analytics button on each card shows:
   - Match results: Won / Draw / Lost with colour ratio bar and win %
   - Goals: scored (default team) vs conceded (opponents)
-  - Top scorers: ranked player list from `/goals` table with jersey numbers, bars, medals; own goals noted separately
+  - Top scorers: ranked player list from `/goals` table with fixed-width jersey number badges, bars, medals; own goals noted separately
+  - ⚠️ Warning banner if tracked goal count doesn't match actual score (unattributed goals)
 - Championship thumbnail generator (2560×1440 PNG)
 - **`isPassed` toggle** — passed championships hidden from match form dropdown; shown greyed in Управление tab with full analytics still accessible
 
@@ -285,8 +287,11 @@ Uses `database.ref('goals').on('child_added')` with initial-load guard.
 - [ ] Passed championships absent from match form championship dropdown
 - [ ] Championship stats modal: W/D/L counts correct for default team
 - [ ] Championship stats modal: goals for/against calculated correctly
-- [ ] Championship stats modal: player scorers ranked correctly, own goals shown
+- [ ] Championship stats modal: player scorers ranked correctly, number badges same width, own goals shown
+- [ ] Championship stats modal: warning banner shown when tracked goals < actual score
 - [ ] Championship stats modal: graceful empty state when no goal data exists
+- [ ] Ended match cockpit: "Добавить гол" button visible in goals stats section
+- [ ] Retroactive goal saves with no time/half, appears under "Добавлено вручную", score increments
 - [ ] Roster thumbnail: correct layout, photos bottom-aligned, gradient to `#0033A0`
 - [ ] Session cache: second thumbnail generation makes zero Firebase reads
 - [ ] Championship thumbnail: card grid ≤15, table >15
