@@ -578,7 +578,7 @@ function toggleMatches(id) {
 // ============================================
 // HELPERS
 // ============================================
-// PLAYED_STATUSES, formatMatchDate, matchSortKey, formatDate, formatDateTime, sanitizeChampKey — see match-helpers.js
+// PLAYED_STATUSES, matchSortKey, formatDate, formatDateTime, sanitizeChampKey — see match-helpers.js
 
 function buildScoreHtml(m) {
     if (m.status === 'ended' || m.status === 'playing' || m.status === 'half1_ended' || m.status === 'half2_ended') {
@@ -938,8 +938,12 @@ function drawMatchCard(ctx, m, logos, x, y, w, h, SCALE) {
 
     // ── Date — bottom strip ──
     const dateStr = formatMatchDate(m);
-    ctx.fillStyle    = '#1e293b';
-    ctx.font         = Math.max(Math.round(9 * SCALE), Math.min(Math.round(11 * SCALE), dateH * 0.7)) + 'px Calibri, sans-serif';
+    const isPlaceholder = dateStr === 'Дата уточняется';
+    const dateFontBase  = isPlaceholder
+        ? Math.max(Math.round(7 * SCALE), Math.min(Math.round(9 * SCALE), dateH * 0.6))
+        : Math.max(Math.round(9 * SCALE), Math.min(Math.round(11 * SCALE), dateH * 0.7));
+    ctx.fillStyle    = isPlaceholder ? '#94a3b8' : '#1e293b';
+    ctx.font         = dateFontBase + 'px Calibri, sans-serif';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText(dateStr, x + w / 2, y + h - Math.round(10 * SCALE));
@@ -1021,9 +1025,10 @@ function drawTableLayout(ctx, matches, headerH, SCALE) {
         const midY = rowY + rowH / 2;
 
         // Date
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        const dateStr = formatMatchDate(m);
+        ctx.fillStyle = dateStr === 'Дата уточняется' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.6)';
         ctx.textAlign = 'left';
-        ctx.fillText(formatMatchDate(m), padX, midY);
+        ctx.fillText(dateStr, padX, midY);
 
         // Team 1
         ctx.fillStyle = 'white';

@@ -264,14 +264,31 @@
             const localDate = new Date(year, month - 1, day, hour, minute);
             updates.scheduledTime = localDate.getTime();
             updates.matchDate     = datePart;
-            updates.status        = localDate.getTime() > Date.now() ? 'scheduled' : 'waiting';
         } else {
             updates.scheduledTime = null;
-            updates.status = 'waiting';
         }
 
         const matchDateVal = document.getElementById('editMatchDate').value;
         if (matchDateVal) updates.matchDate = matchDateVal;
+
+        // Only recalculate status for matches that haven't started yet.
+        // Playing/ended matches keep their current status unchanged.
+        const lockedStatuses = ['playing', 'half1_ended', 'half2_ended', 'ended'];
+        if (!_editingMatchId) {
+            // New match — always set status
+            updates.status = (updates.scheduledTime && updates.scheduledTime > Date.now())
+                ? 'scheduled' : 'waiting';
+        } else {
+            // Editing — only update status if match hasn't started
+            database.ref('matches/' + _editingMatchId + '/status').once('value').then(function(snap) {
+                const currentStatus = snap.val() || 'waiting';
+                if (!lockedStatuses.includes(currentStatus)) {
+                    const newStatus = (updates.scheduledTime && updates.scheduledTime > Date.now())
+                        ? 'scheduled' : 'waiting';
+                    database.ref('matches/' + _editingMatchId + '/status').set(newStatus);
+                }
+            });
+        }
 
         if (!_editingMatchId) {
             // Create new match

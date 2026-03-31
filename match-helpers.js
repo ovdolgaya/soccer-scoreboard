@@ -60,14 +60,19 @@ function formatDateTime(timestamp) {
 
 // Smart date display for a match card/thumbnail:
 //   Played  → matchDate (DD.MM.YYYY)
-//   Upcoming → scheduledTime or createdAt (DD.MM.YYYY HH:MM)
+//   Upcoming with scheduledTime → DD.MM.YYYY HH:MM
+//   No date info → 'Дата уточняется'
 function formatMatchDate(m) {
     if (!UPCOMING_STATUSES.includes(m.status) && m.matchDate) {
         return formatDate(m.matchDate);
     }
-    const ts = m.scheduledTime || m.createdAt;
-    if (!ts) return '—';
-    return formatDateTime(ts);
+    if (m.scheduledTime) {
+        return formatDateTime(m.scheduledTime);
+    }
+    if (m.matchDate) {
+        return formatDate(m.matchDate);
+    }
+    return 'Дата уточняется';
 }
 
 // Convert a championship title to a safe Firebase key
