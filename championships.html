@@ -130,6 +130,8 @@
 
         .icon-btn.thumb  { background: #eff6ff; color: #3b82f6; }
         .icon-btn.thumb:hover  { background: #3b82f6; color: white; }
+        .icon-btn.stats  { background: #eff6ff; color: #1947BA; }
+        .icon-btn.stats:hover  { background: #1947BA; color: white; }
         .icon-btn.expand { background: #f1f5f9; color: #64748b; }
         .icon-btn.expand:hover { background: #e2e8f0; color: #334155; }
         .icon-btn.expand.open  { background: #e2e8f0; color: #334155; }
@@ -495,6 +497,9 @@ function renderChampCard(g, idx) {
                 <div class="champ-title">${escHtml(g.title)}</div>
                 <div class="champ-badges">${badges || '<span class="badge sched">0 матчей</span>'}</div>
                 <div class="champ-actions" onclick="event.stopPropagation()">
+                    <button class="icon-btn stats" title="Статистика чемпионата" data-title="${escAttr(g.title)}" onclick="openChampStats(this.dataset.title)">
+                        <i class="fas fa-chart-bar"></i>
+                    </button>
                     <button class="icon-btn thumb" title="Скачать thumbnail" data-title="${escAttr(g.title)}" onclick="generateChampThumbnail(this.dataset.title, this)">
                         <i class="fas fa-image"></i>
                     </button>
@@ -1503,5 +1508,280 @@ function buildStatsCards(scorers) {
     return '<div style="display:flex;flex-direction:column;gap:8px;">' + cards.join('') + '</div>';
 }
 </script>
+<!-- ══ CHAMPIONSHIP STATS MODAL ══ -->
+<div id="champStatsModal" style="display:none; position:fixed; inset:0; z-index:900;
+     background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); overflow-y:auto;">
+  <div style="min-height:100%; display:flex; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#fff; border-radius:20px; width:100%; max-width:560px;
+                overflow:hidden; box-shadow:0 25px 60px rgba(0,0,0,0.3);">
+
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,rgb(25,71,186),rgb(0,51,160)); padding:20px 24px; color:#fff; position:relative;">
+        <div style="font-size:12px; opacity:.8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px;">Статистика чемпионата</div>
+        <div id="champStatsTitle" style="font-size:18px; font-weight:700;">—</div>
+        <div id="champStatsSubtitle" style="font-size:12px; opacity:.75; margin-top:3px;">—</div>
+        <button onclick="closeChampStats()"
+                style="position:absolute; top:14px; right:16px; background:rgba(255,255,255,0.2);
+                       border:none; color:#fff; width:32px; height:32px; border-radius:50%;
+                       font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>
+      </div>
+
+      <!-- Body -->
+      <div id="champStatsBody" style="padding:20px; min-height:160px;">
+        <div style="text-align:center; color:#94a3b8; padding:40px 0; font-size:14px;">Загрузка...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================
+// CHAMPIONSHIP STATS
+// ============================================
+
+let _champStatsDefaultTeamId   = null;
+let _champStatsDefaultTeamName = null;
+
+// Load default team once at startup
+firebase.database().ref('settings/defaultTeam').once('value').then(function(snap) {
+    _champStatsDefaultTeamId = snap.val() || null;
+    if (_champStatsDefaultTeamId) {
+        firebase.database().ref('teams/' + _champStatsDefaultTeamId).once('value').then(function(tsnap) {
+            const t = tsnap.val();
+            if (t) _champStatsDefaultTeamName = t.name || null;
+        });
+    }
+});
+
+function openChampStats(champTitle) {
+    const group = champGroups[champTitle];
+    if (!group) return;
+
+    document.getElementById('champStatsModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    document.getElementById('champStatsTitle').textContent   = champTitle;
+    document.getElementById('champStatsSubtitle').textContent = '—';
+    document.getElementById('champStatsBody').innerHTML =
+        '<div style="text-align:center;color:#94a3b8;padding:40px 0;font-size:14px;">Загрузка...</div>';
+
+    const matches  = group.matches;
+    const matchIds = matches.map(function(m) { return m.id; });
+
+    // Fetch all goals for matches in this championship in parallel
+    Promise.all(
+        matchIds.map(function(mid) {
+            return firebase.database().ref('goals')
+                .orderByChild('matchId').equalTo(mid).once('value');
+        })
+    ).then(function(snapshots) {
+        const allGoals = [];
+        snapshots.forEach(function(snap) {
+            snap.forEach(function(child) {
+                const g = child.val(); g._key = child.key;
+                allGoals.push(g);
+            });
+        });
+        _renderChampStats(champTitle, matches, allGoals);
+    }).catch(function(err) {
+        document.getElementById('champStatsBody').innerHTML =
+            '<div style="text-align:center;color:#ef4444;padding:40px 0;">Ошибка: ' + escHtml(err.message) + '</div>';
+    });
+}
+
+function closeChampStats() {
+    document.getElementById('champStatsModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+document.getElementById('champStatsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeChampStats();
+});
+
+// ── Core renderer ─────────────────────────────────────────────────────────
+function _renderChampStats(champTitle, matches, allGoals) {
+    const defaultId   = _champStatsDefaultTeamId;
+    const defaultName = _champStatsDefaultTeamName || 'Наша команда';
+
+    // ── Match results ──────────────────────────────────────────────────────
+    let won = 0, lost = 0, draw = 0, played = 0;
+    let goalsFor = 0, goalsAgainst = 0;
+
+    const endedMatches = matches.filter(function(m) { return m.status === 'ended'; });
+
+    endedMatches.forEach(function(m) {
+        // Determine which side is the default team
+        const t1Name = (m.team1Name || '').trim().toLowerCase();
+        const t2Name = (m.team2Name || '').trim().toLowerCase();
+        const defName = defaultName.trim().toLowerCase();
+
+        let ourScore, oppScore;
+        if (t1Name === defName) {
+            ourScore = m.score1 || 0; oppScore = m.score2 || 0;
+        } else if (t2Name === defName) {
+            ourScore = m.score2 || 0; oppScore = m.score1 || 0;
+        } else {
+            // Fallback — treat team1 as ours
+            ourScore = m.score1 || 0; oppScore = m.score2 || 0;
+        }
+
+        goalsFor     += ourScore;
+        goalsAgainst += oppScore;
+        played++;
+
+        if (ourScore > oppScore)       won++;
+        else if (ourScore < oppScore)  lost++;
+        else                           draw++;
+    });
+
+    // ── Player scorers (from goals table, default team only) ──────────────
+    const scorerMap = {}; // playerId → { name, number, goals }
+    const ownGoals  = allGoals.filter(function(g) { return g.isOwnGoal; }).length;
+
+    allGoals.forEach(function(g) {
+        if (g.isOwnGoal) return;
+        if (!g.playerId) return;
+        if (!scorerMap[g.playerId]) {
+            scorerMap[g.playerId] = { playerId: g.playerId, number: g.playerNumber || '?', goals: 0 };
+        }
+        scorerMap[g.playerId].goals++;
+    });
+
+    const scorers = Object.values(scorerMap).sort(function(a, b) { return b.goals - a.goals; });
+
+    // Fetch player names for scorers
+    const needed = scorers.filter(function(s) { return !s.firstName; }).map(function(s) { return s.playerId; });
+    Promise.all(needed.map(function(pid) {
+        return firebase.database().ref('players/' + pid).once('value').then(function(snap) {
+            const p = snap.val();
+            const s = scorerMap[pid];
+            if (p && s) {
+                s.firstName = p.firstName || '';
+                s.lastName  = p.lastName  || '';
+                s.number    = p.number    || s.number;
+            }
+        });
+    })).then(function() {
+        _buildChampStatsHTML(champTitle, matches.length, endedMatches.length,
+            won, draw, lost, goalsFor, goalsAgainst, ownGoals, scorers, defaultName);
+    });
+}
+
+function _buildChampStatsHTML(champTitle, totalMatches, playedCount,
+    won, draw, lost, goalsFor, goalsAgainst, ownGoals, scorers, defaultName) {
+
+    document.getElementById('champStatsSubtitle').textContent =
+        totalMatches + ' матчей · ' + playedCount + ' сыграно';
+
+    const pct = playedCount > 0 ? Math.round(won / playedCount * 100) : 0;
+
+    // ── Results block ──
+    let html = `
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;
+                  letter-spacing:.08em;margin-bottom:10px;">Результаты матчей</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+        <div style="background:#f0fdf4;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:900;color:#16a34a;">${won}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">Победы</div>
+        </div>
+        <div style="background:#fefce8;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:900;color:#ca8a04;">${draw}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">Ничьи</div>
+        </div>
+        <div style="background:#fef2f2;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:900;color:#dc2626;">${lost}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">Поражения</div>
+        </div>
+      </div>`;
+
+    // Win rate bar
+    if (playedCount > 0) {
+        const wonW  = playedCount > 0 ? Math.round(won  / playedCount * 100) : 0;
+        const drawW = playedCount > 0 ? Math.round(draw / playedCount * 100) : 0;
+        const lostW = 100 - wonW - drawW;
+        html += `
+      <div style="border-radius:8px;overflow:hidden;height:8px;display:flex;margin-bottom:4px;">
+        <div style="background:#16a34a;width:${wonW}%;transition:width .4s;"></div>
+        <div style="background:#ca8a04;width:${drawW}%;transition:width .4s;"></div>
+        <div style="background:#dc2626;width:${lostW}%;transition:width .4s;"></div>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;text-align:right;">${pct}% побед</div>`;
+    }
+    html += `</div>`;
+
+    // ── Goals block ──
+    html += `
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;
+                  letter-spacing:.08em;margin-bottom:10px;">Голы</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="background:#eff6ff;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:900;color:#1d4ed8;">${goalsFor}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">Забито</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${defaultName}</div>
+        </div>
+        <div style="background:#fef2f2;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:900;color:#dc2626;">${goalsAgainst}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">Пропущено</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Соперники</div>
+        </div>
+      </div>
+    </div>`;
+
+    // ── Player scorers block ──
+    html += `
+    <div>
+      <div style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;
+                  letter-spacing:.08em;margin-bottom:10px;">Бомбардиры</div>`;
+
+    if (scorers.length === 0) {
+        html += `<div style="text-align:center;color:#94a3b8;padding:20px 0;font-size:14px;">
+            Данные о голах отсутствуют.<br>
+            <span style="font-size:12px;">Статистика по игрокам доступна для матчей с отслеживанием голов.</span>
+        </div>`;
+    } else {
+        const maxGoals = scorers[0].goals;
+        html += scorers.map(function(s, i) {
+            const name = s.lastName
+                ? ((s.firstName ? s.firstName + ' ' : '') + s.lastName.toUpperCase())
+                : ('Игрок #' + s.number);
+            const barW = maxGoals > 0 ? Math.round(s.goals / maxGoals * 100) : 0;
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+            return `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;
+                        border-bottom:1px solid #f1f5f9;">
+              <div style="font-size:16px;width:20px;text-align:center;flex-shrink:0;">${medal || ('<span style="font-size:12px;color:#94a3b8;">' + (i+1) + '</span>')}</div>
+              <div style="background:#08399A;color:#fff;border-radius:6px;padding:3px 8px;
+                          font-size:13px;font-weight:700;flex-shrink:0;">#${s.number}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:600;color:#1e293b;
+                            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(name)}</div>
+                <div style="background:#e2e8f0;border-radius:4px;height:4px;margin-top:4px;overflow:hidden;">
+                  <div style="background:#08399A;width:${barW}%;height:100%;transition:width .4s;"></div>
+                </div>
+              </div>
+              <div style="font-size:20px;font-weight:900;color:#08399A;flex-shrink:0;">${s.goals}</div>
+            </div>`;
+        }).join('');
+
+        if (ownGoals > 0) {
+            html += `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;color:#64748b;">
+              <div style="width:20px;"></div>
+              <div style="background:#e2e8f0;color:#64748b;border-radius:6px;padding:3px 8px;font-size:13px;font-weight:700;flex-shrink:0;">АГ</div>
+              <div style="flex:1;font-size:14px;">Автоголы</div>
+              <div style="font-size:20px;font-weight:900;">${ownGoals}</div>
+            </div>`;
+        }
+    }
+
+    html += `</div>`;
+
+    document.getElementById('champStatsBody').innerHTML = html;
+}
+</script>
+
+
 </body>
 </html>
