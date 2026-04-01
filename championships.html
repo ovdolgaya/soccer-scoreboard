@@ -372,6 +372,25 @@ let currentUser  = null;
 let allMatches   = [];       // raw match array from Firebase
 let champGroups  = {};       // { title: { matches: [], endedCount, scheduledCount } }
 
+// ── Page-level caches ──────────────────────────────────────────────────────
+// Matches cache — invalidated when a match is created/edited/deleted
+let _matchesDataCached = false;
+
+// Championship goals cache — { champTitle: [goalObjects] }
+// Avoids re-fetching all goals every time the stats modal is opened
+const _champGoalsCache = {};
+
+// Per-match goals cache — { matchId: [goalObjects] }
+// Shared between openStatsModal and openChampStats
+const _matchGoalsCache = {};
+
+function _invalidateMatchesCache() {
+    _matchesDataCached = false;
+    // Clear goals caches too since match data may have changed
+    Object.keys(_champGoalsCache).forEach(k => delete _champGoalsCache[k]);
+    Object.keys(_matchGoalsCache).forEach(k => delete _matchGoalsCache[k]);
+}
+
 // ============================================
 // AUTH
 // ============================================
@@ -393,6 +412,9 @@ auth.onAuthStateChanged(function(user) {
 // DATA LOADING
 // ============================================
 function loadData() {
+    // Skip if already loaded — matches don't change unless user edits them
+    if (_matchesDataCached) { renderList(); return; }
+
     Promise.all([
         database.ref('matches').once('value'),
         database.ref('championships').once('value')
@@ -446,6 +468,7 @@ function loadData() {
             else if (m.status === 'scheduled' || m.status === 'waiting')        champGroups[title].scheduledCount++;
         });
 
+        _matchesDataCached = true; // mark cache valid
         renderList();
     }).catch(function(err) {
         showToast('❌ Ошибка загрузки: ' + err.message);
@@ -1215,7 +1238,8 @@ function deleteChamp(champId, title) {
     if (!confirm('Удалить чемпионат «' + title + '»?\nМатчи не удаляются.')) return;
     database.ref('championships/' + champId).remove().then(function() {
         loadChampManageList();
-        loadData(); // refresh main list too
+        _invalidateMatchesCache();
+        loadData();
     }).catch(function(err) { showToast('❌ ' + err.message); });
 }
 
@@ -1287,6 +1311,7 @@ function saveChampModal() {
     promise.then(function() {
         closeChampModal();
         loadChampManageList();
+        _invalidateMatchesCache();
         loadData();
         showToast('✓ Чемпионат сохранён!');
     }).catch(function(err) { alert('Ошибка: ' + err.message); });
@@ -1316,57 +1341,60 @@ function openStatsModal(matchId) {
     document.getElementById('statsModalBody').innerHTML =
         '<div style="text-align:center;color:#94a3b8;padding:40px 0;font-size:14px;">Загрузка...</div>';
 
-    // Fetch match + goals in parallel
-    Promise.all([
-        database.ref('matches/' + matchId).once('value'),
-        database.ref('goals').orderByChild('matchId').equalTo(matchId).once('value')
-    ]).then(function(results) {
-        const match = results[0].val();
-        const goalsSnap = results[1];
+    // Use cached match data — already in allMatches from loadData()
+    const match = allMatches.find(function(m) { return m.id === matchId; });
 
-        if (!match) {
-            document.getElementById('statsModalBody').innerHTML =
-                '<div style="text-align:center;color:#ef4444;padding:40px 0;">Матч не найден</div>';
-            return;
-        }
+    if (!match) {
+        document.getElementById('statsModalBody').innerHTML =
+            '<div style="text-align:center;color:#ef4444;padding:40px 0;">Матч не найден</div>';
+        return;
+    }
 
-        // Populate header
-        document.getElementById('statsMatchTitle').textContent =
-            (match.team1Name || '?') + '  vs  ' + (match.team2Name || '?');
+    // Populate header immediately from cache — no waiting
+    document.getElementById('statsMatchTitle').textContent =
+        (match.team1Name || '?') + '  vs  ' + (match.team2Name || '?');
 
-        const statusMap = { ended:'Завершён', playing:'Идёт', half1_ended:'Перерыв', waiting:'Ожидание', scheduled:'Запланирован' };
-        const champInfo = match.championshipTitle ? match.championshipTitle + '  ·  ' : '';
-        document.getElementById('statsMatchMeta').textContent =
-            champInfo + (statusMap[match.status] || match.status || '');
+    const statusMap = { ended:'Завершён', playing:'Идёт', half1_ended:'Перерыв', waiting:'Ожидание', scheduled:'Запланирован' };
+    const champInfo = match.championshipTitle ? match.championshipTitle + '  ·  ' : '';
+    document.getElementById('statsMatchMeta').textContent =
+        champInfo + (statusMap[match.status] || match.status || '');
 
-        document.getElementById('statsScoreBadge').textContent =
-            (match.score1 || 0) + ' : ' + (match.score2 || 0);
+    document.getElementById('statsScoreBadge').textContent =
+        (match.score1 || 0) + ' : ' + (match.score2 || 0);
 
-        // Set team color CSS var for badges
-        const color = match.team1Color || '#08399A';
-        document.getElementById('statsModal').style.setProperty('--team1-color', color);
+    const color = match.team1Color || '#08399A';
+    document.getElementById('statsModal').style.setProperty('--team1-color', color);
 
-        // Collect goals
-        const goalsData = {};
-        goalsSnap.forEach(function(child) { goalsData[child.key] = child.val(); });
-
-        // Fetch missing players then render
+    // Use cached goals if available
+    function _processGoals(goalsData) {
         const needed = [];
         Object.values(goalsData).forEach(function(g) {
             if (g.playerId && !statsPlayersCache[g.playerId]) needed.push(g.playerId);
         });
-
         const fetches = needed.map(function(pid) {
             return database.ref('players/' + pid).once('value').then(function(snap) {
                 if (snap.val()) statsPlayersCache[pid] = snap.val();
             });
         });
-
         Promise.all(fetches).then(function() {
             renderStatsBody(match, goalsData);
         });
+    }
 
-    }).catch(function(err) {
+    if (_matchGoalsCache[matchId]) {
+        _processGoals(_matchGoalsCache[matchId]);
+        return;
+    }
+
+    // First open — fetch goals then cache
+    database.ref('goals').orderByChild('matchId').equalTo(matchId).once('value')
+        .then(function(goalsSnap) {
+            const goalsData = {};
+            goalsSnap.forEach(function(child) { goalsData[child.key] = child.val(); });
+            _matchGoalsCache[matchId] = goalsData; // cache for re-opens
+            _processGoals(goalsData);
+        })
+        .catch(function(err) {
         document.getElementById('statsModalBody').innerHTML =
             '<div style="text-align:center;color:#ef4444;padding:40px 0;">Ошибка: ' + err.message + '</div>';
     });
@@ -1582,25 +1610,46 @@ function openChampStats(champTitle) {
     document.body.style.overflow = 'hidden';
     document.getElementById('champStatsTitle').textContent   = champTitle;
     document.getElementById('champStatsSubtitle').textContent = '—';
-    document.getElementById('champStatsBody').innerHTML =
-        '<div style="text-align:center;color:#94a3b8;padding:40px 0;font-size:14px;">Загрузка...</div>';
 
     const matches  = group.matches;
     const matchIds = matches.map(function(m) { return m.id; });
 
-    // Fetch all goals for matches in this championship in parallel
-    Promise.all(
-        matchIds.map(function(mid) {
-            return firebase.database().ref('goals')
-                .orderByChild('matchId').equalTo(mid).once('value');
-        })
-    ).then(function(snapshots) {
+    // Use cached goals if all matches for this championship are cached
+    const allCached = matchIds.every(function(mid) { return _matchGoalsCache[mid] !== undefined; });
+
+    if (allCached) {
+        document.getElementById('champStatsBody').innerHTML = '';
         const allGoals = [];
-        snapshots.forEach(function(snap) {
-            snap.forEach(function(child) {
-                const g = child.val(); g._key = child.key;
-                allGoals.push(g);
-            });
+        matchIds.forEach(function(mid) {
+            Object.values(_matchGoalsCache[mid]).forEach(function(g) { allGoals.push(g); });
+        });
+        _renderChampStats(champTitle, matches, allGoals);
+        return;
+    }
+
+    document.getElementById('champStatsBody').innerHTML =
+        '<div style="text-align:center;color:#94a3b8;padding:40px 0;font-size:14px;">Загрузка...</div>';
+
+    // Fetch only uncached match goals
+    const toFetch = matchIds.filter(function(mid) { return _matchGoalsCache[mid] === undefined; });
+
+    Promise.all(
+        toFetch.map(function(mid) {
+            return firebase.database().ref('goals')
+                .orderByChild('matchId').equalTo(mid).once('value')
+                .then(function(snap) {
+                    const goalsData = {};
+                    snap.forEach(function(child) {
+                        const g = child.val(); g._key = child.key;
+                        goalsData[child.key] = g;
+                    });
+                    _matchGoalsCache[mid] = goalsData; // cache per match
+                });
+        })
+    ).then(function() {
+        const allGoals = [];
+        matchIds.forEach(function(mid) {
+            Object.values(_matchGoalsCache[mid]).forEach(function(g) { allGoals.push(g); });
         });
         _renderChampStats(champTitle, matches, allGoals);
     }).catch(function(err) {
