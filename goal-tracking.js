@@ -3,20 +3,21 @@
 // ========================================
 // Handles the player picker modal (+ button for team 1),
 // goal removal modal (− button for team 1),
+// assist picker modal (👟 button in stats),
 // and all Firebase read/write for /goals
 
 // ---- State ----
 let goalTracking = {
     defaultTeamId: null,    // loaded from settings/defaultTeam
     defaultTeamSide: null,  // 1 or 2 — which side the default team is in this match
-    playersCache: []        // active (non-absent) players for the default team
+    playersCache: [],        // active (non-absent) players for the default team
+    selectedAssists: []      // [{ id, number }] — selected assistants for current goal
 };
 
 // ----------------------------------------
 // INIT — called once after a match loads
 // ----------------------------------------
 function initGoalTracking() {
-    // Load the default team from settings
     firebase.database().ref('settings/defaultTeam').once('value')
         .then(function(snap) {
             goalTracking.defaultTeamId = snap.val() || null;
@@ -50,7 +51,6 @@ function loadGoalTrackingPlayers() {
 // CALCULATE MATCH TIME
 // ----------------------------------------
 function getMatchTimeString() {
-    // Returns "MM:SS" based on live match timer, or HH:MM:SS wall clock as fallback
     return firebase.database().ref('matches/' + matchId).once('value')
         .then(function(snap) {
             const match = snap.val();
@@ -78,7 +78,6 @@ function getCurrentWallTime() {
 // ----------------------------------------
 // DETERMINE DEFAULT TEAM SIDE
 // ----------------------------------------
-// Checks match team names vs default team name to figure out if it's team 1 or 2
 function resolveDefaultTeamSide(matchData) {
     if (!goalTracking.defaultTeamId) return null;
 
@@ -93,7 +92,6 @@ function resolveDefaultTeamSide(matchData) {
 
             if (teamName === t1) return 1;
             if (teamName === t2) return 2;
-            // Fallback: assume team 1 is the home/default team
             return 1;
         });
 }
@@ -104,12 +102,13 @@ function resolveDefaultTeamSide(matchData) {
 function openGoalScorerModal() {
     if (!matchId) return;
 
-    // Populate header info
+    // Reset assists state every time modal opens
+    goalTracking.selectedAssists = [];
+
     firebase.database().ref('matches/' + matchId).once('value').then(function(snap) {
         const match = snap.val();
         if (!match) return;
 
-        // Update modal header time info
         getMatchTimeString().then(function(timeStr) {
             const halfLabel = match.currentHalf === 1 ? '1-й тайм' :
                               match.currentHalf === 2 ? '2-й тайм' : '';
@@ -118,52 +117,121 @@ function openGoalScorerModal() {
             if (el) el.textContent = info;
         });
 
-        // Render player grid
+        // Render both grids
+        renderAssistGrid();
         renderPlayerGrid();
 
-        // Show modal
         document.getElementById('goalScorerModal').style.display = 'block';
         document.body.style.overflow = 'hidden';
     });
 }
 
 function closeGoalScorerModal() {
+    goalTracking.selectedAssists = [];
     document.getElementById('goalScorerModal').style.display = 'none';
     document.body.style.overflow = '';
 }
 
 // ----------------------------------------
-// RENDER PLAYER NUMBER CARDS
+// RENDER ASSIST GRID (muted style, multi-select, no auto-close)
+// ----------------------------------------
+function renderAssistGrid() {
+    const grid = document.getElementById('goalAssistGrid');
+    if (!grid) return;
+
+    if (goalTracking.playersCache.length === 0) {
+        grid.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:10px;grid-column:1/-1;font-size:13px;">Нет активных игроков</div>';
+        return;
+    }
+
+    grid.innerHTML = goalTracking.playersCache.map(function(player) {
+        const isSelected = goalTracking.selectedAssists.some(function(a) { return a.id === player.id; });
+
+        const bg = isSelected
+            ? 'linear-gradient(135deg,#0ea5e9,#0369a1)'   // highlighted — teal-blue
+            : 'linear-gradient(135deg,#475569,#334155)';  // default — muted slate
+
+        const border = isSelected
+            ? '2px solid #7dd3fc'
+            : '2px solid transparent';
+
+        const checkmark = isSelected
+            ? '<div style="font-size:9px;margin-top:2px;">✓</div>'
+            : '';
+
+        return '<button onclick="toggleAssist(\'' + player.id + '\', ' + player.number + ')" ' +
+               'style="background:' + bg + ';color:#fff;border:' + border + ';border-radius:12px;' +
+               'padding:10px 6px;font-size:20px;font-weight:800;cursor:pointer;' +
+               'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+               'min-height:56px;transition:all .15s;' +
+               'box-shadow:0 2px 8px rgba(0,0,0,0.2);">' +
+               '#' + player.number +
+               checkmark +
+               '</button>';
+    }).join('');
+}
+
+// ----------------------------------------
+// TOGGLE ASSIST SELECTION
+// ----------------------------------------
+function toggleAssist(playerId, playerNumber) {
+    const idx = goalTracking.selectedAssists.findIndex(function(a) { return a.id === playerId; });
+    if (idx === -1) {
+        goalTracking.selectedAssists.push({ id: playerId, number: playerNumber });
+    } else {
+        goalTracking.selectedAssists.splice(idx, 1);
+    }
+    // Re-render both grids to sync state (assist highlights + scorer disabled states)
+    renderAssistGrid();
+    renderPlayerGrid();
+}
+
+// ----------------------------------------
+// RENDER PLAYER NUMBER CARDS (scorer grid)
 // ----------------------------------------
 function renderPlayerGrid() {
     const grid = document.getElementById('goalPlayerGrid');
     if (!grid) return;
 
     if (goalTracking.playersCache.length === 0) {
-        // Try reloading in case they weren't ready
         loadGoalTrackingPlayers();
         grid.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;grid-column:1/-1;">Нет активных игроков.<br><small>Проверьте настройки команды.</small></div>';
         return;
     }
 
     grid.innerHTML = goalTracking.playersCache.map(function(player) {
+        const isAssist = goalTracking.selectedAssists.some(function(a) { return a.id === player.id; });
         const isGK = player.isGoalkeeper;
-        const bg = isGK
-            ? 'linear-gradient(135deg,#7c3aed,#4c1d95)'
-            : 'linear-gradient(135deg,#1e5fd4,#08399A)';
-        const badge = isGK ? '<div style="font-size:9px;opacity:.75;margin-top:2px;">🧤</div>' : '';
 
-        return '<button onclick="confirmGoal(\'' + player.id + '\', false)" ' +
+        // Greyed out if already selected as assistant
+        const bg = isAssist
+            ? 'linear-gradient(135deg,#94a3b8,#64748b)'
+            : isGK
+                ? 'linear-gradient(135deg,#7c3aed,#4c1d95)'
+                : 'linear-gradient(135deg,#1e5fd4,#08399A)';
+
+        const opacity = isAssist ? '0.45' : '1';
+        const pointer = isAssist ? 'none' : 'auto';
+        const badge = isGK && !isAssist ? '<div style="font-size:9px;opacity:.75;margin-top:2px;">🧤</div>' : '';
+        const assistLabel = isAssist ? '<div style="font-size:9px;opacity:.9;margin-top:2px;">👟</div>' : '';
+
+        const clickHandler = isAssist
+            ? ''
+            : 'onclick="confirmGoal(\'' + player.id + '\', false)"';
+
+        return '<button ' + clickHandler + ' ' +
                'style="background:' + bg + ';color:#fff;border:none;border-radius:14px;' +
                'padding:16px 8px;font-size:24px;font-weight:800;cursor:pointer;' +
                'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
                'min-height:72px;transition:transform .1s,box-shadow .1s;' +
+               'opacity:' + opacity + ';pointer-events:' + pointer + ';' +
                'box-shadow:0 4px 12px rgba(0,0,0,0.15);" ' +
                'onmousedown="this.style.transform=\'scale(.94)\'" ' +
                'onmouseup="this.style.transform=\'scale(1)\'" ' +
                'onmouseleave="this.style.transform=\'scale(1)\'">' +
                '#' + player.number +
                badge +
+               assistLabel +
                '</button>';
     }).join('');
 }
@@ -174,6 +242,8 @@ function renderPlayerGrid() {
 function confirmGoal(playerId, isOwnGoal) {
     if (!matchId) return;
 
+    // Capture assists before closing (closeGoalScorerModal resets them)
+    const assistsSnapshot = goalTracking.selectedAssists.slice();
     closeGoalScorerModal();
 
     Promise.all([
@@ -192,12 +262,19 @@ function confirmGoal(playerId, isOwnGoal) {
             playerId: isOwnGoal ? null : (playerId || null),
             isOwnGoal: isOwnGoal || false,
             half: match.currentHalf || 0,
-            matchTime: timeStr,          // e.g. "34:12" within the half
-            timestamp: Date.now(),       // absolute wall-clock time
+            matchTime: timeStr,
+            timestamp: Date.now(),
             createdAt: Date.now()
         };
 
-        // If it's a real player, also store their number for quick display
+        // Store assists (only for non-own-goals)
+        if (!isOwnGoal && assistsSnapshot.length > 0) {
+            goalData.assists = assistsSnapshot.map(function(a) {
+                return { playerId: a.id, playerNumber: a.number };
+            });
+        }
+
+        // Store scorer's number for quick display
         if (!isOwnGoal && playerId) {
             const player = goalTracking.playersCache.find(function(p) { return p.id === playerId; });
             if (player) {
@@ -206,10 +283,9 @@ function confirmGoal(playerId, isOwnGoal) {
             }
         }
 
-        // Save goal, then increment score
+        // Save goal then increment score
         return firebase.database().ref('goals').push(goalData)
             .then(function() {
-                // Determine which score side to increment
                 return resolveDefaultTeamSide(match);
             })
             .then(function(side) {
@@ -234,18 +310,15 @@ function confirmGoal(playerId, isOwnGoal) {
 function requestGoalRemoval(team) {
     if (!matchId) return;
 
-    // For team 2: simple decrement, no goal tracking
     if (team === 2) {
         changeScore(2, -1);
         return;
     }
 
-    // For team 1: check current score first
     firebase.database().ref('matches/' + matchId).once('value').then(function(snap) {
         const match = snap.val();
         if (!match) return;
 
-        // Determine side
         return resolveDefaultTeamSide(match).then(function(side) {
             const scoreKey = 'score' + (side || 1);
             const currentScore = match[scoreKey] || 0;
@@ -255,7 +328,6 @@ function requestGoalRemoval(team) {
                 return;
             }
 
-            // Load goals for this match
             return firebase.database().ref('goals')
                 .orderByChild('matchId')
                 .equalTo(matchId)
@@ -268,17 +340,14 @@ function requestGoalRemoval(team) {
                         goals.push(g);
                     });
 
-                    // Filter to only goals for the default team
                     const teamGoals = goals
                         .filter(function(g) { return g.teamId === goalTracking.defaultTeamId; })
-                        .sort(function(a, b) { return b.timestamp - a.timestamp; }); // newest first
+                        .sort(function(a, b) { return b.timestamp - a.timestamp; });
 
                     if (teamGoals.length === 0) {
-                        // No tracked goals — just decrement score silently
                         return changeScore(side || 1, -1);
                     }
 
-                    // Show removal modal
                     renderGoalRemoveList(teamGoals, side || 1, currentScore);
                     document.getElementById('goalRemoveModal').style.display = 'block';
                     document.body.style.overflow = 'hidden';
@@ -316,7 +385,6 @@ function renderGoalRemoveList(goals, side, currentScore) {
             scorerLabel = '⚽ Неизвестный игрок';
         }
 
-        // Show newest first, mark the first as "most recent"
         const isNewest = index === 0;
 
         return '<button onclick="removeGoal(\'' + goal._key + '\', ' + side + ')" ' +
@@ -328,9 +396,7 @@ function renderGoalRemoveList(goals, side, currentScore) {
                '<div style="font-size:15px;font-weight:700;color:#1e293b;">' + scorerLabel + '</div>' +
                '<div style="font-size:12px;color:#64748b;margin-top:2px;">' + halfLabel + ' · ' + timeLabel + '</div>' +
                '</div>' +
-               '<div style="background:#ef4444;color:#fff;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap;margin-left:12px;">' +
-               (isNewest ? '× Удалить' : '× Удалить') +
-               '</div>' +
+               '<div style="background:#ef4444;color:#fff;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap;margin-left:12px;">× Удалить</div>' +
                '</button>';
     }).join('');
 }
@@ -341,7 +407,6 @@ function renderGoalRemoveList(goals, side, currentScore) {
 function removeGoal(goalKey, side) {
     closeGoalRemoveModal();
 
-    // Get current score before deleting
     firebase.database().ref('matches/' + matchId).once('value').then(function(snap) {
         const match = snap.val();
         if (!match) return;
@@ -349,7 +414,6 @@ function removeGoal(goalKey, side) {
         const scoreKey = 'score' + side;
         const newScore = Math.max(0, (match[scoreKey] || 0) - 1);
 
-        // Delete goal record and decrement score in parallel
         return Promise.all([
             firebase.database().ref('goals/' + goalKey).remove(),
             firebase.database().ref('matches/' + matchId).update({ [scoreKey]: newScore })
@@ -369,7 +433,6 @@ function removeGoal(goalKey, side) {
 function openRetroGoalModal() {
     if (!matchId) return;
 
-    // Ensure players are loaded
     if (goalTracking.playersCache.length === 0 && goalTracking.defaultTeamId) {
         loadGoalTrackingPlayers();
     }
@@ -428,9 +491,9 @@ function confirmRetroGoal(playerId, isOwnGoal) {
             teamId:     goalTracking.defaultTeamId || null,
             playerId:   isOwnGoal ? null : (playerId || null),
             isOwnGoal:  isOwnGoal || false,
-            half:       null,       // no half info for retroactive goals
-            matchTime:  null,       // no time info
-            retroactive: true,      // flag to distinguish from live-tracked goals
+            half:       null,
+            matchTime:  null,
+            retroactive: true,
             timestamp:  Date.now(),
             createdAt:  Date.now()
         };
@@ -456,7 +519,6 @@ function confirmRetroGoal(playerId, isOwnGoal) {
             })
             .then(function() {
                 showToast('⚽ Гол добавлен!');
-                // Refresh goals stats section
                 if (typeof loadGoalsStats === 'function') loadGoalsStats(matchId);
             });
     }).catch(function(err) {
@@ -466,16 +528,140 @@ function confirmRetroGoal(playerId, isOwnGoal) {
 }
 
 // ----------------------------------------
+// ASSIST PICKER MODAL (from stats rows)
+// ----------------------------------------
+
+// Currently editing goal key
+let _assistPickerGoalKey = null;
+let _assistPickerSelected = []; // [{ playerId, playerNumber }]
+
+function openAssistPickerModal(goalKey) {
+    if (!goalKey) return;
+    _assistPickerGoalKey = goalKey;
+    _assistPickerSelected = [];
+
+    // Load existing assists for this goal so we can pre-select them
+    firebase.database().ref('goals/' + goalKey).once('value').then(function(snap) {
+        const goal = snap.val();
+        if (!goal) return;
+
+        // Pre-populate with existing assists
+        if (goal.assists && Array.isArray(goal.assists)) {
+            _assistPickerSelected = goal.assists.map(function(a) {
+                return { playerId: a.playerId, playerNumber: a.playerNumber };
+            });
+        }
+
+        renderAssistPickerGrid();
+        document.getElementById('assistPickerModal').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    });
+}
+
+function closeAssistPickerModal() {
+    _assistPickerGoalKey = null;
+    _assistPickerSelected = [];
+    document.getElementById('assistPickerModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function renderAssistPickerGrid() {
+    const grid = document.getElementById('assistPickerGrid');
+    if (!grid) return;
+
+    if (goalTracking.playersCache.length === 0) {
+        grid.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:16px;grid-column:1/-1;font-size:13px;">Нет активных игроков</div>';
+        return;
+    }
+
+    grid.innerHTML = goalTracking.playersCache.map(function(player) {
+        const isSelected = _assistPickerSelected.some(function(a) { return a.playerId === player.id; });
+
+        const bg = isSelected
+            ? 'linear-gradient(135deg,#0ea5e9,#0369a1)'
+            : 'linear-gradient(135deg,#475569,#334155)';
+
+        const border = isSelected ? '2px solid #7dd3fc' : '2px solid transparent';
+        const checkmark = isSelected ? '<div style="font-size:9px;margin-top:2px;">✓</div>' : '';
+
+        return '<button onclick="toggleAssistPicker(\'' + player.id + '\', ' + player.number + ')" ' +
+               'style="background:' + bg + ';color:#fff;border:' + border + ';border-radius:12px;' +
+               'padding:10px 6px;font-size:20px;font-weight:800;cursor:pointer;' +
+               'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+               'min-height:56px;transition:all .15s;' +
+               'box-shadow:0 2px 8px rgba(0,0,0,0.2);">' +
+               '#' + player.number +
+               checkmark +
+               '</button>';
+    }).join('');
+}
+
+function toggleAssistPicker(playerId, playerNumber) {
+    const idx = _assistPickerSelected.findIndex(function(a) { return a.playerId === playerId; });
+    if (idx === -1) {
+        _assistPickerSelected.push({ playerId: playerId, playerNumber: playerNumber });
+    } else {
+        _assistPickerSelected.splice(idx, 1);
+    }
+    renderAssistPickerGrid();
+}
+
+function saveAssistPicker() {
+    if (!_assistPickerGoalKey) return;
+
+    const assists = _assistPickerSelected.length > 0 ? _assistPickerSelected : null;
+
+    firebase.database().ref('goals/' + _assistPickerGoalKey).update({
+        assists: assists
+    }).then(function() {
+        showToast('👟 Ассистент(ы) сохранены!');
+        closeAssistPickerModal();
+        // Refresh stats if visible
+        if (typeof loadGoalsStats === 'function') loadGoalsStats(matchId);
+    }).catch(function(err) {
+        console.error('Assist save error:', err);
+        showToast('❌ Ошибка сохранения');
+    });
+}
+
+// ----------------------------------------
+// REMOVE A SINGLE ASSIST FROM A GOAL
+// ----------------------------------------
+function removeAssist(goalKey, assistPlayerId) {
+    firebase.database().ref('goals/' + goalKey).once('value').then(function(snap) {
+        const goal = snap.val();
+        if (!goal) return;
+
+        const currentAssists = (goal.assists || []).filter(function(a) {
+            return a.playerId !== assistPlayerId;
+        });
+
+        // Write null if empty (cleaner Firebase record), array if remaining
+        return firebase.database().ref('goals/' + goalKey).update({
+            assists: currentAssists.length > 0 ? currentAssists : null
+        });
+    }).then(function() {
+        showToast('✓ Ассистент удалён');
+        if (typeof loadGoalsStats === 'function') loadGoalsStats(matchId);
+    }).catch(function(err) {
+        console.error('Remove assist error:', err);
+        showToast('❌ Ошибка удаления ассистента');
+    });
+}
+
+// ----------------------------------------
 // CLOSE MODALS ON BACKDROP CLICK
 // ----------------------------------------
 document.addEventListener('click', function(e) {
-    const scorerModal = document.getElementById('goalScorerModal');
-    const removeModal = document.getElementById('goalRemoveModal');
-    const retroModal  = document.getElementById('retroGoalModal');
+    const scorerModal  = document.getElementById('goalScorerModal');
+    const removeModal  = document.getElementById('goalRemoveModal');
+    const retroModal   = document.getElementById('retroGoalModal');
+    const assistModal  = document.getElementById('assistPickerModal');
 
     if (e.target === scorerModal) closeGoalScorerModal();
     if (e.target === removeModal) closeGoalRemoveModal();
     if (e.target === retroModal)  closeRetroGoalModal();
+    if (e.target === assistModal) closeAssistPickerModal();
 });
 
 // ----------------------------------------
@@ -486,5 +672,6 @@ document.addEventListener('keydown', function(e) {
         closeGoalScorerModal();
         closeGoalRemoveModal();
         closeRetroGoalModal();
+        closeAssistPickerModal();
     }
 });

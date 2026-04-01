@@ -347,7 +347,6 @@ function loadGoalsStats(forMatchId) {
 
     body.innerHTML = '<div style="padding:16px 20px; color:#94a3b8; font-size:14px;">Загрузка...</div>';
 
-    // Fetch goals for this match
     database.ref('goals').orderByChild('matchId').equalTo(forMatchId).once('value')
         .then(function(goalsSnap) {
             const goals = [];
@@ -357,8 +356,7 @@ function loadGoalsStats(forMatchId) {
                 goals.push(g);
             });
 
-            // Sort by half then by matchTime string (lexicographic works for MM:SS)
-            // Goals without matchTime go at the end
+            // Sort by half then matchTime; goals without matchTime go at end
             goals.sort(function(a, b) {
                 const aHalf = a.half || 999;
                 const bHalf = b.half || 999;
@@ -369,13 +367,18 @@ function loadGoalsStats(forMatchId) {
                 return (a.matchTime || '').localeCompare(b.matchTime || '');
             });
 
-            // Collect unique playerIds we need to look up
-            const playerIds = [...new Set(
-                goals.filter(function(g) { return g.playerId; }).map(function(g) { return g.playerId; })
-            )];
+            // Collect all unique playerIds — scorers + assistants
+            const playerIdSet = new Set();
+            goals.forEach(function(g) {
+                if (g.playerId) playerIdSet.add(g.playerId);
+                if (g.assists && Array.isArray(g.assists)) {
+                    g.assists.forEach(function(a) {
+                        if (a.playerId) playerIdSet.add(a.playerId);
+                    });
+                }
+            });
 
-            // Fetch all players in parallel (works for soft-deleted too)
-            const playerFetches = playerIds.map(function(pid) {
+            const playerFetches = Array.from(playerIdSet).map(function(pid) {
                 return database.ref('players/' + pid).once('value').then(function(snap) {
                     return { id: pid, data: snap.val() };
                 });
@@ -416,7 +419,7 @@ function renderGoalsStats(goals, players, container) {
     }
 
     goals.forEach(function(g) {
-        // Half separator — goals without half go under "Без тайма"
+        // Half separator
         const halfVal = g.half || null;
         if (halfVal !== currentHalf) {
             currentHalf = halfVal;
@@ -431,7 +434,6 @@ function renderGoalsStats(goals, players, container) {
                     halfLabel + '</div>';
         }
 
-        // Time — show '—' for retroactive goals
         const timeStr = g.matchTime || '—';
 
         let playerNumber = '—';
@@ -453,26 +455,60 @@ function renderGoalsStats(goals, players, container) {
 
         const rowBg = 'background: transparent;';
 
+        // Build assist chips
+        const assists = (g.assists && Array.isArray(g.assists)) ? g.assists : [];
+        let assistHtml = '';
+
+        // Existing assist chips with × remove button
+        assists.forEach(function(a) {
+            const aNum = a.playerNumber || '?';
+            assistHtml +=
+                '<span style="display:inline-flex;align-items:center;gap:3px;' +
+                'background:#e0f2fe;color:#0369a1;border-radius:6px;' +
+                'padding:2px 6px 2px 7px;font-size:12px;font-weight:700;white-space:nowrap;">' +
+                '#' + aNum +
+                '<button onclick="removeAssist(\'' + g._key + '\',\'' + a.playerId + '\')" ' +
+                'style="background:none;border:none;color:#0369a1;cursor:pointer;' +
+                'font-size:11px;padding:0 0 0 2px;line-height:1;opacity:.7;" ' +
+                'title="Удалить ассистента">×</button>' +
+                '</span>';
+        });
+
+        // 👟 button — always shown, opens assist picker
+        assistHtml +=
+            '<button onclick="openAssistPickerModal(\'' + g._key + '\')" ' +
+            'style="background:none;border:none;cursor:pointer;font-size:15px;' +
+            'padding:0 2px;opacity:' + (assists.length > 0 ? '0.5' : '0.8') + ';' +
+            'display:flex;align-items:center;justify-content:center;height:28px;" ' +
+            'title="' + (assists.length > 0 ? 'Изменить ассистентов' : 'Добавить ассистента') + '">👟</button>';
+
         html += '<div style="display:flex; align-items:center; gap:0; padding:10px 20px; ' +
                 'border-bottom:1px solid #f1f5f9; ' + rowBg + '">' +
 
                 // Match time
-                '<div style="width:56px; flex-shrink:0; font-size:13px; font-weight:700; ' +
+                '<div style="width:48px; flex-shrink:0; font-size:13px; font-weight:700; ' +
                 'color:' + (g.matchTime ? '#64748b' : '#cbd5e1') + '; font-family:monospace;">' + timeStr + '</div>' +
 
                 // Divider
-                '<div style="width:1px; height:28px; background:#e2e8f0; margin-right:16px; flex-shrink:0;"></div>' +
+                '<div style="width:1px; height:28px; background:#e2e8f0; margin-right:12px; flex-shrink:0;"></div>' +
 
                 // Player number badge
                 '<div style="flex-shrink:0; background:#08399A; color:#fff; border-radius:6px; ' +
-                'padding:3px 8px; font-size:12px; font-weight:800; margin-right:12px; ' +
-                'min-width:36px; text-align:center;">' + playerNumber + '</div>' +
+                'padding:3px 8px; font-size:12px; font-weight:800; margin-right:10px; ' +
+                'min-width:34px; text-align:center;">' + playerNumber + '</div>' +
 
                 // Player name
-                '<div style="flex:1; font-size:14px; font-weight:600; color:#1e293b;">' + playerName + '</div>' +
+                '<div style="flex:1; font-size:14px; font-weight:600; color:#1e293b; min-width:0; ' +
+                'white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + playerName + '</div>' +
 
                 // Ball icon
-                '<div style="font-size:16px; flex-shrink:0;">⚽</div>' +
+                '<div style="display:flex;align-items:center;justify-content:center;' +
+                'font-size:15px; flex-shrink:0; margin-left:8px; height:28px;">⚽</div>' +
+
+                // Assist chips + 👟 button
+                '<div style="display:flex; align-items:center; gap:4px; flex-shrink:0; margin-left:4px; flex-wrap:nowrap; height:28px;">' +
+                assistHtml +
+                '</div>' +
 
                 '</div>';
     });
