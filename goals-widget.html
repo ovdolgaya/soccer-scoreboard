@@ -163,11 +163,50 @@
         }
 
         .cell-ball {
-            width: 36px;
-            padding: 10px 16px 10px 0;
-            font-size: 18px;
-            text-align: right;
-            opacity: 0.75;
+            display: none; /* hidden in table view — scorer is implied */
+        }
+
+        .cell-assist {
+            padding: 6px 16px 6px 8px;
+            white-space: nowrap;
+        }
+
+        /* Sneaker label before chips */
+        .assist-icon {
+            font-size: 13px;
+            opacity: 0.55;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        /* Individual assist player chip */
+        .assist-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 7px;
+            padding: 3px 9px 3px 7px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+
+        .assist-chip-num {
+            background: rgba(255,255,255,0.9);
+            color: var(--team1-color, #08399A);
+            border-radius: 5px;
+            padding: 1px 6px;
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .assist-chip-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+            text-transform: uppercase;
         }
 
         /* divider between rows */
@@ -262,6 +301,17 @@
             display: none;
             font-size: 10px; color: #64748b; margin-top: 2px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .player-assist-badge {
+            font-size: 11px; font-weight: 700;
+            color: #0369a1;
+            background: #e0f2fe;
+            border-radius: 5px;
+            padding: 2px 6px;
+            margin-top: 4px;
+            display: inline-block;
+            line-height: 1.4;
         }
 
         .goal-count {
@@ -397,6 +447,12 @@
             const needed = [];
             Object.values(goalsData).forEach(function(g) {
                 if (g.playerId && !playersCache[g.playerId]) needed.push(g.playerId);
+                // Also cache assist players (for name display in table view)
+                if (g.assists && Array.isArray(g.assists)) {
+                    g.assists.forEach(function(a) {
+                        if (a.playerId && !playersCache[a.playerId]) needed.push(a.playerId);
+                    });
+                }
             });
             if (!needed.length) return Promise.resolve();
             return Promise.all(needed.map(function(pid) {
@@ -423,20 +479,33 @@
             const scorers = {};
             Object.values(goalsData).forEach(function(g) {
                 if (g.isOwnGoal) {
-                    scorers['og_' + g.timestamp] = { isOwnGoal:true, goals:1, times:[g.matchTime||''], halves:[g.half||0] };
+                    scorers['og_' + g.timestamp] = { isOwnGoal:true, goals:1, assists:0, times:[g.matchTime||''], halves:[g.half||0] };
                     return;
                 }
                 const pid = g.playerId || 'unknown';
-                if (!scorers[pid]) scorers[pid] = { playerId:pid, isOwnGoal:false, goals:0, times:[], halves:[] };
+                if (!scorers[pid]) scorers[pid] = { playerId:pid, isOwnGoal:false, goals:0, assists:0, times:[], halves:[] };
                 scorers[pid].goals++;
                 scorers[pid].times.push(g.matchTime||'');
                 scorers[pid].halves.push(g.half||0);
+
+                // Count assists — each assist player gets credited
+                if (g.assists && Array.isArray(g.assists)) {
+                    g.assists.forEach(function(a) {
+                        const apid = a.playerId || ('num_' + a.playerNumber);
+                        if (!scorers[apid]) scorers[apid] = { playerId: a.playerId || null, isOwnGoal:false, goals:0, assists:0, times:[], halves:[], playerNumber: a.playerNumber };
+                        scorers[apid].assists++;
+                    });
+                }
             });
-            return Object.values(scorers).sort(function(a,b) {
-                if (a.isOwnGoal && !b.isOwnGoal) return 1;
-                if (!a.isOwnGoal && b.isOwnGoal) return -1;
-                return b.goals - a.goals;
-            });
+
+            // Filter: only players with goals > 0 for card view (assists shown on card if > 0)
+            return Object.values(scorers)
+                .filter(function(s) { return s.goals > 0; })
+                .sort(function(a,b) {
+                    if (a.isOwnGoal && !b.isOwnGoal) return 1;
+                    if (!a.isOwnGoal && b.isOwnGoal) return -1;
+                    return b.goals - a.goals;
+                });
         }
 
         // ─────────────────────────────────────
@@ -457,7 +526,7 @@
                 if (g.half && g.half !== currentHalf) {
                     currentHalf = g.half;
                     const label = g.half === 1 ? '1-й тайм' : g.half === 2 ? '2-й тайм' : (g.half + '-й тайм');
-                    html += '<tr class="half-header"><td colspan="3">' + label + '</td></tr>';
+                    html += '<tr class="half-header"><td colspan="5">' + label + '</td></tr>';
                 }
 
                 const timeStr = g.matchTime || '—';
@@ -475,7 +544,21 @@
                     nameHtml  = (fn ? '<span class="first-name">' + fn + '</span>' : '') + ln;
                 }
 
-                // Stagger animation delay
+                // Assist cell — chips with number badge + white last name
+                let assistCellHtml = '';
+                if (!g.isOwnGoal && g.assists && Array.isArray(g.assists) && g.assists.length > 0) {
+                    const chips = g.assists.map(function(a) {
+                        const ap  = a.playerId ? playersCache[a.playerId] : null;
+                        const num = ap ? ap.number : (a.playerNumber || '?');
+                        const ln  = ap ? (ap.lastName || '').toUpperCase() : '';
+                        return '<span class="assist-chip">' +
+                            '<span class="assist-chip-num">#' + num + '</span>' +
+                            (ln ? '<span class="assist-chip-name">' + ln + '</span>' : '') +
+                        '</span>';
+                    }).join('');
+                    assistCellHtml = '<span class="assist-icon">👟</span>' + chips;
+                }
+
                 const delay = (idx * 0.05).toFixed(2) + 's';
 
                 html += '<tr class="goal-row" style="animation-delay:' + delay + '">' +
@@ -483,6 +566,7 @@
                     '<td class="cell-number">' + badgeHtml + '</td>' +
                     '<td class="cell-name">' + nameHtml + '</td>' +
                     '<td class="cell-ball">⚽</td>' +
+                    '<td class="cell-assist">' + assistCellHtml + '</td>' +
                 '</tr>';
             });
 
@@ -510,7 +594,6 @@
                             '<div class="player-info">' +
                                 '<div class="player-number">АГ</div>' +
                                 '<div class="player-lastname">Автогол</div>' +
-                                // Times hidden — remove display:none from .player-times to restore
                                 '<div class="player-times"></div>' +
                             '</div>' +
                             '<div class="goal-count">' +
@@ -521,7 +604,7 @@
                     }
 
                     const p  = playersCache[scorer.playerId] || null;
-                    const num = p ? ('#' + p.number) : '?';
+                    const num = p ? ('#' + p.number) : (scorer.playerNumber ? ('#' + scorer.playerNumber) : '?');
                     const fn  = p ? (p.firstName || '') : '';
                     const ln  = p ? (p.lastName  || '').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
                     const photo = p ? (p.photo || '') : '';
@@ -533,8 +616,10 @@
                           '</div>'
                         : '<div class="player-avatar">' + num + '</div>';
 
-                    // Times: remove display:none from .player-times and uncomment timesStr to restore
-                    // const timesStr = scorer.times.map((t,i) => { const h=scorer.halves[i]; return (h===1?'1т':h===2?'2т':'')+' '+t; }).filter(Boolean).join(' · ');
+                    // Assist badge — only if player has assists
+                    const assistBadge = scorer.assists > 0
+                        ? '<div class="player-assist-badge">👟 ' + scorer.assists + '</div>'
+                        : '';
 
                     return '<div class="player-card">' +
                         photoHtml +
@@ -542,7 +627,7 @@
                             '<div class="player-number">' + num + '</div>' +
                             (fn ? '<div class="player-firstname">' + fn + '</div>' : '') +
                             '<div class="player-lastname">' + ln + '</div>' +
-                            '<div class="player-times"><!-- timesStr here --></div>' +
+                            assistBadge +
                         '</div>' +
                         '<div class="goal-count">' +
                             '<div class="goal-count-number">' + scorer.goals + '</div>' +

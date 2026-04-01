@@ -1635,22 +1635,34 @@ function _renderChampStats(champTitle, matches, allGoals) {
     });
 
     // ── Player scorers (from goals table, default team only) ──────────────
-    const scorerMap = {}; // playerId → { name, number, goals }
+    const scorerMap = {}; // playerId → { name, number, goals, assists }
     const ownGoals  = allGoals.filter(function(g) { return g.isOwnGoal; }).length;
 
     allGoals.forEach(function(g) {
         if (g.isOwnGoal) return;
         if (!g.playerId) return;
         if (!scorerMap[g.playerId]) {
-            scorerMap[g.playerId] = { playerId: g.playerId, number: g.playerNumber || '?', goals: 0 };
+            scorerMap[g.playerId] = { playerId: g.playerId, number: g.playerNumber || '?', goals: 0, assists: 0 };
         }
         scorerMap[g.playerId].goals++;
+
+        // Credit assists
+        if (g.assists && Array.isArray(g.assists)) {
+            g.assists.forEach(function(a) {
+                if (!a.playerId) return;
+                if (!scorerMap[a.playerId]) {
+                    scorerMap[a.playerId] = { playerId: a.playerId, number: a.playerNumber || '?', goals: 0, assists: 0 };
+                }
+                scorerMap[a.playerId].assists++;
+            });
+        }
     });
 
+    // Include all players who have goals OR assists
     const scorers = Object.values(scorerMap).sort(function(a, b) { return b.goals - a.goals; });
 
-    // Fetch player names for scorers
-    const needed = scorers.filter(function(s) { return !s.firstName; }).map(function(s) { return s.playerId; });
+    // Fetch player names for all players (scorers + assisters)
+    const needed = Object.keys(scorerMap).filter(function(pid) { return !scorerMap[pid].firstName; });
     Promise.all(needed.map(function(pid) {
         return firebase.database().ref('players/' + pid).once('value').then(function(snap) {
             const p = snap.val();
@@ -1665,6 +1677,85 @@ function _renderChampStats(champTitle, matches, allGoals) {
         _buildChampStatsHTML(champTitle, matches.length, endedMatches.length,
             won, draw, lost, goalsFor, goalsAgainst, ownGoals, scorers, defaultName);
     });
+}
+
+// Toggle state for scorer table: 'goals' or 'assists'
+let champStatsMode = 'goals';
+
+function toggleChampStatsMode(mode) {
+    champStatsMode = mode;
+    _renderChampScorerTable();
+}
+
+// Scorers data saved for re-render on toggle (set in _buildChampStatsHTML)
+let _lastScorers = [];
+let _lastOwnGoals = 0;
+let _lastGoalsFor = 0;
+
+function _renderChampScorerTable() {
+    const scorers = _lastScorers;
+    const ownGoals = _lastOwnGoals;
+    const goalsFor = _lastGoalsFor;
+    const mode = champStatsMode;
+
+    // Update toggle button styles
+    const goalsBtn  = document.getElementById('champToggleGoals');
+    const assistBtn = document.getElementById('champToggleAssists');
+    if (goalsBtn && assistBtn) {
+        const activeStyle  = 'background:#08399A;color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;';
+        const inactiveStyle = 'background:#f1f5f9;color:#64748b;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;';
+        goalsBtn.style.cssText  = mode === 'goals'   ? activeStyle : inactiveStyle;
+        assistBtn.style.cssText = mode === 'assists' ? activeStyle : inactiveStyle;
+    }
+
+    const tableContainer = document.getElementById('champScorerTable');
+    if (!tableContainer) return;
+
+    // Filter by mode — hide players with 0 in the current stat
+    const filtered = mode === 'goals'
+        ? scorers.filter(function(s) { return s.goals > 0; }).sort(function(a,b) { return b.goals - a.goals; })
+        : scorers.filter(function(s) { return s.assists > 0; }).sort(function(a,b) { return b.assists - a.assists; });
+
+    if (filtered.length === 0) {
+        tableContainer.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:16px 0;font-size:14px;">' +
+            (mode === 'goals' ? 'Голов не зафиксировано' : 'Ассистов не зафиксировано') + '</div>';
+        return;
+    }
+
+    const maxVal = filtered[0][mode]; // goals or assists
+    let html = filtered.map(function(s, i) {
+        const name = s.lastName
+            ? ((s.firstName ? s.firstName + ' ' : '') + s.lastName.toUpperCase())
+            : ('Игрок #' + s.number);
+        const val  = s[mode];
+        const barW = maxVal > 0 ? Math.round(val / maxVal * 100) : 0;
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+        return `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;">
+          <div style="font-size:16px;width:20px;text-align:center;flex-shrink:0;">${medal || ('<span style="font-size:12px;color:#94a3b8;">' + (i+1) + '</span>')}</div>
+          <div style="background:#08399A;color:#fff;border-radius:6px;padding:3px 8px;font-size:13px;font-weight:700;flex-shrink:0;width:44px;text-align:center;">#${s.number}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(name)}</div>
+            <div style="background:#e2e8f0;border-radius:4px;height:4px;margin-top:4px;overflow:hidden;">
+              <div style="background:#08399A;width:${barW}%;height:100%;transition:width .4s;"></div>
+            </div>
+          </div>
+          <div style="font-size:20px;font-weight:900;color:#08399A;flex-shrink:0;">${val}</div>
+        </div>`;
+    }).join('');
+
+    // Own goals row — only in goals mode
+    if (mode === 'goals' && ownGoals > 0) {
+        html += `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;color:#64748b;">
+          <div style="width:20px;"></div>
+          <div style="background:#e2e8f0;color:#64748b;border-radius:6px;padding:3px 8px;font-size:13px;font-weight:700;flex-shrink:0;">АГ</div>
+          <div style="flex:1;font-size:14px;">Автоголы</div>
+          <div style="font-size:20px;font-weight:900;">${ownGoals}</div>
+        </div>`;
+    }
+
+    tableContainer.innerHTML = html;
 }
 
 function _buildChampStatsHTML(champTitle, totalMatches, playedCount,
@@ -1730,13 +1821,31 @@ function _buildChampStatsHTML(champTitle, totalMatches, playedCount,
     </div>`;
 
     // ── Player scorers block ──
-    html += `
-    <div>
-      <div style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;
-                  letter-spacing:.08em;margin-bottom:10px;">Бомбардиры</div>`;
+    // Save for toggle re-render
+    _lastScorers  = scorers;
+    _lastOwnGoals = ownGoals;
+    _lastGoalsFor = goalsFor;
+    champStatsMode = 'goals'; // reset to goals on each new modal open
 
     // Check if tracked goals match the actual score
     const trackedGoals = scorers.reduce(function(sum, s) { return sum + s.goals; }, 0) + ownGoals;
+
+    html += `
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;">Бомбардиры</div>
+        <div style="display:flex;gap:4px;">
+          <button id="champToggleGoals"   onclick="toggleChampStatsMode('goals')"
+                  style="background:#08399A;color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;">
+            ⚽ Голы
+          </button>
+          <button id="champToggleAssists" onclick="toggleChampStatsMode('assists')"
+                  style="background:#f1f5f9;color:#64748b;border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;">
+            👟 Пасы
+          </button>
+        </div>
+      </div>`;
+
     if (scorers.length > 0 && trackedGoals < goalsFor) {
         const missing = goalsFor - trackedGoals;
         html += `<div style="display:flex;align-items:center;gap:10px;background:#fefce8;
@@ -1753,44 +1862,17 @@ function _buildChampStatsHTML(champTitle, totalMatches, playedCount,
             <span style="font-size:12px;">Статистика по игрокам доступна для матчей с отслеживанием голов.</span>
         </div>`;
     } else {
-        const maxGoals = scorers[0].goals;
-        html += scorers.map(function(s, i) {
-            const name = s.lastName
-                ? ((s.firstName ? s.firstName + ' ' : '') + s.lastName.toUpperCase())
-                : ('Игрок #' + s.number);
-            const barW = maxGoals > 0 ? Math.round(s.goals / maxGoals * 100) : 0;
-            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-            return `
-            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;
-                        border-bottom:1px solid #f1f5f9;">
-              <div style="font-size:16px;width:20px;text-align:center;flex-shrink:0;">${medal || ('<span style="font-size:12px;color:#94a3b8;">' + (i+1) + '</span>')}</div>
-              <div style="background:#08399A;color:#fff;border-radius:6px;padding:3px 8px;
-                          font-size:13px;font-weight:700;flex-shrink:0;width:44px;text-align:center;">#${s.number}</div>
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:14px;font-weight:600;color:#1e293b;
-                            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(name)}</div>
-                <div style="background:#e2e8f0;border-radius:4px;height:4px;margin-top:4px;overflow:hidden;">
-                  <div style="background:#08399A;width:${barW}%;height:100%;transition:width .4s;"></div>
-                </div>
-              </div>
-              <div style="font-size:20px;font-weight:900;color:#08399A;flex-shrink:0;">${s.goals}</div>
-            </div>`;
-        }).join('');
-
-        if (ownGoals > 0) {
-            html += `
-            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;color:#64748b;">
-              <div style="width:20px;"></div>
-              <div style="background:#e2e8f0;color:#64748b;border-radius:6px;padding:3px 8px;font-size:13px;font-weight:700;flex-shrink:0;">АГ</div>
-              <div style="flex:1;font-size:14px;">Автоголы</div>
-              <div style="font-size:20px;font-weight:900;">${ownGoals}</div>
-            </div>`;
-        }
+        html += '<div id="champScorerTable"></div>';
     }
 
     html += `</div>`;
 
     document.getElementById('champStatsBody').innerHTML = html;
+
+    // Render scorer table after HTML is injected
+    if (scorers.length > 0) {
+        _renderChampScorerTable();
+    }
 }
 </script>
 
