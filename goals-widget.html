@@ -442,20 +442,22 @@
             });
         }
 
-        // Fetch players not yet in cache (active or soft-deleted — we just need name/photo)
+        // Fetch players not yet in cache — single node read per player, strip nothing
+        // (photo is needed for card layout)
         function loadMissingPlayers() {
             const needed = [];
             Object.values(goalsData).forEach(function(g) {
                 if (g.playerId && !playersCache[g.playerId]) needed.push(g.playerId);
-                // Also cache assist players (for name display in table view)
                 if (g.assists && Array.isArray(g.assists)) {
                     g.assists.forEach(function(a) {
                         if (a.playerId && !playersCache[a.playerId]) needed.push(a.playerId);
                     });
                 }
             });
-            if (!needed.length) return Promise.resolve();
-            return Promise.all(needed.map(function(pid) {
+            const unique = needed.filter(function(pid, i, arr) { return arr.indexOf(pid) === i; });
+            if (!unique.length) return Promise.resolve();
+
+            return Promise.all(unique.map(function(pid) {
                 return database.ref('players/' + pid).once('value').then(function(snap) {
                     if (snap.val()) playersCache[pid] = snap.val();
                 });

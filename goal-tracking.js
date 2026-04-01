@@ -8,16 +8,35 @@
 
 // ---- State ----
 let goalTracking = {
-    defaultTeamId: null,    // loaded from settings/defaultTeam
-    defaultTeamSide: null,  // 1 or 2 — which side the default team is in this match
-    playersCache: [],        // active (non-absent) players for the default team
-    selectedAssists: []      // [{ id, number }] — selected assistants for current goal
+    defaultTeamId:   null,  // loaded once from settings/defaultTeam
+    defaultTeamSide: null,  // 1 or 2 — resolved once per match, cached here
+    playersCache:    [],    // active players — no photos, only fields needed for modal
+    selectedAssists: []     // [{ id, number }] — selected assistants for current goal
 };
+
+// ---- Match cache — kept current by listenToMatchChanges real-time listener ----
+// Eliminates repeated match fetches on every goal / modal open
+let _matchCache = null;
+
+// Called from listenToMatchChanges so cache stays always up to date
+function updateMatchCache(matchData) {
+    _matchCache = matchData;
+}
 
 // ----------------------------------------
 // INIT — called once after a match loads
 // ----------------------------------------
 function initGoalTracking() {
+    // Reset per-match state
+    goalTracking.defaultTeamSide = null;
+    _matchCache = null;
+
+    // Only fetch settings once per page load
+    if (goalTracking.defaultTeamId) {
+        if (goalTracking.playersCache.length === 0) loadGoalTrackingPlayers();
+        return;
+    }
+
     firebase.database().ref('settings/defaultTeam').once('value')
         .then(function(snap) {
             goalTracking.defaultTeamId = snap.val() || null;
@@ -27,7 +46,7 @@ function initGoalTracking() {
         });
 }
 
-// Pre-load players so the modal opens instantly
+// Pre-load players — only fields needed for modal, never photo
 function loadGoalTrackingPlayers() {
     if (!goalTracking.defaultTeamId) return;
 
@@ -39,8 +58,16 @@ function loadGoalTrackingPlayers() {
             const players = [];
             snap.forEach(function(child) {
                 const p = child.val();
-                p.id = child.key;
-                if (!p.isAbsent && !p.isDeleted) players.push(p);
+                if (!p.isAbsent && !p.isDeleted) {
+                    players.push({
+                        id:           child.key,
+                        number:       p.number,
+                        firstName:    p.firstName  || '',
+                        lastName:     p.lastName   || '',
+                        isGoalkeeper: p.isGoalkeeper || false,
+                        teamId:       p.teamId
+                    });
+                }
             });
             players.sort(function(a, b) { return a.number - b.number; });
             goalTracking.playersCache = players;
@@ -48,24 +75,19 @@ function loadGoalTrackingPlayers() {
 }
 
 // ----------------------------------------
-// CALCULATE MATCH TIME
+// CALCULATE MATCH TIME — uses _matchCache, zero Firebase reads
 // ----------------------------------------
 function getMatchTimeString() {
-    return firebase.database().ref('matches/' + matchId).once('value')
-        .then(function(snap) {
-            const match = snap.val();
-            if (!match) return getCurrentWallTime();
-
-            if (match.status === 'playing' && match.startTime) {
-                const elapsed = Date.now() - match.startTime;
-                const totalSeconds = Math.floor(elapsed / 1000);
-                const minutes = Math.floor(totalSeconds / 60);
-                const seconds = totalSeconds % 60;
-                return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
-            }
-
-            return getCurrentWallTime();
-        });
+    if (_matchCache && _matchCache.status === 'playing' && _matchCache.startTime) {
+        const elapsed = Date.now() - _matchCache.startTime;
+        const totalSeconds = Math.floor(elapsed / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return Promise.resolve(
+            String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0')
+        );
+    }
+    return Promise.resolve(getCurrentWallTime());
 }
 
 function getCurrentWallTime() {
@@ -76,24 +98,29 @@ function getCurrentWallTime() {
 }
 
 // ----------------------------------------
-// DETERMINE DEFAULT TEAM SIDE
+// DETERMINE DEFAULT TEAM SIDE — resolved once per match, cached
 // ----------------------------------------
-function resolveDefaultTeamSide(matchData) {
-    if (!goalTracking.defaultTeamId) return null;
-
-    return firebase.database().ref('teams/' + goalTracking.defaultTeamId).once('value')
+function _resolveAndCacheTeamSide(matchData) {
+    if (!goalTracking.defaultTeamId || !matchData) {
+        goalTracking.defaultTeamSide = 1;
+        return Promise.resolve(1);
+    }
+    // Fetch ONLY the name field — not the full team record (no logo, badges, etc.)
+    return firebase.database().ref('teams/' + goalTracking.defaultTeamId + '/name').once('value')
         .then(function(snap) {
-            const team = snap.val();
-            if (!team) return null;
-
-            const teamName = (team.name || '').trim().toLowerCase();
-            const t1 = (matchData.team1Name || '').trim().toLowerCase();
+            const teamName = (snap.val() || '').trim().toLowerCase();
             const t2 = (matchData.team2Name || '').trim().toLowerCase();
-
-            if (teamName === t1) return 1;
-            if (teamName === t2) return 2;
-            return 1;
+            goalTracking.defaultTeamSide = (teamName === t2) ? 2 : 1;
+            return goalTracking.defaultTeamSide;
         });
+}
+
+function resolveDefaultTeamSide(matchData) {
+    // Use cached value — no Firebase call after first resolution
+    if (goalTracking.defaultTeamSide !== null) {
+        return Promise.resolve(goalTracking.defaultTeamSide);
+    }
+    return _resolveAndCacheTeamSide(matchData);
 }
 
 // ----------------------------------------
@@ -105,10 +132,9 @@ function openGoalScorerModal() {
     // Reset assists state every time modal opens
     goalTracking.selectedAssists = [];
 
-    firebase.database().ref('matches/' + matchId).once('value').then(function(snap) {
-        const match = snap.val();
-        if (!match) return;
-
+    // Use cached match data — zero Firebase read
+    const match = _matchCache;
+    if (match) {
         getMatchTimeString().then(function(timeStr) {
             const halfLabel = match.currentHalf === 1 ? '1-й тайм' :
                               match.currentHalf === 2 ? '2-й тайм' : '';
@@ -116,14 +142,13 @@ function openGoalScorerModal() {
             const el = document.getElementById('goalModalMatchInfo');
             if (el) el.textContent = info;
         });
+    }
 
-        // Render both grids
-        renderAssistGrid();
-        renderPlayerGrid();
+    renderAssistGrid();
+    renderPlayerGrid();
 
-        document.getElementById('goalScorerModal').style.display = 'block';
-        document.body.style.overflow = 'hidden';
-    });
+    document.getElementById('goalScorerModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
 }
 
 function closeGoalScorerModal() {
@@ -246,15 +271,11 @@ function confirmGoal(playerId, isOwnGoal) {
     const assistsSnapshot = goalTracking.selectedAssists.slice();
     closeGoalScorerModal();
 
-    Promise.all([
-        firebase.database().ref('matches/' + matchId).once('value'),
-        getMatchTimeString()
-    ]).then(function(results) {
-        const matchSnap = results[0];
-        const timeStr = results[1];
-        const match = matchSnap.val();
-        if (!match) return;
+    // Use cached match data + cached time — zero Firebase reads before saving
+    const match = _matchCache;
+    if (!match) { showToast('❌ Данные матча недоступны'); return; }
 
+    getMatchTimeString().then(function(timeStr) {
         // Build goal record
         const goalData = {
             matchId: matchId,
@@ -283,7 +304,7 @@ function confirmGoal(playerId, isOwnGoal) {
             }
         }
 
-        // Save goal then increment score
+        // Save goal then increment score — side resolved from cache (no team fetch if already known)
         return firebase.database().ref('goals').push(goalData)
             .then(function() {
                 return resolveDefaultTeamSide(match);
@@ -315,44 +336,43 @@ function requestGoalRemoval(team) {
         return;
     }
 
-    firebase.database().ref('matches/' + matchId).once('value').then(function(snap) {
-        const match = snap.val();
-        if (!match) return;
+    // Use cached match data — no Firebase read
+    const match = _matchCache;
+    if (!match) { showToast('❌ Данные матча недоступны'); return; }
 
-        return resolveDefaultTeamSide(match).then(function(side) {
-            const scoreKey = 'score' + (side || 1);
-            const currentScore = match[scoreKey] || 0;
+    resolveDefaultTeamSide(match).then(function(side) {
+        const scoreKey = 'score' + (side || 1);
+        const currentScore = match[scoreKey] || 0;
 
-            if (currentScore <= 0) {
-                showToast('❌ Счёт уже 0');
-                return;
-            }
+        if (currentScore <= 0) {
+            showToast('❌ Счёт уже 0');
+            return;
+        }
 
-            return firebase.database().ref('goals')
-                .orderByChild('matchId')
-                .equalTo(matchId)
-                .once('value')
-                .then(function(goalsSnap) {
-                    const goals = [];
-                    goalsSnap.forEach(function(child) {
-                        const g = child.val();
-                        g._key = child.key;
-                        goals.push(g);
-                    });
-
-                    const teamGoals = goals
-                        .filter(function(g) { return g.teamId === goalTracking.defaultTeamId; })
-                        .sort(function(a, b) { return b.timestamp - a.timestamp; });
-
-                    if (teamGoals.length === 0) {
-                        return changeScore(side || 1, -1);
-                    }
-
-                    renderGoalRemoveList(teamGoals, side || 1, currentScore);
-                    document.getElementById('goalRemoveModal').style.display = 'block';
-                    document.body.style.overflow = 'hidden';
+        return firebase.database().ref('goals')
+            .orderByChild('matchId')
+            .equalTo(matchId)
+            .once('value')
+            .then(function(goalsSnap) {
+                const goals = [];
+                goalsSnap.forEach(function(child) {
+                    const g = child.val();
+                    g._key = child.key;
+                    goals.push(g);
                 });
-        });
+
+                const teamGoals = goals
+                    .filter(function(g) { return g.teamId === goalTracking.defaultTeamId; })
+                    .sort(function(a, b) { return b.timestamp - a.timestamp; });
+
+                if (teamGoals.length === 0) {
+                    return changeScore(side || 1, -1);
+                }
+
+                renderGoalRemoveList(teamGoals, side || 1, currentScore);
+                document.getElementById('goalRemoveModal').style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            });
     }).catch(function(err) {
         console.error('Goal removal error:', err);
         showToast('❌ Ошибка загрузки голов');
@@ -407,18 +427,17 @@ function renderGoalRemoveList(goals, side, currentScore) {
 function removeGoal(goalKey, side) {
     closeGoalRemoveModal();
 
-    firebase.database().ref('matches/' + matchId).once('value').then(function(snap) {
-        const match = snap.val();
-        if (!match) return;
+    // Use cached score — no Firebase read
+    const match = _matchCache;
+    if (!match) { showToast('❌ Данные матча недоступны'); return; }
 
-        const scoreKey = 'score' + side;
-        const newScore = Math.max(0, (match[scoreKey] || 0) - 1);
+    const scoreKey = 'score' + side;
+    const newScore = Math.max(0, (match[scoreKey] || 0) - 1);
 
-        return Promise.all([
-            firebase.database().ref('goals/' + goalKey).remove(),
-            firebase.database().ref('matches/' + matchId).update({ [scoreKey]: newScore })
-        ]);
-    }).then(function() {
+    Promise.all([
+        firebase.database().ref('goals/' + goalKey).remove(),
+        firebase.database().ref('matches/' + matchId).update({ [scoreKey]: newScore })
+    ]).then(function() {
         showToast('✓ Гол удалён');
     }).catch(function(err) {
         console.error('Remove goal error:', err);
@@ -482,49 +501,49 @@ function confirmRetroGoal(playerId, isOwnGoal) {
     if (!matchId) return;
     closeRetroGoalModal();
 
-    database.ref('matches/' + matchId).once('value').then(function(snap) {
-        const match = snap.val();
-        if (!match) return;
+    // Use cached match data — no Firebase read
+    const match = _matchCache;
+    if (!match) { showToast('❌ Данные матча недоступны'); return; }
 
-        const goalData = {
-            matchId:    matchId,
-            teamId:     goalTracking.defaultTeamId || null,
-            playerId:   isOwnGoal ? null : (playerId || null),
-            isOwnGoal:  isOwnGoal || false,
-            half:       null,
-            matchTime:  null,
-            retroactive: true,
-            timestamp:  Date.now(),
-            createdAt:  Date.now()
-        };
+    const goalData = {
+        matchId:     matchId,
+        teamId:      goalTracking.defaultTeamId || null,
+        playerId:    isOwnGoal ? null : (playerId || null),
+        isOwnGoal:   isOwnGoal || false,
+        half:        null,
+        matchTime:   null,
+        retroactive: true,
+        timestamp:   Date.now(),
+        createdAt:   Date.now()
+    };
 
-        if (!isOwnGoal && playerId) {
-            const player = goalTracking.playersCache.find(function(p) { return p.id === playerId; });
-            if (player) {
-                goalData.playerNumber = player.number;
-                goalData.isGoalkeeper = player.isGoalkeeper || false;
-            }
+    if (!isOwnGoal && playerId) {
+        const player = goalTracking.playersCache.find(function(p) { return p.id === playerId; });
+        if (player) {
+            goalData.playerNumber = player.number;
+            goalData.isGoalkeeper = player.isGoalkeeper || false;
         }
+    }
 
-        return firebase.database().ref('goals').push(goalData)
-            .then(function() {
-                return resolveDefaultTeamSide(match);
-            })
-            .then(function(side) {
-                const scoreKey = 'score' + (side || 1);
-                const currentScore = match[scoreKey] || 0;
-                return firebase.database().ref('matches/' + matchId).update({
-                    [scoreKey]: currentScore + 1
-                });
-            })
-            .then(function() {
-                showToast('⚽ Гол добавлен!');
-                if (typeof loadGoalsStats === 'function') loadGoalsStats(matchId);
+    firebase.database().ref('goals').push(goalData)
+        .then(function() {
+            return resolveDefaultTeamSide(match);
+        })
+        .then(function(side) {
+            const scoreKey = 'score' + (side || 1);
+            const currentScore = match[scoreKey] || 0;
+            return firebase.database().ref('matches/' + matchId).update({
+                [scoreKey]: currentScore + 1
             });
-    }).catch(function(err) {
-        console.error('Retro goal save error:', err);
-        showToast('❌ Ошибка сохранения гола');
-    });
+        })
+        .then(function() {
+            showToast('⚽ Гол добавлен!');
+            if (typeof loadGoalsStats === 'function') loadGoalsStats(matchId);
+        })
+        .catch(function(err) {
+            console.error('Retro goal save error:', err);
+            showToast('❌ Ошибка сохранения гола');
+        });
 }
 
 // ----------------------------------------

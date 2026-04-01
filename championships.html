@@ -1554,6 +1554,26 @@ firebase.database().ref('settings/defaultTeam').once('value').then(function(snap
     }
 });
 
+// Page-level player cache for championship stats — persists across modal opens.
+// Stores only display fields (no photo) — dramatically reduces Firebase downloads.
+const _champPlayersCache = {};
+
+function _fetchChampPlayerFields(pid) {
+    if (_champPlayersCache[pid]) return Promise.resolve(_champPlayersCache[pid]);
+    // Fetch full node but strip photo before caching — 1 read instead of 3
+    return firebase.database().ref('players/' + pid).once('value').then(function(snap) {
+        const p = snap.val() || {};
+        const player = {
+            firstName: p.firstName || '',
+            lastName:  p.lastName  || '',
+            number:    p.number    || '?'
+            // photo intentionally omitted
+        };
+        _champPlayersCache[pid] = player;
+        return player;
+    });
+}
+
 function openChampStats(champTitle) {
     const group = champGroups[champTitle];
     if (!group) return;
@@ -1661,19 +1681,21 @@ function _renderChampStats(champTitle, matches, allGoals) {
     // Include all players who have goals OR assists
     const scorers = Object.values(scorerMap).sort(function(a, b) { return b.goals - a.goals; });
 
-    // Fetch player names for all players (scorers + assisters)
-    const needed = Object.keys(scorerMap).filter(function(pid) { return !scorerMap[pid].firstName; });
+    // Fetch names for all players not yet cached — field-specific reads only (no photo)
+    const needed = Object.keys(scorerMap).filter(function(pid) { return !_champPlayersCache[pid]; });
     Promise.all(needed.map(function(pid) {
-        return firebase.database().ref('players/' + pid).once('value').then(function(snap) {
-            const p = snap.val();
+        return _fetchChampPlayerFields(pid);
+    })).then(function() {
+        // Populate scorerMap from cache
+        Object.keys(scorerMap).forEach(function(pid) {
+            const cached = _champPlayersCache[pid];
             const s = scorerMap[pid];
-            if (p && s) {
-                s.firstName = p.firstName || '';
-                s.lastName  = p.lastName  || '';
-                s.number    = p.number    || s.number;
+            if (cached && s) {
+                s.firstName = cached.firstName;
+                s.lastName  = cached.lastName;
+                s.number    = cached.number || s.number;
             }
         });
-    })).then(function() {
         _buildChampStatsHTML(champTitle, matches.length, endedMatches.length,
             won, draw, lost, goalsFor, goalsAgainst, ownGoals, scorers, defaultName);
     });

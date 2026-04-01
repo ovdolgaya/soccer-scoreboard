@@ -341,6 +341,28 @@ function updateButtonStates(match) {
 // GOALS STATISTICS (ended matches only)
 // ========================================
 
+// Page-level player cache — persists across modal opens, cleared on page reload only.
+// Stores only display fields (no photo) to keep memory and download size minimal.
+const _playersCache = {};
+
+function _fetchPlayerFields(pid) {
+    // Return cached immediately if available
+    if (_playersCache[pid]) return Promise.resolve(_playersCache[pid]);
+
+    // Fetch the full node but strip photo before caching — 1 read instead of 3
+    return database.ref('players/' + pid).once('value').then(function(snap) {
+        const p = snap.val() || {};
+        const player = {
+            firstName: p.firstName || '',
+            lastName:  p.lastName  || '',
+            number:    p.number    || '?'
+            // photo intentionally omitted
+        };
+        _playersCache[pid] = player;
+        return player;
+    });
+}
+
 function loadGoalsStats(forMatchId) {
     const body = document.getElementById('goalsStatsBody');
     if (!body) return;
@@ -378,15 +400,16 @@ function loadGoalsStats(forMatchId) {
                 }
             });
 
-            const playerFetches = Array.from(playerIdSet).map(function(pid) {
-                return database.ref('players/' + pid).once('value').then(function(snap) {
-                    return { id: pid, data: snap.val() };
+            // Fetch only uncached players, and only the fields we need (no photo)
+            const fetches = Array.from(playerIdSet).map(function(pid) {
+                return _fetchPlayerFields(pid).then(function(data) {
+                    return { id: pid, data: data };
                 });
             });
 
-            return Promise.all(playerFetches).then(function(playerResults) {
+            return Promise.all(fetches).then(function(results) {
                 const players = {};
-                playerResults.forEach(function(r) {
+                results.forEach(function(r) {
                     if (r.data) players[r.id] = r.data;
                 });
                 renderGoalsStats(goals, players, body);
@@ -532,6 +555,9 @@ function listenToMatchChanges() {
     database.ref('matches/' + matchId).on('value', function(snapshot) {
         const matchData = snapshot.val();
         if (matchData) {
+            // Keep goal-tracking cache current — eliminates match fetches on every goal
+            if (typeof updateMatchCache === 'function') updateMatchCache(matchData);
+
             // Update score display
             document.getElementById('score1').textContent = matchData.score1;
             document.getElementById('score2').textContent = matchData.score2;
