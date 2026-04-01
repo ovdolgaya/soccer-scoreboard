@@ -8,6 +8,41 @@ let allPlayers = [];
 let editingPlayerId = null;
 
 // ============================================
+// PAGE-LEVEL CACHES
+// ============================================
+
+// Teams list — shared between dropdown and Команды tab.
+// Invalidated whenever a team is created, edited, or deleted.
+let _teamsCache = null;      // null = not loaded yet; [] = loaded but empty; [{...}] = data
+
+// Players cache — keyed by teamId. Full records including photos (needed for roster UI).
+// Invalidated by rosterCacheClear() which is already wired to all save/delete points.
+const _playersPageCache = {};
+
+// Coach cache — keyed by teamId.
+const _coachCache = {};
+
+// Default team setting — fetched once per page load.
+let _defaultTeamSettingLoaded = false;
+
+// Invalidate team-related caches (called after team create/edit/delete)
+function _invalidateTeamsCache() {
+    _teamsCache = null;
+}
+
+// Clear page-level player + coach caches for a team.
+// Call this alongside rosterCacheClear() at every save/delete point.
+function _clearPageCaches(teamId) {
+    if (teamId) {
+        delete _playersPageCache[teamId];
+        delete _coachCache[teamId];
+    } else {
+        Object.keys(_playersPageCache).forEach(k => delete _playersPageCache[k]);
+        Object.keys(_coachCache).forEach(k => delete _coachCache[k]);
+    }
+}
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -30,32 +65,34 @@ function initializeRoster() {
 // TEAM MANAGEMENT
 // ============================================
 
+function _fetchAllTeams() {
+    // Return cached teams immediately if available
+    if (_teamsCache !== null) return Promise.resolve(_teamsCache);
+
+    return firebase.database().ref('teams').once('value').then(function(snapshot) {
+        const teams = [];
+        snapshot.forEach(function(child) {
+            teams.push({ id: child.key, ...child.val() });
+        });
+        teams.sort((a, b) => a.name.localeCompare(b.name));
+        _teamsCache = teams;
+        return teams;
+    });
+}
+
 function loadTeamsDropdown() {
     const select = document.getElementById('defaultTeamSelect');
     select.innerHTML = '<option value="">Загрузка команд...</option>';
 
-    firebase.database().ref('teams').once('value')
-        .then((snapshot) => {
+    _fetchAllTeams()
+        .then((teams) => {
             select.innerHTML = '<option value="">-- Выберите команду --</option>';
-            
-            const teams = [];
-            snapshot.forEach((childSnapshot) => {
-                teams.push({
-                    id: childSnapshot.key,
-                    ...childSnapshot.val()
-                });
-            });
-
-            // Sort teams by name
-            teams.sort((a, b) => a.name.localeCompare(b.name));
-
             teams.forEach(team => {
                 const option = document.createElement('option');
                 option.value = team.id;
                 option.textContent = team.name;
                 select.appendChild(option);
             });
-
             console.log(`Loaded ${teams.length} teams`);
         })
         .catch((error) => {
@@ -66,26 +103,28 @@ function loadTeamsDropdown() {
 }
 
 function loadDefaultTeam() {
+    // Only fetch settings once per page load
+    if (_defaultTeamSettingLoaded) return;
+    _defaultTeamSettingLoaded = true;
+
     firebase.database().ref('settings/defaultTeam').once('value')
         .then((snapshot) => {
             if (snapshot.exists()) {
                 const teamId = snapshot.val();
                 currentDefaultTeam = teamId;
-                
-                // Set dropdown value
                 document.getElementById('defaultTeamSelect').value = teamId;
-                
-                // Load team details
-                return firebase.database().ref('teams/' + teamId).once('value');
+
+                // Use teams cache instead of separate fetch
+                return _fetchAllTeams().then(function(teams) {
+                    const team = teams.find(t => t.id === teamId);
+                    return team || null;
+                });
             }
             return null;
         })
-        .then((teamSnapshot) => {
-            if (teamSnapshot && teamSnapshot.exists()) {
-                currentDefaultTeamData = {
-                    id: currentDefaultTeam,
-                    ...teamSnapshot.val()
-                };
+        .then((team) => {
+            if (team) {
+                currentDefaultTeamData = team;
                 displayCurrentTeam();
                 loadPlayers();
             } else {
@@ -100,27 +139,23 @@ function loadDefaultTeam() {
 
 function saveDefaultTeam() {
     const selectedTeamId = document.getElementById('defaultTeamSelect').value;
-    
+
     if (!selectedTeamId) {
         alert('Пожалуйста, выберите команду');
         return;
     }
 
-    // Save to Firebase settings
     firebase.database().ref('settings/defaultTeam').set(selectedTeamId)
         .then(() => {
-            console.log('Default team saved:', selectedTeamId);
             currentDefaultTeam = selectedTeamId;
-            
-            // Load team details
-            return firebase.database().ref('teams/' + selectedTeamId).once('value');
+            // Use teams cache — no extra Firebase read
+            return _fetchAllTeams().then(function(teams) {
+                return teams.find(t => t.id === selectedTeamId) || null;
+            });
         })
-        .then((snapshot) => {
-            if (snapshot.exists()) {
-                currentDefaultTeamData = {
-                    id: currentDefaultTeam,
-                    ...snapshot.val()
-                };
+        .then((team) => {
+            if (team) {
+                currentDefaultTeamData = team;
                 displayCurrentTeam();
                 loadPlayers();
                 alert('Команда по умолчанию сохранена!');
@@ -192,15 +227,21 @@ function loadPlayers() {
         return;
     }
 
+    // Serve from cache if available — cleared by _clearPageCaches() on any save/delete
+    if (_playersPageCache[currentDefaultTeam]) {
+        allPlayers = _playersPageCache[currentDefaultTeam];
+        displayPlayers();
+        return;
+    }
+
     const playersRef = firebase.database().ref('players').orderByChild('teamId').equalTo(currentDefaultTeam);
-    
+
     playersRef.once('value')
         .then((snapshot) => {
             allPlayers = [];
-            
+
             snapshot.forEach((childSnapshot) => {
                 const data = childSnapshot.val();
-                // Skip soft-deleted players in UI
                 if (data.isDeleted) return;
                 allPlayers.push({
                     id: childSnapshot.key,
@@ -208,8 +249,10 @@ function loadPlayers() {
                 });
             });
 
-            // Sort by player number
             allPlayers.sort((a, b) => a.number - b.number);
+
+            // Cache for subsequent calls
+            _playersPageCache[currentDefaultTeam] = allPlayers;
 
             console.log(`Loaded ${allPlayers.length} players for team ${currentDefaultTeam}`);
             displayPlayers();
@@ -531,6 +574,7 @@ function savePlayerToFirebase(playerData, saveBtn) {
     playerRef.set(playerData)
         .then(() => {
             console.log('Player saved successfully');
+            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — roster changed
             alert(editingPlayerId ? 'Игрок обновлен!' : 'Игрок добавлен!');
             cancelAddPlayer();
             loadPlayers();
@@ -605,11 +649,10 @@ function deletePlayer(playerId) {
     })
         .then(() => {
             console.log('Player soft-deleted:', playerId);
+            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — roster changed
             showToast('Игрок удалён');
-            // Remove immediately from in-memory list and re-render — no round-trip wait
             allPlayers = allPlayers.filter(p => p.id !== playerId);
             displayPlayers();
-            // Also sync with Firebase in background
             loadPlayers();
         })
         .catch((error) => {
@@ -631,7 +674,8 @@ function togglePlayerStatus(playerId) {
     })
         .then(() => {
             console.log('Player status updated:', playerId, newStatus);
-            loadPlayers(); // Reload to update UI
+            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — absent status affects thumbnail
+            loadPlayers();
         })
         .catch((error) => {
             console.error('Error updating player status:', error);
@@ -644,19 +688,20 @@ function togglePlayerStatus(playerId) {
 // ============================================
 
 function loadCoach() {
-    if (!currentDefaultTeam) {
+    if (!currentDefaultTeam) return;
+
+    // Serve from cache if available
+    if (_coachCache[currentDefaultTeam] !== undefined) {
+        currentCoachData = _coachCache[currentDefaultTeam] || null;
+        displayCoach();
         return;
     }
 
     firebase.database().ref('coaches/' + currentDefaultTeam).once('value')
         .then((snapshot) => {
-            if (snapshot.exists()) {
-                currentCoachData = snapshot.val();
-                displayCoach();
-            } else {
-                currentCoachData = null;
-                displayCoach();
-            }
+            currentCoachData = snapshot.exists() ? snapshot.val() : null;
+            _coachCache[currentDefaultTeam] = currentCoachData; // cache (null = no coach)
+            displayCoach();
         })
         .catch((error) => {
             console.error('Error loading coach:', error);
@@ -793,6 +838,7 @@ function saveCoachToFirebase(coachData) {
     firebase.database().ref('coaches/' + currentDefaultTeam).set(coachData)
         .then(() => {
             console.log('Coach saved successfully');
+            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — coach changed
             alert('Тренер сохранен!');
             currentCoachData = coachData;
             displayCoach();
@@ -939,6 +985,7 @@ function saveBadgeIconsToFirebase(updates) {
     firebase.database().ref('teams/' + currentDefaultTeam).update(updates)
         .then(() => {
             console.log('Badge icons saved successfully');
+            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — team badges changed
             alert('Иконки значков сохранены!');
             if (updates.goalkeeperBadge)  currentDefaultTeamData.goalkeeperBadge  = updates.goalkeeperBadge;
             if (updates.fieldPlayerBadge) currentDefaultTeamData.fieldPlayerBadge = updates.fieldPlayerBadge;
@@ -1039,10 +1086,13 @@ function showToast(msg) {
     }, 3000);
 }
 
-// Handle page visibility to reload data when returning to page
+// Handle page visibility — only reload if cache was cleared (i.e. data actually changed)
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden && currentDefaultTeam) {
-        loadPlayers();
+        // Only fetch if cache was cleared — avoids re-downloading on every tab switch
+        if (!_playersPageCache[currentDefaultTeam]) {
+            loadPlayers();
+        }
     }
 });
 

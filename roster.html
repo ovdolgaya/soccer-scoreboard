@@ -545,20 +545,21 @@
     // ── Teams list ─────────────────────────────────────────────
     function loadTeamsList() {
         const wrap = document.getElementById('teamsList');
-        wrap.innerHTML = '<div style="background:white;border-radius:14px;padding:30px;text-align:center;color:#94a3b8;">Загрузка...</div>';
-        firebase.database().ref('teams').once('value').then(function(snap) {
-            const teams = [];
-            snap.forEach(function(child) {
-                const t = child.val(); t.id = child.key; teams.push(t);
-            });
-            teams.sort(function(a, b) { return (a.name||'').localeCompare(b.name||'', 'ru'); });
+
+        // Show loading only if cache is cold (first load)
+        if (!_teamsCache) {
+            wrap.innerHTML = '<div style="background:white;border-radius:14px;padding:30px;text-align:center;color:#94a3b8;">Загрузка...</div>';
+        }
+
+        // Use shared teams cache from roster.js (_fetchAllTeams handles caching)
+        _fetchAllTeams().then(function(teams) {
             if (!teams.length) {
                 wrap.innerHTML = '<div style="background:white;border-radius:14px;padding:40px;text-align:center;color:#94a3b8;"><div style="font-size:40px;margin-bottom:12px;">🛡️</div><p>Команд пока нет. Нажмите «Создать».</p></div>';
                 return;
             }
             wrap.innerHTML = '<div class="teams-grid">' +
                 teams.map(function(t) {
-                const isActive = t.isActive !== false; // default true
+                const isActive = t.isActive !== false;
                 const cardBg = isActive ? 'white' : '#f1f5f9';
                 const logo = t.logo
                     ? '<img src="' + t.logo + '" style="width:40px;height:40px;object-fit:contain;border-radius:8px;background:#f1f5f9;padding:3px;flex-shrink:0;' + (isActive ? '' : 'opacity:0.4;') + '">'
@@ -583,7 +584,9 @@
     function deleteTeam(teamId, teamName) {
         if (!confirm('Удалить команду «' + teamName + '»?')) return;
         firebase.database().ref('teams/' + teamId).remove().then(function() {
+            _invalidateTeamsCache();  // clear shared cache
             loadTeamsList();
+            if (typeof loadTeamsDropdown === 'function') loadTeamsDropdown();
         }).catch(function(err) { alert('Ошибка: ' + err.message); });
     }
 
@@ -598,12 +601,13 @@
         document.getElementById('tmLogoInput').value = '';
         document.getElementById('tmLogoPreview').style.display = 'none';
         document.getElementById('teamModalTitle').textContent = teamId ? 'Редактировать команду' : 'Новая команда';
-        // Default: active
         _tmSetActive(true);
 
         if (teamId) {
-            firebase.database().ref('teams/' + teamId).once('value').then(function(snap) {
-                const t = snap.val(); if (!t) return;
+            // Use shared cache instead of fetching from Firebase
+            _fetchAllTeams().then(function(teams) {
+                const t = teams.find(function(x) { return x.id === teamId; });
+                if (!t) return;
                 document.getElementById('tmName').value  = t.name  || '';
                 document.getElementById('tmColor').value = t.color || '#08399A';
                 if (t.logo) {
@@ -649,6 +653,7 @@
             ? firebase.database().ref('teams/' + _tmId).update(data)
             : (data.createdAt = Date.now(), firebase.database().ref('teams').push(data));
         promise.then(function() {
+            _invalidateTeamsCache();  // clear shared cache so both tabs see fresh data
             closeTeamModal();
             loadTeamsList();
             if (typeof loadTeamsDropdown === 'function') loadTeamsDropdown();
