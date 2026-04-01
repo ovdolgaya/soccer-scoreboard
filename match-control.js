@@ -265,179 +265,198 @@ function downloadTeamRoster() {
 function generateThumbnail() {
     if (!matchId) return;
 
-    database.ref('matches/' + matchId).once('value').then(function(snapshot) {
-        const match = snapshot.val();
-        if (!match) return;
+    // Use cached match data — already downloaded, no extra read
+    const match = (_matchDataCache && _matchDataCache[matchId]) ? _matchDataCache[matchId] : null;
 
+    function proceedWithMatch(match) {
+        if (!match) return;
         const champTitle = (match.championshipTitle || '').trim();
 
-        function drawWithChampLogo(champLogoImg) {
-            const canvas = document.getElementById('thumbnailCanvas');
-            const ctx    = canvas.getContext('2d');
-
-            // ── 2560×1440 with full SCALE system (same as championship thumbnail) ──
-            const W = 2560, H = 1440;
-            canvas.width  = W;
-            canvas.height = H;
-            const SCALE = W / 1280;  // = 2
-
-            // ── Background ──
-            const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.65);
-             bgGrad.addColorStop(0, 'rgba(25, 71, 186, 0.8)');
-             bgGrad.addColorStop(1, 'rgba(0, 51, 160, 0.90)');
-            ctx.fillStyle = bgGrad;
-            ctx.fillRect(0, 0, W, H);
-
-            // ── Header — identical to championship thumbnail ──
-            const headerH  = Math.round(100 * SCALE);
-            const logoSize = Math.round(68  * SCALE);
-            const pad      = (headerH - logoSize) / 2;
-
-            ctx.fillStyle = 'rgba(0,0,0,0.18)';
-            ctx.fillRect(0, 0, W, headerH);
-
-            if (champLogoImg && champLogoImg.naturalWidth > 0) {
-                const scale = logoSize / Math.max(champLogoImg.naturalWidth, champLogoImg.naturalHeight);
-                const lw    = champLogoImg.naturalWidth  * scale;
-                const lh    = champLogoImg.naturalHeight * scale;
-                const lx    = pad;
-                const ly    = (headerH - lh) / 2;
-                const lpad  = logoSize * 0.1;
-
-                ctx.fillStyle     = 'white';
-                ctx.shadowColor   = 'rgba(0,0,0,0.12)';
-                ctx.shadowBlur    = Math.round(6 * SCALE);
-                ctx.shadowOffsetY = Math.round(2 * SCALE);
-                ctx.beginPath();
-                ctx.roundRect(lx - lpad, ly - lpad, lw + lpad * 2, lh + lpad * 2, Math.round(8 * SCALE));
-                ctx.fill();
-                ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-                ctx.drawImage(champLogoImg, lx, ly, lw, lh);
+        // Fetch team data (logo + color) from /teams — use teamId if available,
+        // fall back to embedded logos for old records that haven't been migrated yet
+        function fetchTeamData(teamId, fallbackLogo, fallbackColor) {
+            if (teamId) {
+                return database.ref('teams/' + teamId).once('value').then(function(snap) {
+                    const t = snap.val() || {};
+                    return { logo: t.logo || '', color: t.color || '#08399A' };
+                });
             }
+            return Promise.resolve({ logo: fallbackLogo || '', color: fallbackColor || '#08399A' });
+        }
 
-            // Title centred across full width (same as championship)
-            ctx.fillStyle    = 'white';
-            ctx.font         = `bold ${Math.round(52 * SCALE)}px Calibri, sans-serif`;
-            ctx.textAlign    = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(champTitle || 'ФУТБОЛ', W / 2, headerH / 2);
+        Promise.all([
+            fetchTeamData(match.team1Id, match.team1Logo, match.team1Color),
+            fetchTeamData(match.team2Id, match.team2Logo, match.team2Color)
+        ]).then(function(teams) {
+            const t1 = teams[0], t2 = teams[1];
 
-            // ── Load team logos then draw body ──
-            const toLoad = [];
-            if (match.team1Logo) toLoad.push({ key: 't1', src: match.team1Logo });
-            if (match.team2Logo) toLoad.push({ key: 't2', src: match.team2Logo });
+            function drawWithChampLogo(champLogoImg) {
+                const canvas = document.getElementById('thumbnailCanvas');
+                const ctx    = canvas.getContext('2d');
 
-            const loaded = {};
-            let count = 0;
+                const W = 2560, H = 1440;
+                canvas.width  = W;
+                canvas.height = H;
+                const SCALE = W / 1280;
 
-            function onLoaded() {
-                if (++count === toLoad.length || toLoad.length === 0) drawBody();
-            }
+                // ── Background ──
+                const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.65);
+                bgGrad.addColorStop(0, 'rgba(25, 71, 186, 0.8)');
+                bgGrad.addColorStop(1, 'rgba(0, 51, 160, 0.90)');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, W, H);
 
-            function drawBody() {
-                // ── Team logo squares ──
-                const squareSize = Math.round(200 * SCALE);
-                const squareY    = H / 2 - Math.round(100 * SCALE);
-                const cx1 = W / 2 - Math.round(350 * SCALE);
-                const cx2 = W / 2 + Math.round(350 * SCALE);
+                // ── Header ──
+                const headerH  = Math.round(100 * SCALE);
+                const logoSize = Math.round(68  * SCALE);
+                const pad      = (headerH - logoSize) / 2;
 
-                function drawTeamSquare(img, cx) {
-                    const sqX = cx - squareSize / 2;
-                    const r   = squareSize * 0.18;
+                ctx.fillStyle = 'rgba(0,0,0,0.18)';
+                ctx.fillRect(0, 0, W, headerH);
+
+                if (champLogoImg && champLogoImg.naturalWidth > 0) {
+                    const scale = logoSize / Math.max(champLogoImg.naturalWidth, champLogoImg.naturalHeight);
+                    const lw    = champLogoImg.naturalWidth  * scale;
+                    const lh    = champLogoImg.naturalHeight * scale;
+                    const lx    = pad;
+                    const ly    = (headerH - lh) / 2;
+                    const lpad  = logoSize * 0.1;
                     ctx.fillStyle     = 'white';
-                    ctx.shadowColor   = 'rgba(0,0,0,0.15)';
-                    ctx.shadowBlur    = Math.round(12 * SCALE);
-                    ctx.shadowOffsetY = Math.round(4  * SCALE);
+                    ctx.shadowColor   = 'rgba(0,0,0,0.12)';
+                    ctx.shadowBlur    = Math.round(6 * SCALE);
+                    ctx.shadowOffsetY = Math.round(2 * SCALE);
                     ctx.beginPath();
-                    ctx.roundRect(sqX, squareY, squareSize, squareSize, r);
+                    ctx.roundRect(lx - lpad, ly - lpad, lw + lpad * 2, lh + lpad * 2, Math.round(8 * SCALE));
                     ctx.fill();
                     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-
-                    if (img && img.naturalWidth > 0) {
-                        // Fit to available area with 10% padding — identical to championship thumbnail
-                        const pad   = squareSize * 0.1;
-                        const avail = squareSize - pad * 2;
-                        const s     = Math.min(avail / img.naturalWidth, avail / img.naturalHeight);
-                        const w     = img.naturalWidth  * s;
-                        const h     = img.naturalHeight * s;
-                        ctx.drawImage(img, sqX + (squareSize - w) / 2, squareY + (squareSize - h) / 2, w, h);
-                    }
+                    ctx.drawImage(champLogoImg, lx, ly, lw, lh);
                 }
 
-                drawTeamSquare(loaded['t1'] || null, cx1);
-                drawTeamSquare(loaded['t2'] || null, cx2);
-
-                // ── VS ──
                 ctx.fillStyle    = 'white';
-                ctx.font         = `bold ${Math.round(60 * SCALE)}px Calibri, sans-serif`;
+                ctx.font         = `bold ${Math.round(52 * SCALE)}px Calibri, sans-serif`;
                 ctx.textAlign    = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('VS', W / 2, H / 2 + Math.round(20 * SCALE));
+                ctx.fillText(champTitle || 'ФУТБОЛ', W / 2, headerH / 2);
 
-                // ── Team names ──
-                ctx.font         = `bold ${Math.round(48 * SCALE)}px Calibri, sans-serif`;
-                ctx.textBaseline = 'top';
-                ctx.fillText(match.team1Name || '', cx1, squareY + squareSize + Math.round(20 * SCALE));
-                ctx.fillText(match.team2Name || '', cx2, squareY + squareSize + Math.round(20 * SCALE));
+                // ── Load team logos then draw body ──
+                const toLoad = [];
+                if (t1.logo) toLoad.push({ key: 't1', src: t1.logo });
+                if (t2.logo) toLoad.push({ key: 't2', src: t2.logo });
 
-                // ── Date ──
-                let dateStr = '';
-                if (match.scheduledTime) {
-                    const d = new Date(match.scheduledTime);
-                    dateStr = String(d.getDate()).padStart(2,'0') + '.' +
-                              String(d.getMonth()+1).padStart(2,'0') + '.' +
-                              d.getFullYear() + ' в ' +
-                              String(d.getHours()).padStart(2,'0') + ':' +
-                              String(d.getMinutes()).padStart(2,'0');
-                } else if (match.matchDate) {
-                    const p = match.matchDate.split('-');
-                    dateStr = p[2] + '.' + p[1] + '.' + p[0];
-                }
-                if (dateStr) {
-                    ctx.font         = `${Math.round(44 * SCALE)}px Calibri, sans-serif`;
-                    ctx.textBaseline = 'bottom';
-                    ctx.fillText(dateStr, W / 2, H - Math.round(60 * SCALE));
+                const loaded = {};
+                let count = 0;
+
+                function onLoaded() {
+                    if (++count === toLoad.length || toLoad.length === 0) drawBody();
                 }
 
-                // ── Download ──
-                canvas.toBlob(function(blob) {
-                    const url  = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href     = url;
-                    link.download = `match-thumbnail-${match.team1Name}-vs-${match.team2Name}.png`;
-                    link.click();
-                    URL.revokeObjectURL(url);
-                    showToast('✓ Заставка скачана!');
+                function drawBody() {
+                    const squareSize = Math.round(200 * SCALE);
+                    const squareY    = H / 2 - Math.round(100 * SCALE);
+                    const cx1 = W / 2 - Math.round(350 * SCALE);
+                    const cx2 = W / 2 + Math.round(350 * SCALE);
+
+                    function drawTeamSquare(img, cx) {
+                        const sqX = cx - squareSize / 2;
+                        const r   = squareSize * 0.18;
+                        ctx.fillStyle     = 'white';
+                        ctx.shadowColor   = 'rgba(0,0,0,0.15)';
+                        ctx.shadowBlur    = Math.round(12 * SCALE);
+                        ctx.shadowOffsetY = Math.round(4  * SCALE);
+                        ctx.beginPath();
+                        ctx.roundRect(sqX, squareY, squareSize, squareSize, r);
+                        ctx.fill();
+                        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+                        if (img && img.naturalWidth > 0) {
+                            const pad   = squareSize * 0.1;
+                            const avail = squareSize - pad * 2;
+                            const s     = Math.min(avail / img.naturalWidth, avail / img.naturalHeight);
+                            const w     = img.naturalWidth  * s;
+                            const h     = img.naturalHeight * s;
+                            ctx.drawImage(img, sqX + (squareSize - w) / 2, squareY + (squareSize - h) / 2, w, h);
+                        }
+                    }
+
+                    drawTeamSquare(loaded['t1'] || null, cx1);
+                    drawTeamSquare(loaded['t2'] || null, cx2);
+
+                    ctx.fillStyle    = 'white';
+                    ctx.font         = `bold ${Math.round(60 * SCALE)}px Calibri, sans-serif`;
+                    ctx.textAlign    = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('VS', W / 2, H / 2 + Math.round(20 * SCALE));
+
+                    ctx.font         = `bold ${Math.round(48 * SCALE)}px Calibri, sans-serif`;
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(match.team1Name || '', cx1, squareY + squareSize + Math.round(20 * SCALE));
+                    ctx.fillText(match.team2Name || '', cx2, squareY + squareSize + Math.round(20 * SCALE));
+
+                    let dateStr = '';
+                    if (match.scheduledTime) {
+                        const d = new Date(match.scheduledTime);
+                        dateStr = String(d.getDate()).padStart(2,'0') + '.' +
+                                  String(d.getMonth()+1).padStart(2,'0') + '.' +
+                                  d.getFullYear() + ' в ' +
+                                  String(d.getHours()).padStart(2,'0') + ':' +
+                                  String(d.getMinutes()).padStart(2,'0');
+                    } else if (match.matchDate) {
+                        const p = match.matchDate.split('-');
+                        dateStr = p[2] + '.' + p[1] + '.' + p[0];
+                    }
+                    if (dateStr) {
+                        ctx.font         = `${Math.round(44 * SCALE)}px Calibri, sans-serif`;
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(dateStr, W / 2, H - Math.round(60 * SCALE));
+                    }
+
+                    canvas.toBlob(function(blob) {
+                        const url  = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href     = url;
+                        link.download = `match-thumbnail-${match.team1Name}-vs-${match.team2Name}.png`;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                        showToast('✓ Заставка скачана!');
+                    });
+                }
+
+                if (toLoad.length === 0) { drawBody(); return; }
+                toLoad.forEach(function(item) {
+                    const img = new Image();
+                    img.onload  = function() { loaded[item.key] = img; onLoaded(); };
+                    img.onerror = function() { onLoaded(); };
+                    img.src = item.src;
                 });
             }
 
-            if (toLoad.length === 0) { drawBody(); return; }
-            toLoad.forEach(function(item) {
-                const img = new Image();
-                img.onload  = function() { loaded[item.key] = img; onLoaded(); };
-                img.onerror = function() { onLoaded(); };
-                img.src = item.src;
-            });
-        }
+            // Fetch championship logo
+            if (champTitle) {
+                database.ref('championships').orderByChild('title').equalTo(champTitle)
+                    .once('value').then(function(snap) {
+                        let logoSrc = null;
+                        snap.forEach(function(child) { if (child.val().logo) logoSrc = child.val().logo; });
+                        if (logoSrc) {
+                            const img = new Image();
+                            img.onload  = function() { drawWithChampLogo(img); };
+                            img.onerror = function() { drawWithChampLogo(null); };
+                            img.src = logoSrc;
+                        } else {
+                            drawWithChampLogo(null);
+                        }
+                    }).catch(function() { drawWithChampLogo(null); });
+            } else {
+                drawWithChampLogo(null);
+            }
+        });
+    }
 
-        // Fetch championship logo if title exists
-        if (champTitle) {
-            database.ref('championships').orderByChild('title').equalTo(champTitle)
-                .once('value').then(function(snap) {
-                    let logoSrc = null;
-                    snap.forEach(function(child) { if (child.val().logo) logoSrc = child.val().logo; });
-                    if (logoSrc) {
-                        const img = new Image();
-                        img.onload  = function() { drawWithChampLogo(img); };
-                        img.onerror = function() { drawWithChampLogo(null); };
-                        img.src = logoSrc;
-                    } else {
-                        drawWithChampLogo(null);
-                    }
-                }).catch(function() { drawWithChampLogo(null); });
-        } else {
-            drawWithChampLogo(null);
-        }
-    });
+    if (match) {
+        proceedWithMatch(match);
+    } else {
+        // Fallback fetch if cache missed
+        database.ref('matches/' + matchId).once('value').then(function(snapshot) {
+            proceedWithMatch(snapshot.val());
+        });
+    }
 }
 

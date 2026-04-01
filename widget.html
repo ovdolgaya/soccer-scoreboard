@@ -338,15 +338,66 @@
         let notifTimeout     = null;
         let notifHideTimeout = null;
 
-        // Player cache — avoids repeated Firebase reads for the same player
+        // Player cache
         let playersCache = {};
+
+        // Team data cache — logo + color fetched from /teams once, not from match record
+        let teamsDataCache = {}; // { teamId: { logo, color, name } }
 
         // Home-team goals listener guard
         let goalsInitialized = false;
 
-        // Opponent score baseline.
-        // -1 = "not yet seen" — first snapshot sets it without showing a card.
+        // Opponent score baseline
         let lastOpponentScore = -1;
+
+        // Fetch team data (logo + color) from /teams — cached per teamId
+        // Also supports name-based lookup for pre-migration records without teamId
+        let _allTeamsCache = null; // loaded once for name-based fallback
+
+        function fetchTeamData(teamId) {
+            if (teamId && teamsDataCache[teamId]) return Promise.resolve(teamsDataCache[teamId]);
+            if (teamId) {
+                return database.ref('teams/' + teamId).once('value').then(function(snap) {
+                    const t = snap.val() || {};
+                    teamsDataCache[teamId] = { logo: t.logo || '', color: t.color || '#08399A', name: t.name || '' };
+                    return teamsDataCache[teamId];
+                });
+            }
+            return Promise.resolve(null);
+        }
+
+        // Resolve team data by name — for records without teamId (pre-migration)
+        function fetchTeamDataByName(teamName) {
+            if (!teamName) return Promise.resolve(null);
+
+            // Check existing cache first
+            const cached = Object.values(teamsDataCache).find(function(t) {
+                return (t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase();
+            });
+            if (cached) return Promise.resolve(cached);
+
+            // Load all teams once and cache
+            if (_allTeamsCache) {
+                const found = _allTeamsCache.find(function(t) {
+                    return (t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase();
+                });
+                return Promise.resolve(found || null);
+            }
+
+            return database.ref('teams').once('value').then(function(snap) {
+                _allTeamsCache = [];
+                snap.forEach(function(child) {
+                    const t = child.val();
+                    const entry = { logo: t.logo || '', color: t.color || '#08399A', name: t.name || '' };
+                    teamsDataCache[child.key] = entry;
+                    _allTeamsCache.push(entry);
+                });
+                const found = _allTeamsCache.find(function(t) {
+                    return (t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase();
+                });
+                return found || null;
+            });
+        }
 
         // ========================================
         // INIT
@@ -423,40 +474,56 @@
                 return;
             }
 
-            const team1ColorLight = lightenColor(matchData.team1Color || '#08399A', 10);
-            const team2ColorLight = lightenColor(matchData.team2Color || '#4A90E2', 10);
+            const t1Id = matchData.team1Id || null;
+            const t2Id = matchData.team2Id || null;
 
-            document.documentElement.style.setProperty('--team1-color', matchData.team1Color || '#08399A');
-            document.documentElement.style.setProperty('--team1-color-light', team1ColorLight);
-            document.documentElement.style.setProperty('--team2-color', matchData.team2Color || '#4A90E2');
-            document.documentElement.style.setProperty('--team2-color-light', team2ColorLight);
+            // Resolve team data: teamId → name lookup → embedded fields
+            const resolveT1 = t1Id ? fetchTeamData(t1Id) : fetchTeamDataByName(matchData.team1Name);
+            const resolveT2 = t2Id ? fetchTeamData(t2Id) : fetchTeamDataByName(matchData.team2Name);
 
-            const scoreboardHtml = `
-                <div class="score-container">
-                    <div class="team team1">
-                        ${matchData.team1Logo ? `<img src="${matchData.team1Logo}" class="team-logo" alt="Team 1">` : ''}
-                        <div class="team-name">${matchData.team1Name}</div>
+            Promise.all([resolveT1, resolveT2]).then(function(teams) {
+                const t1Logo  = (teams[0] && teams[0].logo)  || matchData.team1Logo  || '';
+                const t2Logo  = (teams[1] && teams[1].logo)  || matchData.team2Logo  || '';
+                const t1Color = (teams[0] && teams[0].color) || matchData.team1Color || '#08399A';
+                const t2Color = (teams[1] && teams[1].color) || matchData.team2Color || '#4A90E2';
+
+                const team1ColorLight = lightenColor(t1Color, 10);
+                const team2ColorLight = lightenColor(t2Color, 10);
+
+                document.documentElement.style.setProperty('--team1-color', t1Color);
+                document.documentElement.style.setProperty('--team1-color-light', team1ColorLight);
+                document.documentElement.style.setProperty('--team2-color', t2Color);
+                document.documentElement.style.setProperty('--team2-color-light', team2ColorLight);
+
+                const scoreboardHtml = `
+                    <div class="score-container">
+                        <div class="team team1">
+                            ${t1Logo ? `<img src="${t1Logo}" class="team-logo" alt="Team 1">` : ''}
+                            <div class="team-name">${matchData.team1Name}</div>
+                        </div>
+                        <div class="score">${matchData.score1}</div>
+                        <div class="separator">:</div>
+                        <div class="score">${matchData.score2}</div>
+                        <div class="team team2 right">
+                            <div class="team-name">${matchData.team2Name}</div>
+                            ${t2Logo ? `<img src="${t2Logo}" class="team-logo" alt="Team 2">` : ''}
+                        </div>
                     </div>
-                    <div class="score">${matchData.score1}</div>
-                    <div class="separator">:</div>
-                    <div class="score">${matchData.score2}</div>
-                    <div class="team team2 right">
-                        <div class="team-name">${matchData.team2Name}</div>
-                        ${matchData.team2Logo ? `<img src="${matchData.team2Logo}" class="team-logo" alt="Team 2">` : ''}
+                    <div class="timer-container">
+                        ${getTimerContent(matchData)}
                     </div>
-                </div>
-                <div class="timer-container">
-                    ${getTimerContent(matchData)}
-                </div>
-            `;
+                `;
 
-            document.getElementById('scoreboard').innerHTML = scoreboardHtml;
+                document.getElementById('scoreboard').innerHTML = scoreboardHtml;
 
-            // Always restart interval on each Firebase update so matchData is never stale
-            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-            if (matchData.status === 'playing') {
-                timerInterval = setInterval(function() { updateTimer(matchData); }, 100);
-            }
+                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+                if (matchData.status === 'playing') {
+                    timerInterval = setInterval(function() { updateTimer(matchData); }, 100);
+                }
+
+                // Store team colors for goal card rendering
+                currentMatchData = Object.assign(matchData, { _t1Color: t1Color, _t2Color: t2Color });
+            });
         }
 
         function getTimerContent(matchData) {
@@ -546,7 +613,7 @@
         }
 
         function showPlayerGoalCard(goal, player) {
-            const teamColor = currentMatchData ? (currentMatchData.team1Color || '#08399A') : '#08399A';
+            const teamColor = currentMatchData ? (currentMatchData._t1Color || currentMatchData.team1Color || '#08399A') : '#08399A';
             let numberHtml, nameHtml;
             if (player) {
                 const num = player.number || goal.playerNumber || '?';
@@ -580,7 +647,7 @@
 
         // Called when score2 increases (detected in the match listener)
         function showOpponentGoalCard(matchData) {
-            const teamColor = matchData.team2Color || '#4A90E2';
+            const teamColor = matchData._t2Color || matchData.team2Color || '#4A90E2';
             const teamName  = matchData.team2Name  || 'Соперник';
             renderNotification(
                 buildCardHtml({ teamColor, numberClass: 'opponent',

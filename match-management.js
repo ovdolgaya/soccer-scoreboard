@@ -2,55 +2,107 @@
 // MATCH DASHBOARD & LIST MANAGEMENT
 // ========================================
 
-let currentMatchesDisplayed = 10; // Show 10 initially
+let currentMatchesDisplayed = 10;
 const MATCHES_PER_PAGE = 10;
-let allMatchesCache = []; // Store all matches for pagination
-let activeChampFilter = ''; // Currently selected championship filter
+let allMatchesCache = [];
+let activeChampFilter = '';
+
+// Full match data cache — keyed by matchId, includes logos.
+// Downloaded once on page load. Individual field listeners update scores/status.
+const _matchDataCache = {};
+
+// Active field listeners — keyed by matchId. Cleaned up on backToDashboard.
+const _matchFieldListeners = {};
 
 function loadMatches(reset = true) {
     const matchListDiv = document.getElementById('matchList');
-    const loadMoreBtn = document.getElementById('loadMoreBtn');
-    const hidePast = document.getElementById('hidePastMatches') ? document.getElementById('hidePastMatches').checked : false;
-    
+    const loadMoreBtn  = document.getElementById('loadMoreBtn');
+    const hidePast = document.getElementById('hidePastMatches')
+        ? document.getElementById('hidePastMatches').checked : false;
+
     if (reset) {
         currentMatchesDisplayed = MATCHES_PER_PAGE;
-        matchListDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Загрузка матчей...</div>';
+        matchListDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">Загрузка матчей...</div>';
     }
 
-    // Remove old listener if exists
+    // Detach old real-time listener if resetting
     if (matchListListener && reset) {
         database.ref('matches').off('value', matchListListener);
+        matchListListener = null;
     }
 
-    // Set up real-time listener for ALL matches (not filtered by user)
-    matchListListener = database.ref('matches').on('value', function(snapshot) {
+    // ── Fetch all matches ONCE (includes logos — stored in cache for cockpit use) ──
+    database.ref('matches').once('value', function(snapshot) {
         const matches = [];
         snapshot.forEach(function(childSnapshot) {
             const match = childSnapshot.val();
             match.id = childSnapshot.key;
-            
-            // Filter out ended matches if toggle is on
-            if (hidePast && match.status === 'ended') {
-                return; // skip this match
-            }
-            
+            _matchDataCache[match.id] = match; // cache full record including logos
+            if (hidePast && match.status === 'ended') return;
             matches.push(match);
         });
 
-        // Sort: upcoming first (soonest), then played desc by matchDate
         sortMatches(matches);
-
-        // Cache all matches
         allMatchesCache = matches;
-
-        // Populate championship filter dropdown (no extra Firebase read — derived from cache)
         _populateChampFilter(matches);
-
-        // Display matches
         displayMatches();
+
+        // ── Set up lightweight field listeners ONLY for non-ended matches ──
+        // Each listener watches only score1, score2, status, time — no logos re-downloaded
+        _attachFieldListeners(matches.filter(function(m) {
+            return m.status !== 'ended';
+        }));
+
     }, function(error) {
-        matchListDiv.innerHTML = '<div style="color: #f44336; padding: 20px;">Ошибка загрузки: ' + error.message + '</div>';
+        matchListDiv.innerHTML = '<div style="color:#f44336;padding:20px;">Ошибка загрузки: ' + error.message + '</div>';
     });
+}
+
+// Attach lightweight listeners for score/status/time fields only
+function _attachFieldListeners(activeMatches) {
+    activeMatches.forEach(function(match) {
+        if (_matchFieldListeners[match.id]) return; // already listening
+
+        const fields = ['score1', 'score2', 'status', 'time', 'currentHalf', 'startTime'];
+        fields.forEach(function(field) {
+            const ref = database.ref('matches/' + match.id + '/' + field);
+            const listener = ref.on('value', function(snap) {
+                // Update cache
+                if (_matchDataCache[match.id]) {
+                    _matchDataCache[match.id][field] = snap.val();
+                }
+                // Update allMatchesCache entry
+                const cached = allMatchesCache.find(function(m) { return m.id === match.id; });
+                if (cached) {
+                    cached[field] = snap.val();
+                    // Stop listening when match ends
+                    if (field === 'status' && snap.val() === 'ended') {
+                        _detachFieldListeners(match.id);
+                    }
+                }
+                // Re-render list to reflect score/status changes
+                displayMatches();
+                // Update match cache for goal tracking
+                if (_matchDataCache[match.id] && typeof updateMatchCache === 'function') {
+                    updateMatchCache(_matchDataCache[match.id]);
+                }
+            });
+            if (!_matchFieldListeners[match.id]) _matchFieldListeners[match.id] = {};
+            _matchFieldListeners[match.id][field] = { ref, listener };
+        });
+    });
+}
+
+function _detachFieldListeners(matchId) {
+    if (!_matchFieldListeners[matchId]) return;
+    Object.values(_matchFieldListeners[matchId]).forEach(function(entry) {
+        entry.ref.off('value', entry.listener);
+    });
+    delete _matchFieldListeners[matchId];
+}
+
+function _detachAllFieldListeners() {
+    Object.keys(_matchFieldListeners).forEach(_detachFieldListeners);
 }
 
 function displayMatches() {
@@ -210,15 +262,28 @@ function applyChampFilter() {
 
 function openMatch(matchIdToOpen) {
     matchId = matchIdToOpen;
-    
-    database.ref('matches/' + matchId).once('value')
-        .then(function(snapshot) {
-            const match = snapshot.val();
-            if (!match) {
-                alert('Матч не найден');
-                return;
-            }
 
+    // Use cached match data — already downloaded on page load including logos
+    const match = _matchDataCache[matchId];
+    if (match) {
+        _applyMatchToView(match);
+    } else {
+        // Fallback: fetch if somehow not in cache
+        database.ref('matches/' + matchId).once('value')
+            .then(function(snapshot) {
+                const m = snapshot.val();
+                if (!m) { alert('Матч не найден'); return; }
+                _matchDataCache[matchId] = m;
+                m.id = matchId;
+                _applyMatchToView(m);
+            })
+            .catch(function(error) {
+                alert('Ошибка открытия матча: ' + error.message);
+            });
+    }
+}
+
+function _applyMatchToView(match) {
             // Update display
             document.getElementById('team1NameDisplay').textContent = match.team1Name;
             document.getElementById('team2NameDisplay').textContent = match.team2Name;
@@ -247,19 +312,15 @@ function openMatch(matchIdToOpen) {
             }
             if (cockpitSt) cockpitSt.textContent = getStatusText(match.status || 'waiting');
 
-            // Update metadata (created/started timestamps — kept in memory, not shown in UI)
             updateMatchMetadata(match);
 
-            // Show/hide sections based on match status
             const isEnded = match.status === 'ended';
 
-            // Hide time controls for ended matches
             const timeControlsSection = document.getElementById('timeControlsSection');
             if (timeControlsSection) {
                 timeControlsSection.style.display = isEnded ? 'none' : 'block';
             }
 
-            // Show goals stats only for ended matches
             const goalsStatsSection = document.getElementById('goalsStatsSection');
             if (goalsStatsSection) {
                 if (isEnded) {
@@ -270,21 +331,13 @@ function openMatch(matchIdToOpen) {
                 }
             }
 
-            // Update button states based on match status
             updateButtonStates(match);
 
-            // Switch to control panel
             hideAllViews();
             document.getElementById('controlPanel').classList.add('active');
 
-            // Listen for changes
             listenToMatchChanges();
-            // Init goal tracking (loads default team + players)
             if (typeof initGoalTracking === 'function') initGoalTracking();
-        })
-        .catch(function(error) {
-            alert('Ошибка открытия матча: ' + error.message);
-        });
 }
 
 function updateMatchMetadata(match) {
@@ -551,18 +604,43 @@ function deleteMatch(matchIdToDelete) {
     }
 }
 
-function listenToMatchChanges() {
-    database.ref('matches/' + matchId).on('value', function(snapshot) {
-        const matchData = snapshot.val();
-        if (matchData) {
-            // Keep goal-tracking cache current — eliminates match fetches on every goal
-            if (typeof updateMatchCache === 'function') updateMatchCache(matchData);
+// Cockpit match listener reference — for cleanup on navigate away
+let _cockpitMatchListener = null;
+let _cockpitMatchRef = null;
 
+function listenToMatchChanges() {
+    // Clean up any previous cockpit listener
+    if (_cockpitMatchRef && _cockpitMatchListener) {
+        _cockpitMatchRef.off('value', _cockpitMatchListener);
+    }
+
+    // Listen to individual score fields only — no logos re-downloaded
+    // score1 and score2 are the only fields that need live display in the cockpit
+    const fields = ['score1', 'score2', 'status', 'currentHalf', 'startTime'];
+    fields.forEach(function(field) {
+        database.ref('matches/' + matchId + '/' + field).on('value', function(snap) {
+            if (!_matchDataCache[matchId]) return;
+            _matchDataCache[matchId][field] = snap.val();
+            if (typeof updateMatchCache === 'function') updateMatchCache(_matchDataCache[matchId]);
             // Update score display
-            document.getElementById('score1').textContent = matchData.score1;
-            document.getElementById('score2').textContent = matchData.score2;
-        }
+            if (field === 'score1') document.getElementById('score1').textContent = snap.val() || 0;
+            if (field === 'score2') document.getElementById('score2').textContent = snap.val() || 0;
+        });
     });
+
+    // Store ref for cleanup — use score1 as representative
+    _cockpitMatchRef = database.ref('matches/' + matchId + '/score1');
+    _cockpitMatchListener = true; // flag only — actual cleanup via _detachCockpitListeners
+}
+
+function _detachCockpitListeners() {
+    if (!matchId) return;
+    const fields = ['score1', 'score2', 'status', 'currentHalf', 'startTime'];
+    fields.forEach(function(field) {
+        database.ref('matches/' + matchId + '/' + field).off();
+    });
+    _cockpitMatchRef = null;
+    _cockpitMatchListener = null;
 }
 
 // ========================================

@@ -366,7 +366,48 @@
         let pollInterval = null;
         let statusRef    = null;
 
+        // Team data cache — logo + color from /teams, not from match record
+        let teamsDataCache = {};
+        let _allTeamsCache = null;
+
         const POLL_INTERVAL_MS = 30000;
+
+        function fetchTeamData(teamId) {
+            if (teamId && teamsDataCache[teamId]) return Promise.resolve(teamsDataCache[teamId]);
+            if (teamId) {
+                return database.ref('teams/' + teamId).once('value').then(function(snap) {
+                    const t = snap.val() || {};
+                    teamsDataCache[teamId] = { logo: t.logo || '', color: t.color || '#08399A', name: t.name || '' };
+                    return teamsDataCache[teamId];
+                });
+            }
+            return Promise.resolve(null);
+        }
+
+        function fetchTeamDataByName(teamName) {
+            if (!teamName) return Promise.resolve(null);
+            const cached = Object.values(teamsDataCache).find(function(t) {
+                return (t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase();
+            });
+            if (cached) return Promise.resolve(cached);
+            if (_allTeamsCache) {
+                return Promise.resolve(_allTeamsCache.find(function(t) {
+                    return (t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase();
+                }) || null);
+            }
+            return database.ref('teams').once('value').then(function(snap) {
+                _allTeamsCache = [];
+                snap.forEach(function(child) {
+                    const t = child.val();
+                    const entry = { logo: t.logo || '', color: t.color || '#08399A', name: t.name || '' };
+                    teamsDataCache[child.key] = entry;
+                    _allTeamsCache.push(entry);
+                });
+                return _allTeamsCache.find(function(t) {
+                    return (t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase();
+                }) || null;
+            });
+        }
 
         // ─────────────────────────────────────
         // COLOR HELPER
@@ -646,50 +687,58 @@
         function render() {
             if (!matchData) return;
 
-            setCssColors(matchData.team1Color || '#08399A');
+            const t1Id = matchData.team1Id || null;
+            const resolveT1 = t1Id ? fetchTeamData(t1Id) : fetchTeamDataByName(matchData.team1Name);
 
-            // ── Header ──
-            const logoHtml = matchData.team1Logo
-                ? '<img class="team-logo-header" src="' + matchData.team1Logo + '" alt="logo">'
-                : '';
+            resolveT1.then(function(t1) {
+                const color = (t1 && t1.color) || matchData.team1Color || '#08399A';
+                const logo  = (t1 && t1.logo)  || matchData.team1Logo  || '';
 
-            const statusLabels = {
-                'waiting':     'Матч ещё не начался',
-                'scheduled':   'Матч ещё не начался',
-                'playing':     matchData.currentHalf === 1 ? '1-й тайм' : '2-й тайм',
-                'half1_ended': 'Перерыв',
-                'half2_ended': '2-й тайм окончен',
-                'ended':       'Матч окончен'
-            };
-            const halfLabel = statusLabels[matchData.status] || '';
+                setCssColors(color);
 
-            const headerHtml =
-                '<div class="widget-header">' +
-                    logoHtml +
-                    '<div class="header-title">' +
-                        '<div class="header-team-name">' + (matchData.team1Name || '') + '</div>' +
-                        '<div class="header-sub">Статистика голов' +
-                            (halfLabel ? ' &nbsp;·&nbsp; ' + halfLabel : '') +
+                // ── Header ──
+                const logoHtml = logo
+                    ? '<img class="team-logo-header" src="' + logo + '" alt="logo">'
+                    : '';
+
+                const statusLabels = {
+                    'waiting':     'Матч ещё не начался',
+                    'scheduled':   'Матч ещё не начался',
+                    'playing':     matchData.currentHalf === 1 ? '1-й тайм' : '2-й тайм',
+                    'half1_ended': 'Перерыв',
+                    'half2_ended': '2-й тайм окончен',
+                    'ended':       'Матч окончен'
+                };
+                const halfLabel = statusLabels[matchData.status] || '';
+
+                const headerHtml =
+                    '<div class="widget-header">' +
+                        logoHtml +
+                        '<div class="header-title">' +
+                            '<div class="header-team-name">' + (matchData.team1Name || '') + '</div>' +
+                            '<div class="header-sub">Статистика голов' +
+                                (halfLabel ? ' &nbsp;·&nbsp; ' + halfLabel : '') +
+                            '</div>' +
                         '</div>' +
-                    '</div>' +
-                    '<div class="header-score-badge">' +
-                        '<span class="header-score-num">' + (matchData.score1 || 0) + '</span>' +
-                        '<span class="header-score-sep">:</span>' +
-                        '<span class="header-score-opp">' + (matchData.score2 || 0) + '</span>' +
-                    '</div>' +
-                '</div>';
+                        '<div class="header-score-badge">' +
+                            '<span class="header-score-num">' + (matchData.score1 || 0) + '</span>' +
+                            '<span class="header-score-sep">:</span>' +
+                            '<span class="header-score-opp">' + (matchData.score2 || 0) + '</span>' +
+                        '</div>' +
+                    '</div>';
 
-            // ── Choose layout based on goal count ──
-            const goals   = getGoalsList();
-            const useTable = goals.length <= TABLE_MAX_GOALS;
+                // ── Choose layout based on goal count ──
+                const goals    = getGoalsList();
+                const useTable = goals.length <= TABLE_MAX_GOALS;
 
-            const contentHtml = useTable
-                ? buildTable(goals)
-                : buildCards(aggregateScorers());
+                const contentHtml = useTable
+                    ? buildTable(goals)
+                    : buildCards(aggregateScorers());
 
-            document.getElementById('goalsWidget').innerHTML =
-                headerHtml +
-                '<div class="content-area">' + contentHtml + '</div>';
+                document.getElementById('goalsWidget').innerHTML =
+                    headerHtml +
+                    '<div class="content-area">' + contentHtml + '</div>';
+            });
         }
     </script>
 </body>

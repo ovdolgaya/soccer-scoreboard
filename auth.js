@@ -97,11 +97,17 @@ document.addEventListener('DOMContentLoaded', function() {
 // ========================================
 
 function hideAllViews() {
-    // Clean up match list listener when leaving dashboard
+    // Clean up match list real-time listener (legacy — now null since we use .once())
     if (matchListListener && database) {
         database.ref('matches').off('value', matchListListener);
         matchListListener = null;
     }
+
+    // Clean up cockpit field listeners (score1, score2, status etc. on current match)
+    if (typeof _detachCockpitListeners === 'function') _detachCockpitListeners();
+
+    // Clean up per-match field listeners from the match list
+    if (typeof _detachAllFieldListeners === 'function') _detachAllFieldListeners();
 
     document.getElementById('passwordForm').classList.remove('active');
     document.getElementById('dashboard').classList.remove('active');

@@ -149,8 +149,19 @@
                 if (m.championshipTitle)
                     document.getElementById('editChampionshipSelect').value = m.championshipTitle;
 
-                _preselectTeamByName(1, m.team1Name);
-                _preselectTeamByName(2, m.team2Name);
+                // Prefer teamId for preselection; fall back to name matching for old records
+                if (m.team1Id && _teamsCache[m.team1Id]) {
+                    document.getElementById('editTeam1Select').value = m.team1Id;
+                    window.editOnTeamSelect(1);
+                } else {
+                    _preselectTeamByName(1, m.team1Name);
+                }
+                if (m.team2Id && _teamsCache[m.team2Id]) {
+                    document.getElementById('editTeam2Select').value = m.team2Id;
+                    window.editOnTeamSelect(2);
+                } else {
+                    _preselectTeamByName(2, m.team2Name);
+                }
             });
         });
 
@@ -247,12 +258,12 @@
         const t2 = _teamsCache[team2Id];
 
         const updates = {
+            team1Id:    team1Id,
+            team2Id:    team2Id,
             team1Name:  t1.name  || '',
             team2Name:  t2.name  || '',
-            team1Logo:  t1.logo  || '',
-            team2Logo:  t2.logo  || '',
-            team1Color: t1.color || '#08399A',
-            team2Color: t2.color || '#4A90E2',
+            // team1Logo/team2Logo NOT stored — fetched from /teams at display time
+            // team1Color/team2Color NOT stored — fetched from /teams at display time
             championshipTitle: document.getElementById('editChampionshipSelect').value || ''
         };
 

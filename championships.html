@@ -376,6 +376,9 @@ let champGroups  = {};       // { title: { matches: [], endedCount, scheduledCou
 // Matches cache — invalidated when a match is created/edited/deleted
 let _matchesDataCached = false;
 
+// Teams cache — { teamId: { name, logo, color } } — loaded once with matches
+let _champTeamsCache = {};
+
 // Championship goals cache — { champTitle: [goalObjects] }
 // Avoids re-fetching all goals every time the stats modal is opened
 const _champGoalsCache = {};
@@ -386,7 +389,7 @@ const _matchGoalsCache = {};
 
 function _invalidateMatchesCache() {
     _matchesDataCached = false;
-    // Clear goals caches too since match data may have changed
+    _champTeamsCache = {};
     Object.keys(_champGoalsCache).forEach(k => delete _champGoalsCache[k]);
     Object.keys(_matchGoalsCache).forEach(k => delete _matchGoalsCache[k]);
 }
@@ -413,14 +416,38 @@ auth.onAuthStateChanged(function(user) {
 // ============================================
 function loadData() {
     // Skip if already loaded — matches don't change unless user edits them
-    if (_matchesDataCached) { renderList(); return; }
+    if (_matchesDataCached) {
+        // Teams cache must also be populated — if not, re-fetch teams only
+        if (Object.keys(_champTeamsCache).length === 0) {
+            database.ref('teams').once('value').then(function(teamsSnap) {
+                _champTeamsCache = {};
+                teamsSnap.forEach(function(child) {
+                    const t = child.val();
+                    _champTeamsCache[child.key] = { name: t.name || '', logo: t.logo || '', color: t.color || '#08399A' };
+                });
+                renderList();
+            });
+        } else {
+            renderList();
+        }
+        return;
+    }
 
     Promise.all([
         database.ref('matches').once('value'),
-        database.ref('championships').once('value')
+        database.ref('championships').once('value'),
+        database.ref('teams').once('value')          // fetch teams for logo/color lookup
     ]).then(function(results) {
         const matchSnap = results[0];
         const champSnap = results[1];
+        const teamsSnap = results[2];
+
+        // Build teams lookup cache — { teamId: { name, logo, color } }
+        _champTeamsCache = {};
+        teamsSnap.forEach(function(child) {
+            const t = child.val();
+            _champTeamsCache[child.key] = { name: t.name || '', logo: t.logo || '', color: t.color || '#08399A' };
+        });
 
         // Index championships by their title field so we can look up logo + Firebase key
         // Championships are stored as /championships/champ_XXXX { title, logo, ... }
@@ -559,12 +586,32 @@ function renderMatchTable(matches) {
         const scoreHtml = buildScoreHtml(m);
         const statusHtml = buildStatusBadge(m);
 
-        const t1Logo = m.team1Logo
-            ? `<img class="team-logo-sm" src="${escAttr(m.team1Logo)}" alt="">`
+        // Resolve logo: try teamId → try name match → try embedded → empty
+        function resolveTeamLogo(teamId, teamName, embeddedLogo) {
+            if (teamId && _champTeamsCache[teamId] && _champTeamsCache[teamId].logo) {
+                return _champTeamsCache[teamId].logo;
+            }
+            // Fallback: match by name in teams cache
+            if (teamName) {
+                const nameLower = teamName.trim().toLowerCase();
+                const found = Object.values(_champTeamsCache).find(function(t) {
+                    return (t.name || '').trim().toLowerCase() === nameLower;
+                });
+                if (found && found.logo) return found.logo;
+            }
+            // Final fallback: embedded logo (pre-migration records)
+            return embeddedLogo || '';
+        }
+
+        const t1LogoSrc = resolveTeamLogo(m.team1Id, m.team1Name, m.team1Logo);
+        const t2LogoSrc = resolveTeamLogo(m.team2Id, m.team2Name, m.team2Logo);
+
+        const t1Logo = t1LogoSrc
+            ? `<img class="team-logo-sm" src="${escAttr(t1LogoSrc)}" alt="">`
             : `<div class="team-logo-placeholder">⚽</div>`;
 
-        const t2Logo = m.team2Logo
-            ? `<img class="team-logo-sm" src="${escAttr(m.team2Logo)}" alt="">`
+        const t2Logo = t2LogoSrc
+            ? `<img class="team-logo-sm" src="${escAttr(t2LogoSrc)}" alt="">`
             : `<div class="team-logo-placeholder">⚽</div>`;
 
         return `
@@ -726,11 +773,18 @@ function generateChampThumbnail(champTitle, btn) {
         return key(a) - key(b);  // ascending — earliest first
     });
 
-    // Collect unique logo URLs to pre-load (team logos + championship logo)
+    // Collect unique logo URLs — resolve from teams cache first, fall back to embedded
     const logoUrls = {};
     matches.forEach(function(m) {
-        if (m.team1Logo) logoUrls[m.team1Logo] = null;
-        if (m.team2Logo) logoUrls[m.team2Logo] = null;
+        const t1Data = (m.team1Id && _champTeamsCache[m.team1Id]) ? _champTeamsCache[m.team1Id] : null;
+        const t2Data = (m.team2Id && _champTeamsCache[m.team2Id]) ? _champTeamsCache[m.team2Id] : null;
+        const t1Logo = (t1Data && t1Data.logo) || m.team1Logo || '';
+        const t2Logo = (t2Data && t2Data.logo) || m.team2Logo || '';
+        // Store resolved logos back onto match object for thumbnail drawing
+        m._t1Logo = t1Logo;
+        m._t2Logo = t2Logo;
+        if (t1Logo) logoUrls[t1Logo] = null;
+        if (t2Logo) logoUrls[t2Logo] = null;
     });
     if (group.logo) logoUrls[group.logo] = null;
 
@@ -942,7 +996,7 @@ function drawMatchCard(ctx, m, logos, x, y, w, h, SCALE) {
     const t2cx = x + halfW + halfW / 2;  // right half centre
 
     // ── Team 1 — left half ──
-    drawTeamLogoSquare(ctx, logos[m.team1Logo] || null, t1cx - logoSize/2, logoY, logoSize);
+    drawTeamLogoSquare(ctx, logos[m._t1Logo] || null, t1cx - logoSize/2, logoY, logoSize);
     ctx.fillStyle    = '#1e293b';
     ctx.font         = 'bold ' + nameSize + 'px Calibri, sans-serif';
     ctx.textAlign    = 'center';
@@ -950,7 +1004,7 @@ function drawMatchCard(ctx, m, logos, x, y, w, h, SCALE) {
     drawClippedText(ctx, m.team1Name || '', t1cx, nameY, halfW - 8, nameSize);
 
     // ── Team 2 — right half ──
-    drawTeamLogoSquare(ctx, logos[m.team2Logo] || null, t2cx - logoSize/2, logoY, logoSize);
+    drawTeamLogoSquare(ctx, logos[m._t2Logo] || null, t2cx - logoSize/2, logoY, logoSize);
     ctx.fillStyle    = '#1e293b';
     ctx.font         = 'bold ' + nameSize + 'px Calibri, sans-serif';
     ctx.textAlign    = 'center';
