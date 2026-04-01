@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: March 31, 2026 (updated)
+## Last Updated: April 1, 2026 (Session 7)
 
 ---
 
@@ -22,12 +22,12 @@
 | `roster.html` | Team roster management (tabs: Состав / Команды) |
 | `championships.html` | Championships (tabs: Чемпионаты / Управление) |
 | `match-helpers.js` | **Shared** date formatting, sort logic, status constants |
-| `match-management.js` | Match list rendering, dashboard, pagination |
+| `match-management.js` | Match list rendering, dashboard, pagination, goals stats |
 | `match-control.js` | Score/time control, match thumbnail generator, roster download |
 | `match-edit-modal.js` | Unified create/edit match modal |
 | `auth.js` | Firebase auth, login/logout, view switching |
 | `nav.js` | Shared navigation bar (injected into all pages) |
-| `goal-tracking.js` | Goal recording, player picker modal |
+| `goal-tracking.js` | Goal recording, player picker modal, assist picker modal |
 | `roster-thumbnail-helper.js` | Roster thumbnail generator (2560×1440) with session cache |
 | `roster.js` | Roster management logic |
 | `firebase-config.js` | Firebase credentials (**not in repo**) |
@@ -54,19 +54,43 @@
 - **Retroactive goal entry** — ended matches show "Добавить гол" in goals stats section; saves with `retroactive: true`, no time/half; appears under "Добавлено вручную" separator
 - Resources panel: scoreboard link, match thumbnail, roster thumbnail, stats widget link
 
+### Firebase Bandwidth Optimisation
+All pages use page-level session caches to avoid re-downloading data. Key principle: **never store base64 photos/logos in display-only caches, and never store logos in match records**.
+
+- **`match-management.js`** — `.once()` replaces collection real-time listener; per-field listeners (~50 bytes each) for live score updates; `_matchDataCache` serves match cockpit with zero reads
+- **`match-edit-modal.js`** — no longer writes `team1Logo`/`team2Logo`/`team1Color`/`team2Color` to match records; writes `team1Id`/`team2Id` instead
+- **`match-control.js`** — thumbnail fetches logos from `/teams/{id}`, not from match record
+- **`widget.html`** / **`goals-widget.html`** — logos/colors fetched from `/teams` with three-level fallback: teamId → name match → embedded field
+- **`championships.html`** — teams fetched once alongside matches; `_champTeamsCache` used for all logo resolution; `resolveTeamLogo()` helper with name fallback
+- **`goal-tracking.js`** — `_matchCache` eliminates match fetches during a match; players cache strips photos; team side resolved once
+- **`roster.js`** — `_teamsCache`, `_playersPageCache`, `_coachCache` cover all roster page reads
+- **Migration script** — `migration_add_teamIds.js` — run once in browser console to add teamIds and delete embedded logos from all existing match records
+
+**Expected reads per session after full optimisation + migration:**
+- `index.html` load: 1 `.once()` read of all matches (text fields only, no logos) + field listeners
+- Open match cockpit: 0 reads (served from `_matchDataCache`)
+- Score a goal: 0 reads
+- `championships.html` load: matches + championships + teams in one parallel call, cached
+- Championship stats (first open): goals query only
+- Championship stats (repeat open): 0 reads
+- **Live goal modal** — assist section appears above the scorer grid; muted slate number buttons; multi-select (modal stays open); selected assistants highlighted teal with ✓ checkmark; greyed/disabled in scorer grid below
+- Clicking a scorer saves goal + any pre-selected assists and closes modal; own goal skips assist step
+- **Assist picker modal** — 👟 button on every goal stats row opens a picker; pre-populates existing assists; multi-select; Save writes back to Firebase; × chip on each assist removes it individually
+- **Firebase schema** — `assists: [{playerId, playerNumber}]` array added to goal records; fully optional/additive — old goals without it work unchanged
+
 ### Championships
 - Championships page with expand/collapse match groups
 - **Championship Stats Modal** — analytics button on each card shows:
   - Match results: Won / Draw / Lost with colour ratio bar and win %
   - Goals: scored (default team) vs conceded (opponents)
-  - Top scorers: ranked player list from `/goals` table with fixed-width jersey number badges, bars, medals; own goals noted separately
-  - ⚠️ Warning banner if tracked goal count doesn't match actual score (unattributed goals)
+  - **Top scorers / Top assisters toggle** — ⚽ Голы / 👟 Пасы buttons switch the ranked table; each mode shows only players with stat > 0, sorted descending, with proportional bar and 🥇🥈🥉 medals; own goals row in goals mode only
+  - ⚠️ Warning banner if tracked goal count doesn't match actual score
 - Championship thumbnail generator (2560×1440 PNG)
 - **`isPassed` toggle** — passed championships hidden from match form dropdown; shown greyed in Управление tab with full analytics still accessible
 
 ### Team & Championship Management
 - **Teams** managed on Roster page → Команды tab: create, edit, delete with logo/color
-- **`isActive` toggle on teams** — inactive teams hidden from match dropdowns, shown greyed in Команды tab; existing teams default to active
+- **`isActive` toggle on teams** — inactive teams hidden from match dropdowns, shown greyed in Команды tab
 - **Championships** managed on Championships page → Управление tab: create, edit, delete with logo
 - Match create/edit form uses dropdowns — no inline creation needed
 
@@ -83,8 +107,12 @@
 - **Championship thumbnail** — 2560×1440, card grid (≤15 matches) or table layout (>15)
 
 ### Streaming Widgets
-- **`widget.html`** — live scoreboard overlay for OBS; real-time score + timer + goal scorer notification (5s)
-- **`goals-widget.html`** — goal statistics overlay; table (≤10 goals) or card grid (>10)
+- **`widget.html`** — live scoreboard overlay for OBS; real-time score + timer + goal scorer notification card (5s):
+  - Without assists: 56px card — `#N | Гол! / LASTNAME | ⚽`
+  - With assists: 76px card — scorer row + `👟 #7 ИВАНОВ · #11 ПЕТРОВ` assist line below
+- **`goals-widget.html`** — goal statistics overlay; table (≤10 goals) or card grid (>10):
+  - Table: ⚽ icon hidden; assist chips show white number badge + white uppercase last name on translucent pill
+  - Cards: `👟 N` assist badge shown only if player has ≥1 assist; players with 0 goals not shown
 
 ### PWA
 - Installable on Android via Chrome "Add to Home Screen"
@@ -190,18 +218,22 @@ Must load **before** `match-management.js` and before the inline script in `cham
 
 ```
 /matches/{matchId}
-  team1Name, team2Name, team1Logo, team2Logo
-  team1Color, team2Color
+  team1Id, team2Id  ← links to /teams (written by migration script)
+  team1Name, team2Name  ← kept as safety denormalization
   score1, score2
   status          ← waiting|scheduled|playing|half1_ended|half2_ended|ended
   championshipTitle
   matchDate       ← YYYY-MM-DD
   scheduledTime   ← timestamp ms
   createdAt, matchStartedAt, startTime
+  NOTE: team1Logo, team2Logo, team1Color, team2Color removed by migration
 
 /goals/{goalId}
-  matchId, playerId, playerNumber
-  isOwnGoal, half, matchTime, timestamp
+  matchId, teamId
+  playerId, playerNumber
+  isOwnGoal, half, matchTime, timestamp, createdAt
+  retroactive     ← true only on retroactive goals
+  assists         ← OPTIONAL array [{playerId, playerNumber}]
 
 /players/{playerId}
   firstName, lastName, number, teamId
@@ -260,10 +292,12 @@ Must load **before** `match-management.js` and before the inline script in `cham
 ## ⚽ GOAL SCORER NOTIFICATION (`widget.html`)
 
 Shows a card below the scoreboard for 5 seconds on new goal:
-- Home player: `#number  First Last  ⚽`
-- Opponent / own goal labelled accordingly
+- Home player (no assists): 56px card — `#number | Гол! / LASTNAME | ⚽`
+- Home player (with assists): 76px card — scorer row + `👟 #7 ИВАНОВ · #11 ПЕТРОВ`
+- Opponent goal: team color card with team name
+- Own goal: grey card labelled "Автогол"
 
-Uses `database.ref('goals').on('child_added')` with initial-load guard.
+Uses `database.ref('goals').on('child_added')` with initial-load guard. Scorer and all assist players fetched in parallel from `playersCache` before rendering.
 
 ---
 
@@ -285,9 +319,25 @@ Uses `database.ref('goals').on('child_added')` with initial-load guard.
 - [ ] Управление tab: create/edit/delete championships
 - [ ] Управление tab: isPassed toggle — passed championships show ❌, grey card
 - [ ] Passed championships absent from match form championship dropdown
+- [ ] **Goal modal: assist section appears above scorer grid**
+- [ ] **Assist buttons toggle highlight on tap; modal stays open**
+- [ ] **Selected assistants greyed/disabled in scorer grid**
+- [ ] **Clicking scorer saves goal with assists; modal closes**
+- [ ] **Own goal button saves immediately with no assists**
+- [ ] **Assist state resets on modal close/re-open**
+- [ ] **Goal stats row: 👟 button opens assist picker modal**
+- [ ] **Assist picker pre-populates existing assists**
+- [ ] **Saving assist picker updates Firebase and refreshes stats**
+- [ ] **× chip removes individual assist; refreshes stats**
+- [ ] **widget.html: goal card shows assist line when assists present**
+- [ ] **widget.html: card height expands correctly with assist line**
+- [ ] **goals-widget.html table: assist chips show correct number + last name**
+- [ ] **goals-widget.html cards: assist badge shown only when assists > 0**
 - [ ] Championship stats modal: W/D/L counts correct for default team
 - [ ] Championship stats modal: goals for/against calculated correctly
-- [ ] Championship stats modal: player scorers ranked correctly, number badges same width, own goals shown
+- [ ] **Championship stats modal: ⚽ Голы / 👟 Пасы toggle works**
+- [ ] **Championship stats modal: assists mode shows correct ranked list**
+- [ ] **Championship stats modal: players with 0 in current mode are hidden**
 - [ ] Championship stats modal: warning banner shown when tracked goals < actual score
 - [ ] Championship stats modal: graceful empty state when no goal data exists
 - [ ] Ended match cockpit: "Добавить гол" button visible in goals stats section
@@ -297,23 +347,42 @@ Uses `database.ref('goals').on('child_added')` with initial-load guard.
 - [ ] Championship thumbnail: card grid ≤15, table >15
 - [ ] Goals widget: player photos contained, no cropping, white background
 - [ ] Widget timer: no negative display, no freeze after goal
-- [ ] Goal scorer card appears 5 seconds on new goal
 - [ ] Nav bar on all pages, active state correct, mobile menu works
 - [ ] PWA installs correctly on Android
+- [ ] **Firebase cache: index.html load — match list downloads once, no logos in match records**
+- [ ] **Firebase cache: second match open shows only 0 reads (served from _matchDataCache)**
+- [ ] **Firebase cache: goal scored shows 0 reads**
+- [ ] **Firebase cache: navigation index → championships → index burns <1MB total**
+- [ ] **Firebase cache: roster page second player load shows 0 reads**
+- [ ] **Firebase cache: Команды tab second open shows 0 reads**
+- [ ] **Firebase cache: championship stats second open shows only goals query**
+- [ ] **Firebase cache: player status toggle invalidates cache correctly (next load re-fetches)**
+- [ ] **widget.html: team logos show correctly (fetched from /teams)**
+- [ ] **goals-widget.html: team logo shows correctly in header**
+- [ ] **championships.html: match row logos show correctly**
+- [ ] **Match thumbnail: logos fetched from /teams, not from match record**
+- [ ] **Migration: run migration_add_teamIds.js in console, verify all matches get team1Id/team2Id**
+- [ ] **Migration: after migration, match records have no team1Logo/team2Logo fields**
 - [ ] After deployment: clear PWA cache or bump `CACHE_NAME` in `sw.js` to force update
 
 ---
 
 ## 🔮 FUTURE FEATURES TO CONSIDER
 
-1. Opponent goal tracking — opponent roster or number input
-2. Substitutions — player in/out with time
-3. Yellow/red cards — same modal pattern as goals
-4. Championship standings table — auto-calculated points/wins/draws/losses
-5. Second stats widget variant — both teams side-by-side
-6. Goal times in stats widget — stored already; remove `display:none` from `.player-times` in `goals-widget.html`
-7. Match notes / venue field
-8. Export match report (PDF)
+**Pending (deploy ready, needs to be run):**
+- Run `migration_add_teamIds.js` in browser console to permanently remove embedded logos from all existing match records
+
+**Planned features:**
+1. Assist tracking in retroactive goal modal (currently goals-only; assists can be added via picker after the fact)
+2. Assist info in goals-widget.html card layout (currently only badge count; could show names)
+3. Opponent goal tracking — opponent roster or number input
+4. Substitutions — player in/out with time
+5. Yellow/red cards — same modal pattern as goals
+6. Championship standings table — auto-calculated points/wins/draws/losses
+7. Second stats widget variant — both teams side-by-side
+8. Goal times in stats widget — stored already; remove `display:none` from `.player-times` in `goals-widget.html`
+9. Match notes / venue field
+10. Export match report (PDF)
 
 ---
 
