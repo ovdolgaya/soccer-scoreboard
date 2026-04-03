@@ -319,7 +319,7 @@
 <body>
     <div class="scoreboard" id="scoreboard">
         <div class="waiting-message" id="waitingMessage">
-            Ожидание начала матча...
+            Загрузка...
         </div>
     </div>
 
@@ -470,7 +470,7 @@
         function updateScoreboard(matchData) {
             if (!matchData) {
                 document.getElementById('scoreboard').innerHTML =
-                    '<div class="waiting-message">Ожидание начала матча...</div>';
+                    '<div class="waiting-message">Загрузка...</div>';
                 return;
             }
 
