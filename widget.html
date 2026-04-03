@@ -351,51 +351,14 @@
         let lastOpponentScore = -1;
 
         // Fetch team data (logo + color) from /teams — cached per teamId
-        // Also supports name-based lookup for pre-migration records without teamId
-        let _allTeamsCache = null; // loaded once for name-based fallback
-
+        // Team data cache — fetched once per teamId per session
         function fetchTeamData(teamId) {
-            if (teamId && teamsDataCache[teamId]) return Promise.resolve(teamsDataCache[teamId]);
-            if (teamId) {
-                return database.ref('teams/' + teamId).once('value').then(function(snap) {
-                    const t = snap.val() || {};
-                    teamsDataCache[teamId] = { logo: t.logo || '', color: t.color || '#08399A', name: t.name || '' };
-                    return teamsDataCache[teamId];
-                });
-            }
-            return Promise.resolve(null);
-        }
-
-        // Resolve team data by name — for records without teamId (pre-migration)
-        function fetchTeamDataByName(teamName) {
-            if (!teamName) return Promise.resolve(null);
-
-            // Check existing cache first
-            const cached = Object.values(teamsDataCache).find(function(t) {
-                return (t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase();
-            });
-            if (cached) return Promise.resolve(cached);
-
-            // Load all teams once and cache
-            if (_allTeamsCache) {
-                const found = _allTeamsCache.find(function(t) {
-                    return (t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase();
-                });
-                return Promise.resolve(found || null);
-            }
-
-            return database.ref('teams').once('value').then(function(snap) {
-                _allTeamsCache = [];
-                snap.forEach(function(child) {
-                    const t = child.val();
-                    const entry = { logo: t.logo || '', color: t.color || '#08399A', name: t.name || '' };
-                    teamsDataCache[child.key] = entry;
-                    _allTeamsCache.push(entry);
-                });
-                const found = _allTeamsCache.find(function(t) {
-                    return (t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase();
-                });
-                return found || null;
+            if (!teamId) return Promise.resolve(null);
+            if (teamsDataCache[teamId]) return Promise.resolve(teamsDataCache[teamId]);
+            return database.ref('teams/' + teamId).once('value').then(function(snap) {
+                const t = snap.val() || {};
+                teamsDataCache[teamId] = { logo: t.logo || '', color: t.color || '#08399A', name: t.name || '' };
+                return teamsDataCache[teamId];
             });
         }
 
@@ -409,47 +372,65 @@
             document.getElementById('waitingMessage').textContent = 'Ошибка: не указан ID матча';
         } else {
 
-            // ── 1. Match listener: scoreboard + opponent goal detection ──
-            database.ref('matches/' + matchId).on('value', function(snapshot) {
-                const newData = snapshot.val();
+            // ── 1. Fetch match once to render scoreboard + decide listener strategy ──
+            database.ref('matches/' + matchId).once('value', function(snapshot) {
+                const matchData = snapshot.val();
+                if (!matchData) return;
 
-                if (newData) {
-                    const opponentScore = newData.score2 || 0;
+                currentMatchData = matchData;
+                lastOpponentScore = matchData.score2 || 0;
+                updateScoreboard(matchData);
 
-                    if (lastOpponentScore === -1) {
-                        // First load — set baseline, no card
-                        lastOpponentScore = opponentScore;
-                    } else if (opponentScore > lastOpponentScore) {
-                        // Score increased — opponent scored
-                        showOpponentGoalCard(newData);
-                        lastOpponentScore = opponentScore;
-                    } else {
-                        lastOpponentScore = opponentScore;
-                    }
-                }
+                // For ended matches — no listeners needed, data is frozen
+                if (matchData.status === 'ended') return;
 
-                currentMatchData = newData;
-                updateScoreboard(newData);
+                // ── 2. Field-specific listeners — only small primitive fields, no logos ──
+                const watchFields = ['score1', 'score2', 'status', 'time', 'currentHalf', 'startTime'];
+                watchFields.forEach(function(field) {
+                    database.ref('matches/' + matchId + '/' + field).on('value', function(snap) {
+                        const val = snap.val();
+                        if (!currentMatchData) return;
+                        currentMatchData[field] = val;
+
+                        // Detect opponent goal from score2 change
+                        if (field === 'score2') {
+                            const newScore = val || 0;
+                            if (newScore > lastOpponentScore) {
+                                showOpponentGoalCard(currentMatchData);
+                            }
+                            lastOpponentScore = newScore;
+                        }
+
+                        // Stop all listeners when match ends
+                        if (field === 'status' && val === 'ended') {
+                            watchFields.forEach(function(f) {
+                                database.ref('matches/' + matchId + '/' + f).off();
+                            });
+                            database.ref('goals').orderByChild('matchId').equalTo(matchId).off();
+                        }
+
+                        // Re-render scoreboard on any field change
+                        updateScoreboard(currentMatchData);
+                    });
+                });
+
+                // ── 3. Home-team goal listener — only for active matches ──
+                database.ref('goals')
+                    .orderByChild('matchId')
+                    .equalTo(matchId)
+                    .once('value', function() {
+                        goalsInitialized = true;
+                    });
+
+                database.ref('goals')
+                    .orderByChild('matchId')
+                    .equalTo(matchId)
+                    .on('child_added', function(snapshot) {
+                        if (!goalsInitialized) return;
+                        const goal = snapshot.val();
+                        if (goal) handleNewGoal(goal);
+                    });
             });
-
-            // ── 2. Home-team goal listener ──
-            // once('value') fires after all existing children are delivered,
-            // so child_added events after that point are guaranteed to be new.
-            database.ref('goals')
-                .orderByChild('matchId')
-                .equalTo(matchId)
-                .once('value', function() {
-                    goalsInitialized = true;
-                });
-
-            database.ref('goals')
-                .orderByChild('matchId')
-                .equalTo(matchId)
-                .on('child_added', function(snapshot) {
-                    if (!goalsInitialized) return;
-                    const goal = snapshot.val();
-                    if (goal) handleNewGoal(goal);
-                });
         }
 
         // ========================================
@@ -477,11 +458,7 @@
             const t1Id = matchData.team1Id || null;
             const t2Id = matchData.team2Id || null;
 
-            // Resolve team data: teamId → name lookup → embedded fields
-            const resolveT1 = t1Id ? fetchTeamData(t1Id) : fetchTeamDataByName(matchData.team1Name);
-            const resolveT2 = t2Id ? fetchTeamData(t2Id) : fetchTeamDataByName(matchData.team2Name);
-
-            Promise.all([resolveT1, resolveT2]).then(function(teams) {
+            Promise.all([fetchTeamData(t1Id), fetchTeamData(t2Id)]).then(function(teams) {
                 const t1Logo  = (teams[0] && teams[0].logo)  || matchData.team1Logo  || '';
                 const t2Logo  = (teams[1] && teams[1].logo)  || matchData.team2Logo  || '';
                 const t1Color = (teams[0] && teams[0].color) || matchData.team1Color || '#08399A';
@@ -498,7 +475,7 @@
                 const scoreboardHtml = `
                     <div class="score-container">
                         <div class="team team1">
-                            ${t1Logo ? `<img src="${t1Logo}" class="team-logo" alt="Team 1">` : ''}
+                             ${t1Logo ? `<img src="${t1Logo}" class="team-logo" alt="Team 1">` : ''}   
                             <div class="team-name">${matchData.team1Name}</div>
                         </div>
                         <div class="score">${matchData.score1}</div>
@@ -507,7 +484,6 @@
                         <div class="team team2">
                             ${t2Logo ? `<img src="${t2Logo}" class="team-logo" alt="Team 2">` : ''}
                             <div class="team-name">${matchData.team2Name}</div>
-                            
                         </div>
                     </div>
                     <div class="timer-container">
