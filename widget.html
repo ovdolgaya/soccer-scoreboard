@@ -385,7 +385,7 @@
                 if (matchData.status === 'ended') return;
 
                 // ── 2. Field-specific listeners — only small primitive fields, no logos ──
-                const watchFields = ['score1', 'score2', 'status', 'time', 'currentHalf', 'startTime'];
+                const watchFields = ['score1', 'score2', 'status', 'time', 'currentHalf', 'startTime', 'scheduledTime'];
                 watchFields.forEach(function(field) {
                     database.ref('matches/' + matchId + '/' + field).on('value', function(snap) {
                         const val = snap.val();
@@ -409,8 +409,24 @@
                             database.ref('goals').orderByChild('matchId').equalTo(matchId).off();
                         }
 
-                        // Re-render scoreboard on any field change
-                        updateScoreboard(currentMatchData);
+                        // When status becomes 'playing', fetch startTime + currentHalf fresh
+                        // to avoid rendering with stale cached values from before the half started
+                        if (field === 'status' && val === 'playing') {
+                            Promise.all([
+                                database.ref('matches/' + matchId + '/startTime').once('value'),
+                                database.ref('matches/' + matchId + '/currentHalf').once('value'),
+                                database.ref('matches/' + matchId + '/scheduledTime').once('value')
+                            ]).then(function(snaps) {
+                                currentMatchData.startTime    = snaps[0].val();
+                                currentMatchData.currentHalf  = snaps[1].val();
+                                currentMatchData.scheduledTime = snaps[2].val();
+                                renderScoreboard(currentMatchData);
+                            });
+                            return;
+                        }
+
+                        // Re-render using fast path — team data already cached
+                        renderScoreboard(currentMatchData);
                     });
                 });
 
@@ -448,6 +464,8 @@
         // ========================================
         // SCOREBOARD
         // ========================================
+
+        // Called on initial load — fetches team data then renders
         function updateScoreboard(matchData) {
             if (!matchData) {
                 document.getElementById('scoreboard').innerHTML =
@@ -464,18 +482,40 @@
                 const t1Color = (teams[0] && teams[0].color) || matchData.team1Color || '#08399A';
                 const t2Color = (teams[1] && teams[1].color) || matchData.team2Color || '#4A90E2';
 
-                const team1ColorLight = lightenColor(t1Color, 10);
-                const team2ColorLight = lightenColor(t2Color, 10);
+                // Store resolved team visuals on matchData for fast re-renders
+                currentMatchData._t1Logo  = t1Logo;
+                currentMatchData._t2Logo  = t2Logo;
+                currentMatchData._t1Color = t1Color;
+                currentMatchData._t2Color = t2Color;
 
-                document.documentElement.style.setProperty('--team1-color', t1Color);
-                document.documentElement.style.setProperty('--team1-color-light', team1ColorLight);
-                document.documentElement.style.setProperty('--team2-color', t2Color);
-                document.documentElement.style.setProperty('--team2-color-light', team2ColorLight);
+                _applyScoreboardColors(t1Color, t2Color);
+                _renderScoreboardHtml(matchData, t1Logo, t2Logo);
+            });
+        }
 
+        // Called on field updates — uses already-resolved team visuals, no Firebase reads
+        function renderScoreboard(matchData) {
+            if (!matchData) return;
+            const t1Logo  = matchData._t1Logo  || '';
+            const t2Logo  = matchData._t2Logo  || '';
+            const t1Color = matchData._t1Color || '#08399A';
+            const t2Color = matchData._t2Color || '#4A90E2';
+            _applyScoreboardColors(t1Color, t2Color);
+            _renderScoreboardHtml(matchData, t1Logo, t2Logo);
+        }
+
+        function _applyScoreboardColors(t1Color, t2Color) {
+            document.documentElement.style.setProperty('--team1-color', t1Color);
+            document.documentElement.style.setProperty('--team1-color-light', lightenColor(t1Color, 10));
+            document.documentElement.style.setProperty('--team2-color', t2Color);
+            document.documentElement.style.setProperty('--team2-color-light', lightenColor(t2Color, 10));
+        }
+
+        function _renderScoreboardHtml(matchData, t1Logo, t2Logo) {
                 const scoreboardHtml = `
                     <div class="score-container">
                         <div class="team team1">
-                             ${t1Logo ? `<img src="${t1Logo}" class="team-logo" alt="Team 1">` : ''}   
+                            ${t1Logo ? `<img src="${t1Logo}" class="team-logo" alt="Team 1">` : ''}
                             <div class="team-name">${matchData.team1Name}</div>
                         </div>
                         <div class="score">${matchData.score1}</div>
@@ -497,10 +537,6 @@
                 if (matchData.status === 'playing') {
                     timerInterval = setInterval(function() { updateTimer(matchData); }, 100);
                 }
-
-                // Store team colors for goal card rendering
-                currentMatchData = Object.assign(matchData, { _t1Color: t1Color, _t2Color: t2Color });
-            });
         }
 
         function getTimerContent(matchData) {
