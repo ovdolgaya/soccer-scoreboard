@@ -13,11 +13,7 @@
     <script src="firebase-config-widget.js"></script>
     
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             background: transparent;
@@ -27,148 +23,154 @@
 
         .scoreboard {
             background: transparent;
-            border-radius: 15px;
             padding: 10px;
-            box-shadow: none;
-            max-width: 800px;
+            max-width: 700px;
             margin: 0;
-            border: none;
         }
 
+        /* ── Score bar — teams + score as one flush unit ── */
         .score-container {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.5);
+            align-items: stretch;
             border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
         }
 
         .team {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
             flex: 1;
-            padding: 10px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
+            padding: 8px 12px;
+            transition: background 0.3s ease;
         }
 
         .team.team1 {
             background: linear-gradient(135deg, var(--team1-color, #08399A) 0%, var(--team1-color-light, #0a4ab3) 100%);
+            flex-direction: row;          /* name center, logo far left */
+            justify-content: flex-start;
         }
 
         .team.team2 {
             background: linear-gradient(135deg, var(--team2-color, #4A90E2) 0%, var(--team2-color-light, #5ea3f5) 100%);
-        }
-
-        .team.right {
-            flex-direction: row-reverse;
-            text-align: right;
+            flex-direction: row-reverse;  /* name center, logo far right */
+            justify-content: flex-start;
         }
 
         .team-logo {
-            width: 60px;
-            height: 60px;
+            width: 44px;
+            height: 44px;
             object-fit: contain;
             border-radius: 5px;
             background: white;
-            padding: 5px;
+            padding: 3px;
+            flex-shrink: 0;
         }
 
         .team-name {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
             color: white;
             flex: 1;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
         }
 
-        .score {
-            font-size: 48px;
-            font-weight: bold;
-            color: #333;
-            min-width: 60px;
-            text-align: center;
-            padding: 0 15px;
+        /* ── Unified score card ── */
+        .score-card {
+            display: flex;
+            align-items: center;
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 0 14px;
+            flex-shrink: 0;
         }
 
-        .separator {
-            font-size: 36px;
-            color: #999;
-            margin: 0 10px;
-        }
-
-        /* Timer container — goal card matches this height */
-        .timer-container {
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 10px;
-            padding: 15px 20px;
+        .score-num {
+            font-size: 40px;
+            font-weight: 900;
+            color: #1e293b;
+            min-width: 34px;
             text-align: center;
+            line-height: 1;
+        }
+
+        .score-divider {
+            width: 2px;
+            height: 30px;
+            background: #cbd5e1;
+            margin: 0 10px;
+            border-radius: 1px;
+        }
+
+        /* ── Status / timer bar — fixed height, centered, max 400px ── */
+        .timer-container {
+            background: rgba(255,255,255,0.92);
+            border-bottom-right-radius: 10px;
+            border-bottom-left-radius: 10px;
+            height: 44px;
+            max-width: 400px;
+            margin: 0px auto 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 1;
+            transition: opacity 0.25s ease;
         }
 
-        .timer-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 8px;
-            padding: 10px 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            display: inline-block;
+        .timer-container.collapsing {
+            opacity: 0;
         }
 
         .half-indicator {
-            display: inline-block;
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 13px;
+            font-weight: 800;
             color: #667eea;
-            margin-right: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
         }
 
         .timer {
-            display: inline-block;
-            font-size: 32px;
+            font-size: 26px;
             font-weight: bold;
-            color: #333;
+            color: #1e293b;
             font-family: 'Courier New', monospace;
         }
 
         .status-message {
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 13px;
+            font-weight: 700;
             color: #08399A;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
             animation: pulse 1.5s ease-in-out infinite;
         }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
+            50% { opacity: 0.5; }
         }
 
         .waiting-message {
             text-align: center;
             color: white;
-            font-size: 24px;
-            padding: 40px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            font-size: 20px;
+            padding: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
 
         /* =============================================
            GOAL NOTIFICATION CARD
-           Same width as .scoreboard (max-width 800px + 10px side padding).
-           Height = 56px — mirrors .timer-container visual height
-           (15px top padding + ~26px content + 15px bottom padding).
         ============================================= */
 
         #goalNotification {
-            max-width: 800px;
-            padding: 0 10px;        /* mirrors .scoreboard side padding */
+            max-width: 700px;
+            padding: 0 10px;
             margin-top: 0;
             opacity: 0;
             transform: translateY(10px);
@@ -512,31 +514,52 @@
         }
 
         function _renderScoreboardHtml(matchData, t1Logo, t2Logo) {
-                const scoreboardHtml = `
-                    <div class="score-container">
-                        <div class="team team1">
-                            ${t1Logo ? `<img src="${t1Logo}" class="team-logo" alt="Team 1">` : ''}
-                            <div class="team-name">${matchData.team1Name}</div>
-                        </div>
-                        <div class="score">${matchData.score1}</div>
-                        <div class="separator">:</div>
-                        <div class="score">${matchData.score2}</div>
-                        <div class="team team2">
-                            ${t2Logo ? `<img src="${t2Logo}" class="team-logo" alt="Team 2">` : ''}
-                            <div class="team-name">${matchData.team2Name}</div>
-                        </div>
-                    </div>
-                    <div class="timer-container">
-                        ${getTimerContent(matchData)}
-                    </div>
-                `;
+            const prevStatus = _renderScoreboardHtml._prevStatus || null;
+            const newStatus  = getMatchStatus(matchData);
+            const statusChanged = prevStatus !== null && prevStatus !== newStatus;
+            _renderScoreboardHtml._prevStatus = newStatus;
 
-                document.getElementById('scoreboard').innerHTML = scoreboardHtml;
+            const scoreboardHtml = `
+                <div class="score-container">
+                    <div class="team team1">
+                        ${t1Logo ? `<img src="${t1Logo}" class="team-logo" alt="Team 1">` : ''}
+                        <div class="team-name">${matchData.team1Name}</div>
+                    </div>
+                    <div class="score-card">
+                        <span class="score-num">${matchData.score1}</span>
+                        <div class="score-divider"></div>
+                        <span class="score-num">${matchData.score2}</span>
+                    </div>
+                    <div class="team team2">
+                        ${t2Logo ? `<img src="${t2Logo}" class="team-logo" alt="Team 2">` : ''}
+                        <div class="team-name">${matchData.team2Name}</div>
+                    </div>
+                </div>
+                <div class="timer-container" id="timerBar">
+                    ${getTimerContent(matchData)}
+                </div>
+            `;
 
-                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-                if (matchData.status === 'playing') {
-                    timerInterval = setInterval(function() { updateTimer(matchData); }, 100);
+            document.getElementById('scoreboard').innerHTML = scoreboardHtml;
+
+            // Animate status bar when status changes
+            if (statusChanged) {
+                const bar = document.getElementById('timerBar');
+                if (bar) {
+                    bar.classList.add('collapsing');
+                    setTimeout(function() {
+                        if (bar) {
+                            bar.innerHTML = getTimerContent(matchData);
+                            bar.classList.remove('collapsing');
+                        }
+                    }, 350);
                 }
+            }
+
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+            if (matchData.status === 'playing') {
+                timerInterval = setInterval(function() { updateTimer(matchData); }, 100);
+            }
         }
 
         function getTimerContent(matchData) {
