@@ -50,12 +50,14 @@
             background: linear-gradient(135deg, var(--team1-color, #08399A) 0%, var(--team1-color-light, #0a4ab3) 100%);
             flex-direction: row;          /* name center, logo far left */
             justify-content: flex-start;
+            min-width: 200px;
         }
 
         .team.team2 {
             background: linear-gradient(135deg, var(--team2-color, #4A90E2) 0%, var(--team2-color-light, #5ea3f5) 100%);
             flex-direction: row-reverse;  /* name center, logo far right */
             justify-content: flex-start;
+            min-width: 200px;
         }
 
         .team-logo {
@@ -74,9 +76,11 @@
             color: white;
             flex: 1;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
-            white-space: nowrap;
             overflow: hidden;
-            text-overflow: ellipsis;
+            display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+            line-height: 1.2;
             text-align: center;
         }
 
@@ -148,7 +152,7 @@
             color: #08399A;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            animation: pulse 1.5s ease-in-out infinite;
+            animation: pulse 3s ease-in-out infinite;
         }
 
         @keyframes pulse {
