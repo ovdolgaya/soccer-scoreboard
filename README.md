@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: April 1, 2026 (Session 7)
+## Last Updated: April 6, 2026 (Session 8)
 
 ---
 
@@ -23,7 +23,7 @@
 | `championships.html` | Championships (tabs: Чемпионаты / Управление) |
 | `match-helpers.js` | **Shared** date formatting, sort logic, status constants |
 | `match-management.js` | Match list rendering, dashboard, pagination, goals stats |
-| `match-control.js` | Score/time control, match thumbnail generator, roster download |
+| `match-control.js` | Score/time control, match thumbnail generator, roster download, clip markers |
 | `match-edit-modal.js` | Unified create/edit match modal |
 | `auth.js` | Firebase auth, login/logout, view switching |
 | `nav.js` | Shared navigation bar (injected into all pages) |
@@ -53,6 +53,7 @@
 - Goal removal modal
 - **Retroactive goal entry** — ended matches show "Добавить гол" in goals stats section; saves with `retroactive: true`, no time/half; appears under "Добавлено вручную" separator
 - Resources panel: scoreboard link, match thumbnail, roster thumbnail, stats widget link
+- **📍 Clip markers** — yellow button in time controls, visible only while playing; saves `{ matchId, timestamp, matchTime, half }` to Firebase `/clips`; table of saved moments shown in cockpit with delete option
 
 ### Firebase Bandwidth Optimisation
 All pages use page-level session caches to avoid re-downloading data. Key principle: **never store base64 photos/logos in display-only caches, and never store logos in match records**.
@@ -108,8 +109,11 @@ All pages use page-level session caches to avoid re-downloading data. Key princi
 
 ### Streaming Widgets
 - **`widget.html`** — live scoreboard overlay for OBS; real-time score + timer + goal scorer notification card (5s):
+  - Card **replaces the timer bar** for 5s (crossfade), then timer fades back in
+  - Positioned via `getBoundingClientRect()` — pixel-perfect regardless of scoreboard state
   - Without assists: 56px card — `#N | Гол! / LASTNAME | ⚽`
   - With assists: 76px card — scorer row + `👟 #7 ИВАНОВ · #11 ПЕТРОВ` assist line below
+  - Card style: bottom-radius only, matching timer bar shape
 - **`goals-widget.html`** — goal statistics overlay; table (≤10 goals) or card grid (>10):
   - Table: ⚽ icon hidden; assist chips show white number badge + white uppercase last name on translucent pill
   - Cards: `👟 N` assist badge shown only if player has ≥1 assist; players with 0 goals not shown
@@ -127,7 +131,7 @@ All pages use page-level session caches to avoid re-downloading data. Key princi
 | Background | Radial gradient `#1947BA` → `#0033A0` | Page/canvas background |
 | Card background | `#0d1b3e` | Player/coach cards |
 | Primary accent | `#1947BA` | Player card top line |
-| Coach accent | `#FCDC00` yellow | Coach card top line, number badges |
+| Coach accent | `#FCDC00` yellow | Coach card top line, number badges, clip marker button |
 | Footer gradient | transparent → `#0033A0` | Card footer overlay |
 | On-surface | `#d4e3ff` | Last name text |
 | On-surface muted | `rgba(166,200,255,0.65)` | First name text |
@@ -258,24 +262,27 @@ Must load **before** `match-management.js` and before the inline script in `cham
   title, logo     ← base64
   isPassed        ← bool, default false; true = hidden from match form
   createdAt, updatedAt
+
+/clips/{clipId}
+  matchId
+  timestamp       ← ms epoch
+  matchTime       ← HH:MM:SS elapsed time within the half
+  half            ← 1 or 2
 ```
 
 ---
 
 ## 🔐 FIREBASE RULES
 
-```json
-{
-  "rules": {
-    "matches":       { ".read": true,           ".write": "auth != null" },
-    "goals":         { ".read": true,           ".write": "auth != null" },
-    "players":       { ".read": "auth != null", ".write": "auth != null" },
-    "teams":         { ".read": "auth != null", ".write": "auth != null" },
-    "coaches":       { ".read": "auth != null", ".write": "auth != null" },
-    "championships": { ".read": "auth != null", ".write": "auth != null" }
-  }
-}
+See `FIREBASE_SETUP.md` for full rules with validation. Summary:
+
 ```
+matches, goals, players  — public read, auth write
+teams, coaches, championships, settings — auth read/write
+clips                    — auth read/write (private, not needed by widgets)
+```
+
+Indexes: `goals` on `[matchId, teamId, timestamp]`; `clips` on `[matchId, timestamp]`; `players` on `teamId`
 
 ---
 
@@ -291,11 +298,14 @@ Must load **before** `match-management.js` and before the inline script in `cham
 
 ## ⚽ GOAL SCORER NOTIFICATION (`widget.html`)
 
-Shows a card below the scoreboard for 5 seconds on new goal:
+Overlays the timer bar for 5 seconds on new goal, then crossfades back to timer:
 - Home player (no assists): 56px card — `#number | Гол! / LASTNAME | ⚽`
 - Home player (with assists): 76px card — scorer row + `👟 #7 ИВАНОВ · #11 ПЕТРОВ`
 - Opponent goal: team color card with team name
 - Own goal: grey card labelled "Автогол"
+- Card style matches timer bar: bottom-radius only, same 400px width, same shadow
+
+**Key implementation:** `#goalNotification` lives outside `#scoreboard` (re-renders can't destroy it). Position set via `getBoundingClientRect()` on `#timerBar` at goal time. `notifVisible` flag re-applies `.collapsing` to new `#timerBar` after every scoreboard re-render while card is showing.
 
 Uses `database.ref('goals').on('child_added')` with initial-load guard. Scorer and all assist players fetched in parallel from `playersCache` before rendering.
 
@@ -347,6 +357,15 @@ Uses `database.ref('goals').on('child_added')` with initial-load guard. Scorer a
 - [ ] Championship thumbnail: card grid ≤15, table >15
 - [ ] Goals widget: player photos contained, no cropping, white background
 - [ ] Widget timer: no negative display, no freeze after goal
+- [ ] **widget.html: goal card overlays timer bar (not below scoreboard)**
+- [ ] **widget.html: timer reappears correctly after 5s**
+- [ ] **widget.html: rapid goals don't leave timer permanently hidden**
+- [ ] **Clip marker: 📍 button appears instantly on match start**
+- [ ] **Clip marker: button hidden instantly on stop half / end match**
+- [ ] **Clip marker: tapping button flashes confirmation with time**
+- [ ] **Clip marker: clips table appears in cockpit after first save**
+- [ ] **Clip marker: delete clip removes from Firebase and table**
+- [ ] **Championship thumbnail: undated matches sort to end of list**
 - [ ] Nav bar on all pages, active state correct, mobile menu works
 - [ ] PWA installs correctly on Android
 - [ ] **Firebase cache: index.html load — match list downloads once, no logos in match records**
@@ -374,15 +393,16 @@ Uses `database.ref('goals').on('child_added')` with initial-load guard. Scorer a
 
 **Planned features:**
 1. Assist tracking in retroactive goal modal (currently goals-only; assists can be added via picker after the fact)
-2. Assist info in goals-widget.html card layout (currently only badge count; could show names)
-3. Opponent goal tracking — opponent roster or number input
-4. Substitutions — player in/out with time
-5. Yellow/red cards — same modal pattern as goals
-6. Championship standings table — auto-calculated points/wins/draws/losses
-7. Second stats widget variant — both teams side-by-side
-8. Goal times in stats widget — stored already; remove `display:none` from `.player-times` in `goals-widget.html`
-9. Match notes / venue field
-10. Export match report (PDF)
+2. Clip markers review page — dedicated page listing all clips per match with video timestamps for coach review (data already saved to `/clips`)
+3. Assist info in goals-widget.html card layout (currently only badge count; could show names)
+4. Opponent goal tracking — opponent roster or number input
+5. Substitutions — player in/out with time
+6. Yellow/red cards — same modal pattern as goals
+7. Championship standings table — auto-calculated points/wins/draws/losses
+8. Second stats widget variant — both teams side-by-side
+9. Goal times in stats widget — stored already; remove `display:none` from `.player-times` in `goals-widget.html`
+10. Match notes / venue field
+11. Export match report (PDF)
 
 ---
 
