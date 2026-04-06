@@ -758,9 +758,10 @@ function generateChampThumbnail(champTitle, btn) {
     btn.disabled = true;
 
     const matches = group.matches.slice().sort(function(a, b) {
-        // Unified sort key — always returns a comparable value:
-        // scheduledTime (ms number) > matchDate ("YYYY-MM-DD") > createdAt (ms number)
-        // Convert matchDate to a timestamp so everything is numeric and comparable.
+        // Unified sort key:
+        // 1. Matches with a known date/time sort ascending (earliest first).
+        // 2. Matches without any scheduled date (status 'scheduled' with no date,
+        //    i.e. "Дата уточняется") always go to the very end, ordered by createdAt.
         function key(m) {
             if (m.scheduledTime) return m.scheduledTime;
             if (m.matchDate) {
@@ -768,9 +769,15 @@ function generateChampThumbnail(champTitle, btn) {
                 const p = m.matchDate.split('-');
                 return new Date(+p[0], +p[1] - 1, +p[2]).getTime();
             }
-            return m.createdAt || 0;
+            // No date at all — push to end; use createdAt as a tiebreaker within this group
+            return Infinity;
         }
-        return key(a) - key(b);  // ascending — earliest first
+        const ka = key(a), kb = key(b);
+        if (ka === Infinity && kb === Infinity) {
+            // Both undated — sort by creation time so order is stable
+            return (a.createdAt || 0) - (b.createdAt || 0);
+        }
+        return ka - kb;  // ascending — earliest first
     });
 
     // Collect unique logo URLs — resolve from teams cache first, fall back to embedded

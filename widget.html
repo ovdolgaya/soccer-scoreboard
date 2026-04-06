@@ -117,7 +117,7 @@
             border-bottom-left-radius: 10px;
             height: 44px;
             max-width: 400px;
-            margin: 0px auto 0;
+            margin: 0 auto;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -170,16 +170,19 @@
 
         /* =============================================
            GOAL NOTIFICATION CARD
+           — fixed position, coordinates set by JS to
+             match the timer bar location exactly      —
         ============================================= */
 
         #goalNotification {
-            max-width: 700px;
-            padding: 0 10px;
-            margin-top: 0;
+            position: fixed;
+            width: 400px;
             opacity: 0;
-            transform: translateY(10px);
             pointer-events: none;
+            transform: translateY(6px);
             transition: opacity 0.4s ease, transform 0.4s ease;
+            z-index: 10;
+            /* top/left set dynamically by positionGoalCard() */
         }
 
         #goalNotification.visible {
@@ -189,14 +192,14 @@
 
         #goalNotification.hiding {
             opacity: 0;
-            transform: translateY(8px);
-            transition: opacity 0.5s ease, transform 0.5s ease;
+            transform: translateY(6px);
         }
 
         .goal-card {
-            border-radius: 10px;
+            border-bottom-right-radius: 10px;
+            border-bottom-left-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
         .goal-card-inner {
@@ -328,8 +331,8 @@
             Загрузка...
         </div>
     </div>
-
-    <!-- Lives outside #scoreboard so re-renders don't destroy the card -->
+    <!-- Lives outside #scoreboard so re-renders never destroy it.
+         Negative margin pulls it up to overlap the timer bar slot. -->
     <div id="goalNotification"></div>
 
     <script>
@@ -343,6 +346,8 @@
         // Notification timers
         let notifTimeout     = null;
         let notifHideTimeout = null;
+        // True while a goal card is displayed — survives scoreboard re-renders
+        let notifVisible     = false;
 
         // Player cache
         let playersCache = {};
@@ -545,6 +550,11 @@
             `;
 
             document.getElementById('scoreboard').innerHTML = scoreboardHtml;
+            // Re-apply timer-hidden state if a goal card is currently visible
+            if (notifVisible) {
+                const bar = document.getElementById('timerBar');
+                if (bar) bar.classList.add('collapsing');
+            }
 
             // Animate status bar when status changes
             if (statusChanged) {
@@ -554,7 +564,8 @@
                     setTimeout(function() {
                         if (bar) {
                             bar.innerHTML = getTimerContent(matchData);
-                            bar.classList.remove('collapsing');
+                            // Only un-hide if no goal card is showing
+                            if (!notifVisible) bar.classList.remove('collapsing');
                         }
                     }, 350);
                 }
@@ -738,10 +749,25 @@
         // ========================================
         // RENDER + ANIMATE
         // ========================================
-        function renderNotification(cardHtml, teamColor) {
-            const el = document.getElementById('goalNotification');
 
-            // Cancel any in-progress hide
+        // Position the goal card to sit exactly over the timer bar.
+        // Uses getBoundingClientRect so it works regardless of scoreboard height.
+        function positionGoalCard() {
+            const el  = document.getElementById('goalNotification');
+            const bar = document.getElementById('timerBar');
+            if (!el) return;
+            if (bar) {
+                const r = bar.getBoundingClientRect();
+                el.style.top  = r.top  + 'px';
+                el.style.left = (r.left + r.width / 2 - 200) + 'px'; // center 400px card
+            }
+        }
+
+        function renderNotification(cardHtml, teamColor) {
+            const el  = document.getElementById('goalNotification');
+            if (!el) return;
+
+            // Cancel any in-progress timers
             if (notifTimeout)     { clearTimeout(notifTimeout);     notifTimeout     = null; }
             if (notifHideTimeout) { clearTimeout(notifHideTimeout); notifHideTimeout = null; }
 
@@ -751,22 +777,28 @@
             el.classList.remove('visible', 'hiding');
             el.style.transition = 'none';
             el.innerHTML = cardHtml;
+            void el.offsetHeight; // force reflow
 
-            // Force reflow so browser registers the hidden state
-            void el.offsetHeight;
-
-            // Now animate in
+            // Position card over the timer bar, then show it
+            positionGoalCard();
+            notifVisible = true;
+            const bar = document.getElementById('timerBar');
+            if (bar) bar.classList.add('collapsing');
             el.style.transition = '';
             el.classList.add('visible');
 
-            // After 5s, fade out
+            // After 5s, reverse: goal card fades out, timer comes back
             notifTimeout = setTimeout(function() {
                 el.classList.remove('visible');
                 el.classList.add('hiding');
+                const bar2 = document.getElementById('timerBar');
+                if (bar2) bar2.classList.remove('collapsing');
+
                 notifHideTimeout = setTimeout(function() {
+                    notifVisible = false;
                     el.classList.remove('hiding');
                     el.innerHTML = '';
-                }, 600);
+                }, 500);
             }, 5000);
         }
     </script>
