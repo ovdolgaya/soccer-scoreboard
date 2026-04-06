@@ -64,6 +64,9 @@ function startHalf(half) {
             document.getElementById('endMatchBtn').classList.remove('hidden');
 
             currentHalf = half;
+
+            // Show clip marker button immediately
+            updateClipMarkerBtn('playing');
             
             // Start timer sync (updates every 10 seconds)
             startTimerSync();
@@ -132,6 +135,9 @@ function stopHalf(half) {
         
         // Update buttons
         document.getElementById('stopHalf' + half + 'Btn').classList.add('hidden');
+
+        // Hide clip marker button immediately
+        updateClipMarkerBtn('half' + half + '_ended');
         
         if (half === 1) {
             document.getElementById('startHalf2Btn').classList.remove('hidden');
@@ -217,6 +223,9 @@ function endMatch() {
         document.getElementById('stopHalf2Btn').classList.add('hidden');
         document.getElementById('startHalf2Btn').classList.add('hidden');
         document.getElementById('endMatchBtn').classList.add('hidden');
+
+        // Hide clip marker button immediately
+        updateClipMarkerBtn('ended');
     });
 }
 
@@ -460,3 +469,114 @@ function generateThumbnail() {
     }
 }
 
+
+// ========================================
+// CLIP MARKERS
+// ========================================
+
+// Show/hide the 📍 button based on match status.
+// Called from match-management.js whenever the cockpit is rendered.
+function updateClipMarkerBtn(status) {
+    const btn = document.getElementById('clipMarkerBtn');
+    if (!btn) return;
+    btn.style.display = (status === 'playing') ? 'block' : 'none';
+}
+
+// Save a clip marker at the current match time to Firebase under /clips
+function saveClipMarker() {
+    if (!matchId) return;
+
+    database.ref('matches/' + matchId).once('value').then(function(snap) {
+        const match = snap.val();
+        if (!match || match.status !== 'playing') return;
+
+        const elapsed  = Math.max(0, Date.now() - match.startTime);
+        const totalSec = Math.floor(elapsed / 1000);
+        const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+        const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+        const s = String(totalSec % 60).padStart(2, '0');
+        const matchTime = h + ':' + m + ':' + s;
+
+        const clip = {
+            matchId:   matchId,
+            timestamp: Date.now(),
+            matchTime: matchTime,
+            half:      match.currentHalf || 1
+        };
+
+        database.ref('clips').push(clip).then(function() {
+            // Flash button feedback
+            const btn = document.getElementById('clipMarkerBtn');
+            if (btn) {
+                btn.textContent = '✓ Сохранено ' + matchTime;
+                btn.style.opacity = '0.7';
+                setTimeout(function() {
+                    btn.innerHTML = '📍 Отметить момент';
+                    btn.style.opacity = '1';
+                }, 1500);
+            }
+            loadClips();
+        });
+    });
+}
+
+// Load and render all clips for the current match
+function loadClips() {
+    if (!matchId) return;
+
+    database.ref('clips').orderByChild('matchId').equalTo(matchId)
+        .once('value').then(function(snap) {
+            const clips = [];
+            snap.forEach(function(child) {
+                clips.push({ id: child.key, ...child.val() });
+            });
+
+            // Sort by timestamp ascending
+            clips.sort(function(a, b) { return a.timestamp - b.timestamp; });
+
+            const section = document.getElementById('clipsSection');
+            const body    = document.getElementById('clipsBody');
+            const count   = document.getElementById('clipsCount');
+
+            if (!section || !body) return;
+
+            if (clips.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            if (count) count.textContent = clips.length + ' шт.';
+
+            body.innerHTML = clips.map(function(c) {
+                const halfLabel = c.half === 1 ? '1 тайм' : '2 тайм';
+                const ts = new Date(c.timestamp);
+                const saved = String(ts.getHours()).padStart(2,'0') + ':' +
+                              String(ts.getMinutes()).padStart(2,'0');
+                return '<div style="display:flex; align-items:center; gap:12px; padding:10px 20px;' +
+                       'border-bottom:1px solid #f1f5f9;">' +
+                    '<div style="background:#ede9fe; color:#7c3aed; border-radius:8px;' +
+                    '            padding:4px 10px; font-size:13px; font-weight:700; flex-shrink:0;">' +
+                        c.matchTime +
+                    '</div>' +
+                    '<div style="background:#f1f5f9; color:#64748b; border-radius:6px;' +
+                    '            padding:3px 8px; font-size:12px; font-weight:600; flex-shrink:0;">' +
+                        halfLabel +
+                    '</div>' +
+                    '<div style="flex:1; font-size:12px; color:#94a3b8;">сохранено в ' + saved + '</div>' +
+                    '<button onclick="deleteClip(\'' + c.id + '\')"' +
+                    '        style="background:none; border:none; color:#cbd5e1; font-size:16px;' +
+                    '               cursor:pointer; padding:4px 6px; border-radius:6px;' +
+                    '               transition:color .15s;" ' +
+                    '        onmouseover="this.style.color=\'#ef4444\'" ' +
+                    '        onmouseout="this.style.color=\'#cbd5e1\'">✕</button>' +
+                '</div>';
+            }).join('');
+        });
+}
+
+function deleteClip(clipId) {
+    database.ref('clips/' + clipId).remove().then(function() {
+        loadClips();
+    });
+}

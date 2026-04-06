@@ -388,6 +388,10 @@ function updateButtonStates(match) {
         // Second half ended, show end match button
         document.getElementById('endMatchBtn').classList.remove('hidden');
     }
+
+    // Show/hide clip marker button + load existing clips
+    if (typeof updateClipMarkerBtn === 'function') updateClipMarkerBtn(actualStatus);
+    if (typeof loadClips === 'function') loadClips();
 }
 
 // ========================================
