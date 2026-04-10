@@ -345,7 +345,7 @@ function generateThumbnail() {
                 ctx.font         = `bold ${Math.round(52 * SCALE)}px Calibri, sans-serif`;
                 ctx.textAlign    = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(champTitle || 'ФУТБОЛ', W / 2, headerH / 2);
+                ctx.fillText(champTitle || 'ТОВАРИЩЕСКИЙ МАТЧ', W / 2, headerH / 2);
 
                 // ── Load team logos then draw body ──
                 const toLoad = [];
