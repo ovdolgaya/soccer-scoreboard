@@ -30,8 +30,14 @@ function _invalidateTeamsCache() {
     _teamsCache = null;
 }
 
+// Safe wrapper — rosterCacheClear lives in roster-thumbnail-helper.js.
+// Guard prevents ReferenceError if script load order ever changes.
+function _safeRosterCacheClear(teamId) {
+    if (typeof rosterCacheClear === 'function') rosterCacheClear(teamId);
+}
+
 // Clear page-level player + coach caches for a team.
-// Call this alongside rosterCacheClear() at every save/delete point.
+// Call this alongside _safeRosterCacheClear() at every save/delete point.
 function _clearPageCaches(teamId) {
     if (teamId) {
         delete _playersPageCache[teamId];
@@ -574,7 +580,7 @@ function savePlayerToFirebase(playerData, saveBtn) {
     playerRef.set(playerData)
         .then(() => {
             console.log('Player saved successfully');
-            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — roster changed
+            _safeRosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — roster changed
             alert(editingPlayerId ? 'Игрок обновлен!' : 'Игрок добавлен!');
             cancelAddPlayer();
             loadPlayers();
@@ -649,7 +655,7 @@ function deletePlayer(playerId) {
     })
         .then(() => {
             console.log('Player soft-deleted:', playerId);
-            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — roster changed
+            _safeRosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — roster changed
             showToast('Игрок удалён');
             allPlayers = allPlayers.filter(p => p.id !== playerId);
             displayPlayers();
@@ -674,7 +680,7 @@ function togglePlayerStatus(playerId) {
     })
         .then(() => {
             console.log('Player status updated:', playerId, newStatus);
-            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — absent status affects thumbnail
+            _safeRosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — absent status affects thumbnail
             loadPlayers();
         })
         .catch((error) => {
@@ -838,7 +844,7 @@ function saveCoachToFirebase(coachData) {
     firebase.database().ref('coaches/' + currentDefaultTeam).set(coachData)
         .then(() => {
             console.log('Coach saved successfully');
-            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — coach changed
+            _safeRosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — coach changed
             alert('Тренер сохранен!');
             currentCoachData = coachData;
             displayCoach();
@@ -985,7 +991,7 @@ function saveBadgeIconsToFirebase(updates) {
     firebase.database().ref('teams/' + currentDefaultTeam).update(updates)
         .then(() => {
             console.log('Badge icons saved successfully');
-            rosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — team badges changed
+            _safeRosterCacheClear(currentDefaultTeam); _clearPageCaches(currentDefaultTeam);  // invalidate cache — team badges changed
             alert('Иконки значков сохранены!');
             if (updates.goalkeeperBadge)  currentDefaultTeamData.goalkeeperBadge  = updates.goalkeeperBadge;
             if (updates.fieldPlayerBadge) currentDefaultTeamData.fieldPlayerBadge = updates.fieldPlayerBadge;
