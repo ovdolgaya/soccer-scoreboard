@@ -73,7 +73,7 @@
             display: flex;
             align-items: stretch;
             justify-content: center;
-            padding: 80px 120px;
+            padding: 30px 40px;
         }
 
         .bw-stats-box {
@@ -280,7 +280,7 @@
             left: 50%;
             bottom: 60px;
             right: unset;
-            transform: translateX(-50%) scale(1.7);
+            transform: translateX(-50%) scale(2.0);
             transform-origin: bottom center;
         }
 
@@ -1046,7 +1046,7 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
     </div>
     <div class="bw-stats-content">`;
 
-    const useTable = goals.length <= 10;
+    const useTable = goals.length <= 7;
     if (useTable) {
         html += '<table class="bw-goals-table">';
         let lastHalf = null;
