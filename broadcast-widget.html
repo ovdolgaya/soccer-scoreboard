@@ -215,8 +215,7 @@
             background: rgba(255,255,255,0.93);
             border-radius: 28px; height: 220px;
             display: flex; align-items: stretch;
-            box-shadow: 0 6px 32px rgba(0,0,0,0.25),
-                        inset 0 10px 0 0 var(--bw-team-color, #08399A);
+            border-left: 6px solid #FCDC00;
             overflow: hidden;
             animation: bwCardIn 0.4s ease both;
             position: relative;
@@ -610,6 +609,7 @@ function bwHideScore() {
 function bwScoreToTopLeft() {
     bwScoreLayer.classList.remove('bw-pos-bottom');
     bwScoreLayer.classList.add('bw-pos-topleft');
+    bwShowScore(); // always ensure visible when moving to top-left
 }
 
 function bwScoreToBottom() {
@@ -1343,15 +1343,18 @@ async function bwOnStatusChange(newStatus, matchData) {
         if (half === 1 && !bwHalf1Sequence) {
             bwHalf1Sequence = true;
             await bwHalfStartSequence(1);
+            bwScoreToTopLeft(); // guarantee top-left + visible after sequence
         } else if (half === 2 && !bwHalf2Sequence) {
             bwHalf2Sequence = true;
-            // Hide the half-break thumbnail instantly before sequence starts
             bwHideCanvasInstant();
             await bwHalfStartSequence(2);
+            bwScoreToTopLeft(); // guarantee top-left + visible after sequence
+        } else if (!bwHalf1Sequence || !bwHalf2Sequence) {
+            // sequence already running — just ensure score is visible
+        } else {
+            // normal playing state — score should be top-left and visible
+            bwScoreToTopLeft();
         }
-
-        // Ensure score is top-left during play (if not in the middle of a sequence)
-        // The sequence ends by calling bwScoreToTopLeft(), so this is just a safety net
     }
 
     if (newStatus === 'half1_ended' && !bwHalf1EndDone) {
