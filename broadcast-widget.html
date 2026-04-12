@@ -16,8 +16,8 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         html, body {
-            width: 2560px;
-            height: 1440px;
+            width: 1920px;
+            height: 1080px;
             overflow: hidden;
             background: transparent;
             font-family: 'Lexend', Calibri, sans-serif;
@@ -28,8 +28,8 @@
         ══════════════════════════════════════════════════ */
         #bw-stage {
             position: relative;
-            width: 2560px;
-            height: 1440px;
+            width: 1920px;
+            height: 1080px;
             overflow: hidden;
         }
 
@@ -39,8 +39,8 @@
         .bw-layer {
             position: absolute;
             inset: 0;
-            width: 2560px;
-            height: 1440px;
+            width: 1920px;
+            height: 1080px;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.7s ease;
@@ -49,17 +49,21 @@
 
         /* ══════════════════════════════════════════════════
            LAYER 1 — FULL-SCREEN CANVAS (match / roster thumbnail)
+           Canvas renders at 1920×1080 matching the page size
         ══════════════════════════════════════════════════ */
         #bw-canvas-layer {
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        #bw-canvas-layer canvas,
+        #bw-canvas-layer canvas {
+            width: 1920px;
+            height: 1080px;
+        }
         #bw-canvas-layer img {
-            width: 2560px;
-            height: 1440px;
-            object-fit: cover;
+            width: 1920px;
+            height: 1080px;
+            object-fit: contain;
         }
 
         /* ══════════════════════════════════════════════════
@@ -253,64 +257,83 @@
 
         /* ══════════════════════════════════════════════════
            LAYER 3 — SCORE WIDGET
-           Two states: top-left (default) and bottom-center
+           Fixed pixel sizes for 1920×1080 display
+           Top-left: compact (600px wide)
+           Bottom-center: large announcement (900px wide)
         ══════════════════════════════════════════════════ */
         #bw-score-layer {
-            /* Override: not full-screen, positioned by state classes */
             inset: unset;
             width: auto;
             height: auto;
             background: transparent;
-            transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.34,1.3,0.64,1), top 0.6s ease, left 0.6s ease, bottom 0.6s ease, right 0.6s ease;
+            transition: opacity 0.6s ease, top 0.6s cubic-bezier(0.34,1.3,0.64,1), left 0.6s cubic-bezier(0.34,1.3,0.64,1), bottom 0.6s cubic-bezier(0.34,1.3,0.64,1);
         }
 
-        /* Top-left (normal playing position) */
+        /* ── TOP-LEFT: compact scoreboard ── */
         #bw-score-layer.bw-pos-topleft {
-            top: 30px;
-            left: 30px;
+            top: 24px;
+            left: 24px;
             bottom: unset;
             right: unset;
-            transform: scale(1);
-            transform-origin: top left;
         }
+        #bw-score-layer.bw-pos-topleft .score-container { width: 580px; }
+        #bw-score-layer.bw-pos-topleft .team { width: 220px; flex: none; padding: 8px 12px; }
+        #bw-score-layer.bw-pos-topleft .team-logo { width: 44px; height: 44px; }
+        #bw-score-layer.bw-pos-topleft .team-name { font-size: 18px; }
+        #bw-score-layer.bw-pos-topleft .score-num { font-size: 38px; min-width: 32px; }
+        #bw-score-layer.bw-pos-topleft .score-divider { height: 28px; }
+        #bw-score-layer.bw-pos-topleft .score-card { padding: 0 12px; }
+        #bw-score-layer.bw-pos-topleft .timer-container { height: 38px; font-size: 12px; }
+        #bw-score-layer.bw-pos-topleft .half-indicator { font-size: 12px; }
+        #bw-score-layer.bw-pos-topleft .timer { font-size: 22px; }
+        #bw-score-layer.bw-pos-topleft .status-message { font-size: 12px; }
 
-        /* Bottom-center (half-start, after-goal, half-end announcements) */
+        /* ── BOTTOM-CENTER: large announcement scoreboard ── */
         #bw-score-layer.bw-pos-bottom {
             top: unset;
             left: 50%;
-            bottom: 80px;
+            bottom: 60px;
             right: unset;
-            transform: translateX(-50%) scale(1.9);
-            transform-origin: bottom center;
+            transform: translateX(-50%);
+        }
+        #bw-score-layer.bw-pos-bottom .score-container { width: 900px; }
+        #bw-score-layer.bw-pos-bottom .team { width: 340px; flex: none; padding: 14px 20px; }
+        #bw-score-layer.bw-pos-bottom .team-logo { width: 72px; height: 72px; border-radius: 10px; }
+        #bw-score-layer.bw-pos-bottom .team-name { font-size: 32px; }
+        #bw-score-layer.bw-pos-bottom .score-num { font-size: 70px; min-width: 60px; }
+        #bw-score-layer.bw-pos-bottom .score-divider { height: 50px; margin: 0 16px; }
+        #bw-score-layer.bw-pos-bottom .score-card { padding: 0 20px; }
+        /* Timer always hidden in bottom position */
+        #bw-score-layer.bw-pos-bottom .timer-container {
+            opacity: 0; height: 0; overflow: hidden; pointer-events: none;
         }
 
-        /* ── Scoreboard — exact copy from widget.html ── */
+        /* ── Base scoreboard styles (shared) ── */
         .score-container {
             display: flex;
             align-items: stretch;
             border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.35);
         }
         .team {
             display: flex; align-items: center; gap: 10px;
-            flex: 1; padding: 8px 12px;
             transition: background 0.3s ease;
         }
         .team.team1 {
             background: linear-gradient(135deg, var(--team1-color, #08399A) 0%, var(--team1-color-light, #0a4ab3) 100%);
-            flex-direction: row; justify-content: flex-start; min-width: 200px;
+            flex-direction: row; justify-content: flex-start;
         }
         .team.team2 {
             background: linear-gradient(135deg, var(--team2-color, #4A90E2) 0%, var(--team2-color-light, #5ea3f5) 100%);
-            flex-direction: row-reverse; justify-content: flex-start; min-width: 200px;
+            flex-direction: row-reverse; justify-content: flex-start;
         }
         .team-logo {
             width: 44px; height: 44px; object-fit: contain;
             border-radius: 5px; background: white; padding: 3px; flex-shrink: 0;
         }
         .team-name {
-            font-size: 20px; font-weight: bold; color: white; flex: 1;
+            font-size: 18px; font-weight: bold; color: white; flex: 1;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
             overflow: hidden; display: -webkit-box;
             -webkit-line-clamp: 2; -webkit-box-orient: vertical;
@@ -331,27 +354,23 @@
         .timer-container {
             background: rgba(255,255,255,0.92);
             border-bottom-right-radius: 10px; border-bottom-left-radius: 10px;
-            height: 44px; max-width: 400px; margin: 0 auto;
+            height: 38px; width: 300px; margin: 0 auto;
             display: flex; justify-content: center; align-items: center; gap: 10px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             opacity: 1; transition: opacity 0.25s ease;
         }
         .timer-container.bw-hidden { opacity: 0; height: 0; overflow: hidden; }
-        /* Always hide timer when score widget is in bottom-center position */
-        #bw-score-layer.bw-pos-bottom .timer-container {
-            opacity: 0; height: 0; overflow: hidden; pointer-events: none;
-        }
         .timer-container.collapsing { opacity: 0; }
         .half-indicator {
-            font-size: 13px; font-weight: 800; color: #667eea;
+            font-size: 12px; font-weight: 800; color: #667eea;
             text-transform: uppercase; letter-spacing: 0.06em;
         }
         .timer {
-            font-size: 26px; font-weight: bold; color: #1e293b;
+            font-size: 22px; font-weight: bold; color: #1e293b;
             font-family: 'Courier New', monospace;
         }
         .status-message {
-            font-size: 13px; font-weight: 700; color: #08399A;
+            font-size: 12px; font-weight: 700; color: #08399A;
             text-transform: uppercase; letter-spacing: 0.08em;
             animation: pulse 3s ease-in-out infinite;
         }
@@ -391,7 +410,7 @@
         #bw-goal-notif {
             position: fixed;
             left: 50%;
-            bottom: 80px;
+            bottom: 60px;
             transform: translateX(-50%);
             z-index: 9999;
             pointer-events: none;
@@ -464,7 +483,7 @@
 
     <!-- LAYER 1: Full-screen canvas / image display -->
     <div id="bw-canvas-layer" class="bw-layer">
-        <canvas id="bw-canvas" width="2560" height="1440"></canvas>
+        <canvas id="bw-canvas" width="1920" height="1080"></canvas>
     </div>
 
     <!-- LAYER 2: Stats overlay -->
@@ -635,7 +654,7 @@ function bwDrawMatchThumb(matchData, showScore, callback) {
     function drawAll(champLogoImg, t1, t2) {
         const canvas = bwCanvas;
         const ctx    = bwCtx;
-        const W = 2560, H = 1440;
+        const W = 1920, H = 1080;
         canvas.width = W; canvas.height = H;
         const SCALE = W / 1280;
 
@@ -826,7 +845,7 @@ function bwShowCachedImage(url) {
     if (!img) {
         img = document.createElement('img');
         img.id = 'bw-canvas-img';
-        img.style.cssText = 'width:2560px;height:1440px;object-fit:cover;position:absolute;inset:0;';
+        img.style.cssText = 'width:1920px;height:1080px;object-fit:cover;position:absolute;inset:0;';
         bwCanvasLayer.appendChild(img);
     }
     img.src = url;
