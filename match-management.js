@@ -388,10 +388,6 @@ function updateButtonStates(match) {
         // Second half ended, show end match button
         document.getElementById('endMatchBtn').classList.remove('hidden');
     }
-
-    // Show/hide clip marker button + load existing clips
-    if (typeof updateClipMarkerBtn === 'function') updateClipMarkerBtn(actualStatus);
-    if (typeof loadClips === 'function') loadClips();
 }
 
 // ========================================
@@ -760,6 +756,33 @@ function copyStatsWidgetUrl() {
         });
     } catch (err) {
         fallbackCopyTextToClipboard(statsUrl);
+    }
+}
+
+function copyBroadcastWidgetUrl() {
+    if (!matchId) {
+        alert('Матч не выбран');
+        return;
+    }
+
+    let basePath = window.location.pathname;
+    if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
+    if (basePath.endsWith('/index.html')) {
+        basePath = basePath.replace('/index.html', '');
+    } else if (basePath.endsWith('index.html')) {
+        basePath = basePath.replace('index.html', '');
+    }
+
+    const broadcastUrl = window.location.origin + basePath + '/broadcast-widget.html?match=' + matchId;
+
+    try {
+        navigator.clipboard.writeText(broadcastUrl).then(function() {
+            showToast('🎬 Ссылка на трансляцию скопирована!');
+        }).catch(function() {
+            fallbackCopyTextToClipboard(broadcastUrl);
+        });
+    } catch (err) {
+        fallbackCopyTextToClipboard(broadcastUrl);
     }
 }
 

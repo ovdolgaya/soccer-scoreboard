@@ -154,6 +154,9 @@
                     <button class="button" onclick="copyStatsWidgetUrl()" title="Копировать ссылку на виджет статистики">
                         <i class="fas fa-chart-bar"></i> Статистика
                     </button>
+                    <button class="button" onclick="copyBroadcastWidgetUrl()" title="Копировать ссылку на виджет трансляции">
+                        <i class="fas fa-film"></i> Трансляция
+                    </button>
                 </div>
                 <div id="copyMessage" style="color: #10b981; font-weight: bold; display: none; margin-top: 10px; text-align: center;">
                     ✓ Ссылка скопирована!
@@ -169,15 +172,6 @@
                     <button class="button secondary hidden" id="stopHalf2Btn" onclick="stopHalf(2)">⏸ Остановить 2 тайм</button>
                     <button class="button danger hidden" id="endMatchBtn" onclick="endMatch()">⏹ Закончить матч</button>
                 </div>
-                <!-- Clip marker — only shown while match is playing -->
-                <button id="clipMarkerBtn" onclick="saveClipMarker()"
-                        style="display:none; width:100%; margin-top:12px; padding:13px;
-                               background:#FCDC00;
-                               color:#1e293b; border:none; border-radius:12px;
-                               font-size:15px; font-weight:700; cursor:pointer;
-                               letter-spacing:.02em; transition: opacity .15s;">
-                    📍 Отметить момент
-                </button>
             </div>
 
             <div class="score-controls">
@@ -208,17 +202,6 @@
                 </div>
                 <div id="goalsStatsBody" style="padding:4px 0 8px;">
                     <!-- Rows injected by loadGoalsStats() -->
-                </div>
-            </div>
-
-            <!-- Clip Markers Table -->
-            <div id="clipsSection" style="display:none; background:#f8fafc; border-radius:12px; margin-bottom:20px; border:2px solid #e2e8f0; overflow:hidden;">
-                <div style="padding:16px 20px 12px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:18px;">📍</span>
-                    <h3 style="margin:0; color:#1e293b; font-size:16px; flex:1;">Отмеченные моменты</h3>
-                    <span id="clipsCount" style="font-size:12px; color:#94a3b8; font-weight:600;"></span>
-                </div>
-                <div id="clipsBody" style="padding:4px 0 8px;">
                 </div>
             </div>
 
