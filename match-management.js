@@ -331,6 +331,11 @@ function _applyMatchToView(match) {
                 }
             }
 
+            // Show clips for ended matches (read-only review)
+            if (isEnded && typeof loadClips === 'function') {
+                loadClips();
+            }
+
             updateButtonStates(match);
 
             hideAllViews();
@@ -387,6 +392,11 @@ function updateButtonStates(match) {
     } else if (actualStatus === 'half2_ended') {
         // Second half ended, show end match button
         document.getElementById('endMatchBtn').classList.remove('hidden');
+    }
+
+    // Show/hide clip marker button based on whether a half is actively playing
+    if (typeof updateClipMarkerVisibility === 'function') {
+        updateClipMarkerVisibility(actualStatus);
     }
 }
 
@@ -625,6 +635,10 @@ function listenToMatchChanges() {
             // Update score display
             if (field === 'score1') document.getElementById('score1').textContent = snap.val() || 0;
             if (field === 'score2') document.getElementById('score2').textContent = snap.val() || 0;
+            // Re-evaluate button states when status or half changes
+            if (field === 'status' || field === 'currentHalf') {
+                updateButtonStates(_matchDataCache[matchId]);
+            }
         });
     });
 

@@ -698,11 +698,15 @@
 
         // Called when score2 increases (detected in the match listener)
         function showOpponentGoalCard(matchData) {
-            const teamColor = matchData._t2Color || matchData.team2Color || '#4A90E2';
-            const teamName  = matchData.team2Name  || 'Соперник';
+            const teamColor  = matchData._t2Color || matchData.team2Color || '#4A90E2';
+            const teamLogo   = matchData._t2Logo  || matchData.team2Logo  || '';
+            const teamName   = matchData.team2Name || 'Соперник';
+            const logoContent = teamLogo
+                ? `<img src="${teamLogo}" style="width:32px;height:32px;object-fit:contain;background:rgba(255,255,255,0.9);border-radius:5px;padding:3px;">`
+                : '<span>⚽</span>';
             renderNotification(
                 buildCardHtml({ teamColor, numberClass: 'opponent',
-                                 numberContent: '<span>⚽</span>',
+                                 numberContent: logoContent,
                                  label: 'Гол!',
                                  nameContent: `<span class="opponent-text">${teamName}</span>` }),
                 teamColor

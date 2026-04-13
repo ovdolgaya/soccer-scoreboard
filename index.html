@@ -172,7 +172,15 @@
                     <button class="button secondary hidden" id="stopHalf2Btn" onclick="stopHalf(2)">⏸ Остановить 2 тайм</button>
                     <button class="button danger hidden" id="endMatchBtn" onclick="endMatch()">⏹ Закончить матч</button>
                 </div>
+                <!-- Clip marker — only shown when a half is playing -->
+                <div id="clipMarkerSection" style="display:none; margin-top:14px; text-align:center;">
+                    <button class="button" id="clipMarkerBtn" onclick="saveClipMarker()"
+                        style="background:#FCDC00; color:#1e293b; font-weight:700; font-size:15px; padding:10px 24px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+                        📍 Отметить момент
+                    </button>
+                </div>
             </div>
+
 
             <div class="score-controls">
                 <div class="team-control">
@@ -202,6 +210,18 @@
                 </div>
                 <div id="goalsStatsBody" style="padding:4px 0 8px;">
                     <!-- Rows injected by loadGoalsStats() -->
+                </div>
+            </div>
+
+
+            <!-- Clip markers log — shown while match is playing -->
+            <div id="clipsSection" style="display:none; background:#f8fafc; border-radius:12px; margin-bottom:20px; border:2px solid #fde68a; overflow:hidden;">
+                <div style="padding:14px 20px 10px; border-bottom:1px solid #fde68a; display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:18px;">📍</span>
+                    <h3 style="margin:0; color:#1e293b; font-size:15px; flex:1;">Отметки моментов</h3>
+                </div>
+                <div id="clipsBody" style="padding:4px 0 8px;">
+                    <!-- Rows injected by loadClips() -->
                 </div>
             </div>
 

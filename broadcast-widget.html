@@ -68,7 +68,6 @@
 
         /* ══════════════════════════════════════════════════
            LAYER 2 — STATS OVERLAY
-           Full-screen, solid background, no rounding/padding
         ══════════════════════════════════════════════════ */
         #bw-stats-layer {
             display: flex;
@@ -81,7 +80,7 @@
             width: 100%;
             border-radius: 0;
             overflow: hidden;
-            background: rgb(0, 44, 138);
+            background: rgba(0, 44, 138,0.90);
             display: flex;
             flex-direction: column;
         }
@@ -421,6 +420,7 @@
         #bw-goal-notif .goal-card-name .first-name { font-size: 26px; }
         #bw-goal-notif .goal-card-assist { font-size: 22px; margin-top: 4px; }
         #bw-goal-notif .goal-card-ball { font-size: 46px; padding: 0 36px; }
+        #bw-goal-notif .goal-card-number img { width: 72px !important; height: 72px !important; border-radius: 10px !important; }
         #bw-goal-notif .goal-card-progress { height: 5px; }
 
         /* ══════════════════════════════════════════════════
@@ -946,10 +946,11 @@ function bwStartTimer(matchData) {
 }
 
 // Goal card builder — exact copy from widget.html
-function buildCardHtml({ teamColor, numberClass, numberContent, label, nameContent, assistLine }) {
+function buildCardHtml({ teamColor, numberClass, numberContent, label, nameContent, assistLine, hideBall }) {
     const hasAssist = assistLine && assistLine.length > 0;
     const cardHeight = hasAssist ? '76px' : '56px';
     const assistHtml = hasAssist ? `<div class="goal-card-assist">${assistLine}</div>` : '';
+    const ballHtml = hideBall ? '' : '<div class="goal-card-ball">⚽</div>';
     return `
         <div class="goal-card">
             <div class="goal-card-inner" style="height:${cardHeight}">
@@ -961,7 +962,7 @@ function buildCardHtml({ teamColor, numberClass, numberContent, label, nameConte
                     <div class="goal-card-name">${nameContent}</div>
                     ${assistHtml}
                 </div>
-                <div class="goal-card-ball">⚽</div>
+                ${ballHtml}
                 <div class="goal-card-progress" style="background:${teamColor}"></div>
             </div>
         </div>
@@ -1200,9 +1201,16 @@ function showPlayerGoalCard(goal, player) {
 }
 
 function showOpponentGoalCard(matchData) {
-    const teamColor = matchData._t2Color || '#4A90E2';
+    // Resolve team2 data: prefer cached _t2Color/_t2Logo, fall back to bwTeamsCache, then defaults
+    const t2Id     = matchData.team2Id;
+    const cached   = t2Id ? (bwTeamsCache[t2Id] || {}) : {};
+    const teamColor = matchData._t2Color || cached.color || '#4A90E2';
+    const teamLogo  = matchData._t2Logo  || cached.logo  || '';
     const teamName  = matchData.team2Name || 'Соперник';
-    renderNotification(buildCardHtml({ teamColor, numberClass: 'opponent', numberContent: '<span>⚽</span>', label: 'Гол!', nameContent: `<span class="opponent-text">${teamName}</span>` }), teamColor);
+    const logoContent = teamLogo
+        ? `<img src="${teamLogo}" style="width:32px;height:32px;object-fit:contain;background:rgba(255,255,255,0.9);border-radius:5px;padding:3px;">`
+        : '<span>⚽</span>';
+    renderNotification(buildCardHtml({ teamColor, numberClass: 'opponent', numberContent: logoContent, label: 'Гол!', nameContent: `<span class="opponent-text">${teamName}</span>` }), teamColor);
 }
 
 function showOwnGoalCard() {
@@ -1367,6 +1375,8 @@ async function bwOnStatusChange(newStatus, matchData) {
         bwHalf2EndDone = true;
         if (bwTimerInterval) { clearInterval(bwTimerInterval); bwTimerInterval = null; }
         await bwHalfEndSequence(2);
+        // After final sequence — score stays hidden, canvas shows match thumbnail
+        bwHideScore();
     }
 
     bwLastStatus = newStatus;
@@ -1416,8 +1426,14 @@ if (!BW_MATCH_ID) {
             bwFetchTeamData(matchData.team2Id)
         ]);
 
-        // Set team color CSS var
+        // Cache team visuals on matchData immediately — ensures goal cards have color+logo
+        // even if bwRenderScoreboard promise hasn't resolved yet
         const t1 = bwTeamsCache[matchData.team1Id] || {};
+        const t2 = bwTeamsCache[matchData.team2Id] || {};
+        matchData._t1Logo  = t1.logo  || '';
+        matchData._t2Logo  = t2.logo  || '';
+        matchData._t1Color = t1.color || '#08399A';
+        matchData._t2Color = t2.color || '#4A90E2';
         bwSetCssColor(t1.color || '#08399A');
 
         // Render scoreboard
@@ -1463,8 +1479,10 @@ if (!BW_MATCH_ID) {
                 bwHandleOppGoal();
             }
 
-            // Update scoreboard
-            bwRenderScoreboard(updated);
+            // Update scoreboard (skip if match ended — keeps score hidden)
+            if (updated.status !== 'ended') {
+                bwRenderScoreboard(updated);
+            }
 
             // Status change
             if (updated.status !== bwLastStatus) {
