@@ -1,0 +1,448 @@
+/* ══════════════════════════════════════════════════
+   BROADCAST WIDGET — STYLES
+   Scoped to broadcast-widget.html only, no shared CSS
+══════════════════════════════════════════════════ */
+
+/* RESET */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    background: transparent;
+    font-family: 'Lexend', Calibri, sans-serif;
+}
+
+/* ══════════════════════════════════════════════════
+   ROOT STAGE — transparent, all layers inside
+══════════════════════════════════════════════════ */
+#bw-stage {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════════
+   LAYER HELPERS
+══════════════════════════════════════════════════ */
+.bw-layer {
+    position: absolute;
+    inset: 0;
+    width: 1920px;
+    height: 1080px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.7s ease;
+}
+.bw-layer.bw-visible { opacity: 1; }
+
+/* ══════════════════════════════════════════════════
+   LAYER 1 — FULL-SCREEN CANVAS (match / roster thumbnail)
+   Canvas renders at 1920×1080 matching the page size
+══════════════════════════════════════════════════ */
+#bw-canvas-layer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#bw-canvas-layer canvas {
+    width: 1920px;
+    height: 1080px;
+}
+#bw-canvas-layer img {
+    width: 1920px;
+    height: 1080px;
+    object-fit: contain;
+}
+
+/* ══════════════════════════════════════════════════
+   LAYER 2 — STATS OVERLAY
+══════════════════════════════════════════════════ */
+        #bw-stats-layer {
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .bw-stats-box {
+            width: 100%;
+            border-radius: 0;
+            overflow: hidden;
+            background: rgba(0, 44, 138,0.93);
+            display: flex;
+            flex-direction: column;
+        }
+
+.bw-stats-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    padding: 36px 56px;
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+}
+
+.bw-stats-logo {
+    width: 110px; height: 110px;
+    object-fit: contain;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.9);
+    padding: 10px;
+    flex-shrink: 0;
+}
+
+.bw-stats-title-wrap { flex: 1; }
+
+.bw-stats-team-name {
+    font-size: 48px; font-weight: 700; color: #fff;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    line-height: 1.1;
+}
+
+.bw-stats-sub {
+    font-size: 26px; color: rgba(255,255,255,0.75);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-top: 6px;
+}
+
+.bw-stats-score-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 24px; padding: 18px 44px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+}
+.bw-stats-score-num {
+    font-size: 72px; font-weight: 900;
+    color: var(--bw-team-color, #08399A); line-height: 1;
+}
+.bw-stats-score-sep { font-size: 48px; color: #bbb; font-weight: 300; }
+.bw-stats-score-opp { font-size: 72px; font-weight: 900; color: #999; line-height: 1; }
+
+.bw-stats-content {
+    flex: 1;
+    overflow: hidden;
+    padding: 36px 48px 48px;
+}
+
+/* Table layout */
+.bw-goals-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.bw-half-header td {
+    padding: 14px 28px 10px;
+    font-size: 24px; font-weight: 800;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    border-bottom: 2px solid rgba(255,255,255,0.15);
+}
+.bw-goal-row td {
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.bw-goal-row {
+    animation: bwRowIn 0.35s ease both;
+}
+@keyframes bwRowIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.bw-cell-time {
+    width: 130px; padding: 20px 0 20px 28px;
+    font-size: 30px; font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    font-family: monospace; letter-spacing: 0.04em; white-space: nowrap;
+}
+.bw-cell-number { width: 110px; padding: 20px 22px; }
+.bw-number-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.95);
+    color: var(--bw-team-color, #08399A);
+    border-radius: 14px; padding: 7px 18px;
+    font-size: 26px; font-weight: 900;
+    min-width: 80px; text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+}
+.bw-number-badge.bw-own-goal-badge {
+    background: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.9);
+}
+.bw-cell-name {
+    padding: 20px 24px 20px 6px;
+    font-size: 34px; font-weight: 700;
+    color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.bw-cell-name .bw-first-name {
+    font-size: 28px; font-weight: 400; opacity: 0.8; margin-right: 10px;
+}
+.bw-cell-assist { padding: 12px 28px 12px 14px; white-space: nowrap; }
+.bw-assist-icon { font-size: 26px; opacity: 0.55; margin-right: 10px; vertical-align: middle; }
+.bw-assist-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 12px; padding: 5px 16px 5px 12px;
+    margin-right: 8px; vertical-align: middle;
+}
+.bw-assist-chip-num {
+    background: rgba(255,255,255,0.9);
+    color: var(--bw-team-color, #08399A);
+    border-radius: 8px; padding: 2px 10px;
+    font-size: 22px; font-weight: 900; white-space: nowrap;
+}
+.bw-assist-chip-name {
+    font-size: 24px; font-weight: 700; color: #fff;
+    white-space: nowrap; text-transform: uppercase;
+}
+
+/* Card layout */
+.bw-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+.bw-player-card {
+    background: rgba(255,255,255,0.93);
+    border-radius: 28px; height: 220px;
+    display: flex; align-items: stretch;
+    border-left: 6px solid #FCDC00;
+    overflow: hidden;
+    animation: bwCardIn 0.4s ease both;
+    position: relative;
+}
+.bw-card-accent { display: none; }
+@keyframes bwCardIn {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.bw-player-photo-wrap {
+    width: 220px; height: 220px; flex-shrink: 0;
+    overflow: hidden; display: flex; align-items: flex-end; justify-content: center;
+}
+.bw-player-photo {
+    width: 100%; height: auto; max-height: 220px;
+    object-fit: contain; object-position: bottom; display: block;
+}
+.bw-player-avatar {
+    width: 220px; height: 220px;
+    background: linear-gradient(160deg, var(--bw-team-color, #08399A), #1e5fd4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 56px; font-weight: 900; color: #fff; flex-shrink: 0;
+}
+.bw-player-info {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    padding: 0 24px; min-width: 0; overflow: hidden; gap: 4px;
+}
+.bw-player-number { font-size: 28px; font-weight: 900; color: var(--bw-team-color, #08399A); letter-spacing: 0.04em; }
+.bw-player-firstname { font-size: 26px; font-weight: 500; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bw-player-lastname { font-size: 34px; font-weight: 800; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bw-player-assist-badge { font-size: 22px; color: #64748b; margin-top: 4px; }
+.bw-goal-count {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 0 24px; border-left: 2px solid rgba(0,0,0,0.06); min-width: 80px;
+}
+.bw-goal-count-number { font-size: 48px; font-weight: 900; color: var(--bw-team-color, #08399A); line-height: 1; }
+.bw-goal-count-label { font-size: 20px; font-weight: 600; color: #94a3b8; }
+
+/* ══════════════════════════════════════════════════
+   LAYER 3 — SCORE WIDGET
+   Exact original widget.html layout, min-width 600px
+══════════════════════════════════════════════════ */
+#bw-score-layer {
+    inset: unset;
+    width: auto;
+    height: auto;
+    background: transparent;
+    transition: opacity 0.6s ease, top 0.6s cubic-bezier(0.34,1.3,0.64,1), left 0.6s cubic-bezier(0.34,1.3,0.64,1), bottom 0.6s cubic-bezier(0.34,1.3,0.64,1);
+}
+
+#bw-score-layer.bw-pos-topleft {
+    top: 24px;
+    left: 24px;
+    bottom: unset;
+    right: unset;
+    transform: none;
+}
+
+#bw-score-layer.bw-pos-bottom {
+    top: unset;
+    left: 50%;
+    bottom: 60px;
+    right: unset;
+    transform: translateX(-50%) scale(2.0);
+    transform-origin: bottom center;
+}
+
+/* Timer always hidden in bottom position */
+#bw-score-layer.bw-pos-bottom .timer-container {
+    opacity: 0; height: 0; overflow: hidden; pointer-events: none;
+}
+
+/* ── Scoreboard — exact widget.html styles, min-width enforced ── */
+.score-container {
+    display: flex;
+    align-items: stretch;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    min-width: 600px;
+}
+.team {
+    display: flex; align-items: center; gap: 10px;
+    flex: 1; padding: 8px 12px;
+    transition: background 0.3s ease;
+}
+.team.team1 {
+    background: linear-gradient(135deg, var(--team1-color, #08399A) 0%, var(--team1-color-light, #0a4ab3) 100%);
+    flex-direction: row; justify-content: flex-start; min-width: 200px;
+}
+.team.team2 {
+    background: linear-gradient(135deg, var(--team2-color, #4A90E2) 0%, var(--team2-color-light, #5ea3f5) 100%);
+    flex-direction: row-reverse; justify-content: flex-start; min-width: 200px;
+}
+.team-logo {
+    width: 44px; height: 44px; object-fit: contain;
+    border-radius: 5px; background: white; padding: 3px; flex-shrink: 0;
+}
+.team-name {
+    font-size: 20px; font-weight: bold; color: white; flex: 1;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    overflow: hidden; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    line-height: 1.2; text-align: center;
+}
+.score-card {
+    display: flex; align-items: center;
+    background: white; padding: 0 14px; flex-shrink: 0;
+}
+.score-num {
+    font-size: 40px; font-weight: 900; color: #1e293b;
+    min-width: 34px; text-align: center; line-height: 1;
+}
+.score-divider {
+    width: 2px; height: 30px;
+    background: #cbd5e1; margin: 0 10px; border-radius: 1px;
+}
+.timer-container {
+    background: rgba(255,255,255,0.92);
+    border-bottom-right-radius: 10px; border-bottom-left-radius: 10px;
+    height: 44px; max-width: 400px; margin: 0 auto;
+    display: flex; justify-content: center; align-items: center; gap: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    opacity: 1; transition: opacity 0.25s ease;
+}
+.timer-container.bw-hidden { opacity: 0; height: 0; overflow: hidden; }
+.timer-container.collapsing { opacity: 0; }
+.half-indicator {
+    font-size: 13px; font-weight: 800; color: #667eea;
+    text-transform: uppercase; letter-spacing: 0.06em;
+}
+.timer {
+    font-size: 26px; font-weight: bold; color: #1e293b;
+    font-family: 'Courier New', monospace;
+}
+.status-message {
+    font-size: 13px; font-weight: 700; color: #08399A;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    animation: pulse 3s ease-in-out infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* ── Goal notification — exact copy from widget.html ── */
+.goal-card { border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+.goal-card-inner {
+    position: relative; display: flex; width: 100%;
+    min-height: 56px; align-items: stretch;
+}
+.goal-card-number {
+    display: flex; align-items: center; justify-content: center;
+    background: var(--goal-team-color, #08399A);
+    min-width: 80px; padding: 0 16px; flex-shrink: 0;
+}
+.goal-card-number span { font-size: 20px; font-weight: 900; color: white; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,0.3); white-space: nowrap; }
+.goal-card-number.own-goal  { background: #64748b; }
+.goal-card-number.opponent  { background: var(--goal-team-color, #4A90E2); }
+.goal-card-info {
+    flex: 1; background: rgba(255,255,255,0.92); padding: 0 18px;
+    display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0;
+}
+.goal-card-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; line-height: 1; }
+.goal-card-name { font-size: 17px; font-weight: 800; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+.goal-card-name .first-name { font-size: 13px; font-weight: 500; color: #475569; margin-right: 5px; }
+.goal-card-assist { font-size: 11px; font-weight: 600; color: #64748b; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+.own-goal-text, .opponent-text { font-size: 15px; color: #475569; font-weight: 700; }
+.goal-card-ball { background: rgba(255,255,255,0.92); padding: 0 18px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; border-left: 1px solid rgba(0,0,0,0.06); }
+.goal-card-progress { position: absolute; bottom: 0; left: 0; height: 3px; width: 100%; animation: progressShrink 5s linear forwards; }
+@keyframes progressShrink { from { width: 100%; } to { width: 0%; } }
+
+/* ══════════════════════════════════════════════════
+   LAYER 4 — GOAL NOTIFICATION
+   Large, bottom-centered, independent of score widget
+══════════════════════════════════════════════════ */
+#bw-goal-notif {
+    position: fixed;
+    left: 50%;
+    bottom: 60px;
+    transform: translateX(-50%);
+    z-index: 9999;
+    pointer-events: none;
+    width: 900px;
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+#bw-goal-notif.bw-notif-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+#bw-goal-notif.bw-notif-hiding {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+/* Scale up all goal card internals for full-screen display */
+#bw-goal-notif .goal-card { border-radius: 20px; }
+#bw-goal-notif .goal-card-inner { min-height: 140px !important; height: auto !important; }
+#bw-goal-notif .goal-card-number { min-width: 150px; padding: 0 30px; }
+#bw-goal-notif .goal-card-number span { font-size: 38px; }
+#bw-goal-notif .goal-card-info { padding: 20px 36px; gap: 8px; }
+#bw-goal-notif .goal-card-label { font-size: 18px; letter-spacing: 0.15em; }
+#bw-goal-notif .goal-card-name { font-size: 34px; }
+#bw-goal-notif .goal-card-name .first-name { font-size: 26px; }
+#bw-goal-notif .goal-card-assist { font-size: 22px; margin-top: 4px; }
+#bw-goal-notif .goal-card-ball { font-size: 46px; padding: 0 36px; }
+#bw-goal-notif .goal-card-number img { width: 72px !important; height: 72px !important; border-radius: 10px !important; }
+#bw-goal-notif .goal-card-progress { height: 5px; }
+
+/* ══════════════════════════════════════════════════
+   TRANSITION OVERLAY — cross-fade helper
+══════════════════════════════════════════════════ */
+#bw-transition-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,51,160,0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    z-index: 100;
+}
+#bw-transition-overlay.bw-flash { opacity: 1; }
+
+/* ══════════════════════════════════════════════════
+   LOADING INDICATOR
+══════════════════════════════════════════════════ */
+#bw-loading {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,51,160,0.85);
+    z-index: 9998;
+    transition: opacity 0.5s ease;
+}
+#bw-loading.bw-hidden { opacity: 0; pointer-events: none; }
+.bw-loading-text {
+    font-size: 42px; font-weight: 700; color: rgba(255,255,255,0.8);
+    letter-spacing: 0.06em;
+}

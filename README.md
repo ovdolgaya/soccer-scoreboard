@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: April 13, 2026 (Session 8)
+## Last Updated: April 13, 2026 (Session 9)
 
 ---
 
@@ -36,6 +36,10 @@
 | `styles.css` | Main styles |
 | `app-layout.css` | Shared layout styles |
 | `roster-styles.css` | Roster page styles |
+| `broadcast-widget.css` | Styles for broadcast widget (reset, layers, scoreboard, stats, goal cards) |
+| `broadcast-widget-canvas.js` | Canvas thumbnail drawing and caching |
+| `broadcast-widget-scoreboard.js` | Scoreboard render, timer, stats overlay, goal notification handlers |
+| `broadcast-widget-sequences.js` | Layer visibility helpers + state machine sequences |
 | `manifest.json` | PWA manifest |
 | `sw.js` | Service worker (network-first caching) |
 
