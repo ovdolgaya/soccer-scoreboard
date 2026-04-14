@@ -21,6 +21,12 @@ function bwHideCanvasInstant() {
 }
 function bwShowStats()  { bwStatsLayer.classList.add('bw-visible'); }
 function bwHideStats()  { bwStatsLayer.classList.remove('bw-visible'); }
+function bwHideStatsInstant() {
+    bwStatsLayer.style.transition = 'none';
+    bwStatsLayer.classList.remove('bw-visible');
+    void bwStatsLayer.offsetHeight;
+    bwStatsLayer.style.transition = '';
+}
 
 function bwShowScore() {
     bwScoreLayer.style.opacity = '1';
@@ -53,20 +59,31 @@ function bwPostGoalAnnouncement() {
     });
 }
 
-// ── HALF START SEQUENCE ──
-async function bwHalfStartSequence(half) {
-    // Score widget appears at bottom-center for 5s, then slides to top-left
+// ── HALF START ──
+// Always called when status becomes 'playing'.
+// Immediately clears whatever was on screen (canvas/stats from half-end),
+// then does the score intro animation.
+function bwHalfStart() {
+    // Instantly clear any half-end visuals
     bwHideCanvasInstant();
-    bwHideStats();
+    bwHideStatsInstant();
+    bwHideScore();
+
+    // Score intro: bottom-center for 5s → top-left
     bwScoreToBottom();
     bwShowScore();
-    await bwDelay(5000);
-    await bwFlashTransition(600);
-    bwScoreToTopLeft();
+    bwDelay(5000).then(function() {
+        return bwFlashTransition(600);
+    }).then(function() {
+        bwScoreToTopLeft();
+    });
 }
 
 // ── HALF END SEQUENCE ──
-async function bwHalfEndSequence(half) {
+// Runs fire-and-forget after half ends.
+// Shows: score bottom (3s) → stats (10s) → match thumbnail.
+// Canvas/stats stay visible until bwHalfStart() clears them instantly.
+async function bwHalfEndSequence() {
     // 1. Score to bottom-center for 3s
     bwScoreToBottom();
     bwShowScore();
@@ -76,12 +93,11 @@ async function bwHalfEndSequence(half) {
     bwHideScore();
     await bwDelay(400);
 
-    // 3. Show stats (if any home goals exist)
+    // 3. Stats overlay (if goals exist)
     const hasStats = await bwRenderStats(bwMatchData);
+
     if (hasStats) {
-        await bwFlashTransition(700, function() {
-            bwShowStats();
-        });
+        await bwFlashTransition(700, function() { bwShowStats(); });
         await bwDelay(10000);
 
         // Pre-render match thumb while stats are showing
@@ -89,21 +105,19 @@ async function bwHalfEndSequence(half) {
         bwMatchThumbURL = thumbUrl;
         bwShowCachedImage(thumbUrl);
 
-        // Fade out stats, reveal match thumb underneath
+        // Swap: stats out, match thumb in
         await bwFlashTransition(700, function() {
             bwHideStats();
             bwShowCanvas();
         });
     } else {
-        // No stats — fade directly to match thumbnail
+        // No stats — go straight to match thumbnail
         const thumbUrl = await bwCacheMatchThumb(bwMatchData, true);
         bwMatchThumbURL = thumbUrl;
         bwShowCachedImage(thumbUrl);
-        await bwFlashTransition(700, function() {
-            bwShowCanvas();
-        });
+        await bwFlashTransition(700, function() { bwShowCanvas(); });
     }
-    // Canvas stays visible until next half starts
+    // Canvas stays visible — bwHalfStart() will clear it instantly when next half begins
 }
 
 // ── INTRO SEQUENCE (on page load) ──
@@ -131,7 +145,7 @@ async function bwIntroSequence(matchData) {
     bwShowCanvas();
     await bwDelay(15000);
 
-    // Cross-fade: overlay goes opaque → swap image underneath → overlay fades out
+    // Cross-fade to roster thumbnail
     const rUrl = rosterUrlPromise ? await rosterUrlPromise : null;
     if (rUrl) {
         bwRosterThumbURL = rUrl;
@@ -148,49 +162,26 @@ async function bwIntroSequence(matchData) {
 }
 
 // ── STATUS CHANGE HANDLER ──
-async function bwOnStatusChange(newStatus, matchData) {
+function bwOnStatusChange(newStatus, matchData) {
     bwMatchData = matchData;
 
-    if (newStatus === bwLastStatus && newStatus !== 'playing') return;
+    if (newStatus === bwLastStatus) return;
+    bwLastStatus = newStatus;
 
     bwRenderScoreboard(matchData);
 
     if (newStatus === 'playing') {
         bwStartTimer(matchData);
-
-        const half = matchData.currentHalf;
-        const halfChanged = half !== bwCurrentHalf;
-        bwCurrentHalf = half;
-
-        if (half === 1 && !bwHalf1Sequence) {
-            bwHalf1Sequence = true;
-            await bwHalfStartSequence(1);
-            bwScoreToTopLeft();
-        } else if (half === 2 && !bwHalf2Sequence) {
-            bwHalf2Sequence = true;
-            bwHideCanvasInstant();
-            await bwHalfStartSequence(2);
-            bwScoreToTopLeft();
-        } else if (!bwHalf1Sequence || !bwHalf2Sequence) {
-            // sequence already running — just ensure score is visible
-        } else {
-            bwScoreToTopLeft();
-        }
+        bwCurrentHalf = matchData.currentHalf;
+        // Always clear screen and start score intro — no flags needed
+        bwHalfStart();
+        return;
     }
 
-    if (newStatus === 'half1_ended' && !bwHalf1EndDone) {
-        bwHalf1EndDone = true;
+    if (newStatus === 'half1_ended' || newStatus === 'half2_ended' || newStatus === 'ended') {
         if (bwTimerInterval) { clearInterval(bwTimerInterval); bwTimerInterval = null; }
-        await bwHalfEndSequence(1);
+        bwHalfEndSequence();
     }
-
-    if ((newStatus === 'half2_ended' || newStatus === 'ended') && !bwHalf2EndDone) {
-        bwHalf2EndDone = true;
-        if (bwTimerInterval) { clearInterval(bwTimerInterval); bwTimerInterval = null; }
-        await bwHalfEndSequence(2);
-    }
-
-    bwLastStatus = newStatus;
 }
 
 // ── GOALS LISTENER ──

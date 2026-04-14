@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: April 13, 2026 (Session 9)
+## Last Updated: April 14, 2026 (Session 9)
 
 ---
 
@@ -20,6 +20,10 @@
 | `widget.html` | Live scoreboard widget for OBS overlay |
 | `goals-widget.html` | Goal statistics overlay for OBS |
 | `broadcast-widget.html` | Full-screen automated broadcast director (1920×1080) |
+| `broadcast-widget-sequences.js` | State machine: layer helpers, half start/end sequences, status handler |
+| `broadcast-widget-scoreboard.js` | Scoreboard rendering and goal notification cards |
+| `broadcast-widget-canvas.js` | Canvas/thumbnail rendering helpers |
+| `broadcast-widget.css` | Broadcast widget styles |
 | `roster.html` | Team roster management (tabs: Состав / Команды) |
 | `championships.html` | Championships (tabs: Чемпионаты / Управление) |
 | `match-helpers.js` | Shared date formatting, sort logic, status constants |
@@ -36,10 +40,6 @@
 | `styles.css` | Main styles |
 | `app-layout.css` | Shared layout styles |
 | `roster-styles.css` | Roster page styles |
-| `broadcast-widget.css` | Styles for broadcast widget (reset, layers, scoreboard, stats, goal cards) |
-| `broadcast-widget-canvas.js` | Canvas thumbnail drawing and caching |
-| `broadcast-widget-scoreboard.js` | Scoreboard render, timer, stats overlay, goal notification handlers |
-| `broadcast-widget-sequences.js` | Layer visibility helpers + state machine sequences |
 | `manifest.json` | PWA manifest |
 | `sw.js` | Service worker (network-first caching) |
 
@@ -98,7 +98,7 @@
 Real-time score + timer for OBS. Goal notification card (5s):
 - Home player: `#N | Гол! / LASTNAME | ⚽` (+ assist line if assists)
 - Opponent: team 2 logo (or ⚽) | "Гол!" + team name | ⚽
-- Own goal: grey ⚽ | "Автогол" | ⚽
+- Own goal: team 1 logo | "Автогол" + "Автогол команды {team2Name}" | ⚽
 
 ### `goals-widget.html` — Goal Statistics
 Table (≤10 goals) or card grid (>10). Assist chips in table, assist badge in cards.
@@ -107,13 +107,15 @@ Table (≤10 goals) or card grid (>10). Assist chips in table, assist badge in c
 Full-screen 1920×1080 widget for Larix/OBS. Automates the entire presentation:
 
 1. **Load** — match thumbnail (15s) → roster thumbnail (15s) → transparent
-2. **Half starts** — score widget bottom-center large (5s) → slides to top-left
+2. **Half starts** — canvas/stats cleared **instantly** → score bottom-center (5s) → top-left
 3. **Playing** — score widget top-left with live timer
-4. **Goal** — large goal card bottom-center (5s) → score announcement (3s) → top-left
-5. **Half ends** — score bottom-center (3s) → goals stats full-screen (10s) → match thumbnail with score
-6. **Next half** — thumbnail hides instantly → repeat
+4. **Goal** — goal card bottom-center (5s) → score bottom-center (3s) → top-left
+5. **Half ends** — score bottom-center (3s) → stats full-screen (10s) → match thumbnail with score
+6. **Next half starts** — thumbnail/stats cleared instantly → repeat from step 2
 
 Score widget uses exact `widget.html` layout. Stats overlay: full-screen solid background, table ≤7 / cards >7.
+
+**State machine design:** `playing` always wins — `bwHalfStart()` runs synchronously and instantly clears whatever is on screen before starting the score intro animation. No abort flags or sequence guards needed.
 
 ---
 
@@ -156,10 +158,12 @@ Score widget uses exact `widget.html` layout. Stats overlay: full-screen solid b
 - [ ] Clip list shown during match and after match ends (read-only)
 - [ ] Player status toggle: no false error alert
 - [ ] widget.html: opponent goal card shows team 2 logo + correct color
-- [ ] broadcast-widget.html: intro thumbnails don't overlap
+- [ ] widget.html: own goal card shows team 1 logo + "Автогол команды {name}"
+- [ ] broadcast-widget.html: intro thumbnails show correctly before match
+- [ ] broadcast-widget.html: match details screen hides instantly when half 2 starts
 - [ ] broadcast-widget.html: score visible at top-left after half starts
 - [ ] broadcast-widget.html: stats full-screen solid background
-- [ ] broadcast-widget.html: opponent goal card shows team 2 logo
+- [ ] broadcast-widget.html: own goal card shows team 1 logo + team 2 name
 - [ ] Roster thumbnail: dark header band, cards correct
 - [ ] Championship stats: W/D/L, ⚽/👟 toggle, medals
 - [ ] PWA cache cleared after deployment

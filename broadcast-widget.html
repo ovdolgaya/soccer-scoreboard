@@ -86,12 +86,8 @@ let bwTeamsCache       = {};
 let bwMatchThumbURL    = null;
 let bwRosterThumbURL   = null;
 
-// Sequence flags — prevent re-triggering the same sequence
+// Sequence flags
 let bwIntroShown       = false;
-let bwHalf1Sequence    = false;
-let bwHalf2Sequence    = false;
-let bwHalf1EndDone     = false;
-let bwHalf2EndDone     = false;
 
 // ── Utilities ──
 function bwFetchTeamData(teamId) {
@@ -181,19 +177,16 @@ if (!BW_MATCH_ID) {
         // Run intro sequence (skips if match already in progress)
         await bwIntroSequence(matchData);
 
-        // Handle current status
+        // Handle current status on page load
         const s = matchData.status;
         if (s === 'playing') {
-            bwHalf1Sequence = true; bwHalf2Sequence = true;
+            bwCurrentHalf = matchData.currentHalf;
             bwScoreToTopLeft();
             bwShowScore();
             bwStartTimer(matchData);
-        } else if (s === 'half1_ended') {
-            bwHalf1Sequence = true; bwHalf1EndDone = true; bwHalf2Sequence = true;
-        } else if (s === 'half2_ended' || s === 'ended') {
-            bwHalf1Sequence = true; bwHalf1EndDone = true;
-            bwHalf2Sequence = true; bwHalf2EndDone = true;
         }
+        // For half1_ended / half2_ended / ended: canvas already shown by intro skip,
+        // nothing extra needed — the Firebase listener will handle future changes.
 
         bwLastStatus = s;
 
@@ -216,10 +209,8 @@ if (!BW_MATCH_ID) {
             // Update scoreboard
             bwRenderScoreboard(updated);
 
-            // Status change
-            if (updated.status !== bwLastStatus) {
-                bwOnStatusChange(updated.status, updated);
-            }
+            // Delegate status handling — bwOnStatusChange deduplicates internally
+            bwOnStatusChange(updated.status, updated);
         });
 
     });

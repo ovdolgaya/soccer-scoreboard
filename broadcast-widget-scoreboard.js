@@ -115,15 +115,16 @@ function bwStartTimer(matchData) {
 // ════════════════════════════════════════════════════════════════
 
 // Goal card builder — exact copy from widget.html
-function buildCardHtml({ teamColor, numberClass, numberContent, label, nameContent, assistLine, hideBall }) {
+function buildCardHtml({ teamColor, numberClass, numberContent, numberStyle, label, nameContent, assistLine, hideBall }) {
     const hasAssist = assistLine && assistLine.length > 0;
     const cardHeight = hasAssist ? '76px' : '56px';
     const assistHtml = hasAssist ? `<div class="goal-card-assist">${assistLine}</div>` : '';
     const ballHtml = hideBall ? '' : '<div class="goal-card-ball">⚽</div>';
+    const numExtraStyle = numberStyle ? `;${numberStyle}` : '';
     return `
         <div class="goal-card">
             <div class="goal-card-inner" style="height:${cardHeight}">
-                <div class="goal-card-number ${numberClass}" style="--goal-team-color:${teamColor}">
+                <div class="goal-card-number ${numberClass}" style="--goal-team-color:${teamColor}${numExtraStyle}">
                     ${numberContent}
                 </div>
                 <div class="goal-card-info">
@@ -367,11 +368,24 @@ function showOpponentGoalCard(matchData) {
     const teamLogo  = matchData._t2Logo  || cached.logo  || '';
     const teamName  = matchData.team2Name || 'Соперник';
     const logoContent = teamLogo
-        ? `<img src="${teamLogo}" style="width:32px;height:32px;object-fit:contain;background:rgba(255,255,255,0.9);border-radius:5px;padding:3px;">`
+        ? `<img src="${teamLogo}" style="width:100%;height:100%;object-fit:contain;display:block;">`
         : '<span>⚽</span>';
-    renderNotification(buildCardHtml({ teamColor, numberClass: 'opponent', numberContent: logoContent, label: 'Гол!', nameContent: `<span class="opponent-text">${teamName}</span>` }), teamColor);
+    const numberStyle = teamLogo
+        ? `padding:4px;box-shadow:inset 0 0 0 3px ${teamColor};background:#fff;border-radius:20px 0 0 20px;`
+        : '';
+    renderNotification(buildCardHtml({ teamColor, numberClass: 'opponent', numberContent: logoContent, numberStyle, label: 'Гол!', nameContent: `<span class="opponent-text">${teamName}</span>` }), teamColor);
 }
 
 function showOwnGoalCard() {
-    renderNotification(buildCardHtml({ teamColor: '#64748b', numberClass: 'own-goal', numberContent: '<span>⚽</span>', label: 'Автогол', nameContent: '<span class="own-goal-text">Автогол</span>' }), '#64748b');
+    // Own goal always scores for team1 — show their logo/color
+    const teamColor  = bwMatchData ? (bwMatchData._t1Color || '#08399A') : '#08399A';
+    const teamLogo   = bwMatchData ? (bwMatchData._t1Logo  || '') : '';
+    const oppName    = bwMatchData ? (bwMatchData.team2Name || 'Соперник') : 'Соперник';
+    const logoContent = teamLogo
+        ? `<img src="${teamLogo}" style="width:100%;height:100%;object-fit:contain;display:block;">`
+        : '<span>⚽</span>';
+    const numberStyle = teamLogo
+        ? `padding:4px;box-shadow:inset 0 0 0 3px ${teamColor};background:#fff;border-radius:20px 0 0 20px;`
+        : '';
+    renderNotification(buildCardHtml({ teamColor, numberClass: 'opponent', numberContent: logoContent, numberStyle, label: 'Автогол', nameContent: `<span class="own-goal-text">Автогол ${oppName}</span>` }), teamColor);
 }
