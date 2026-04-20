@@ -374,7 +374,6 @@ function updateButtonStates(match) {
     document.getElementById('startHalf1Btn').classList.add('hidden');
     document.getElementById('stopHalf1Btn').classList.add('hidden');
     document.getElementById('startHalf2Btn').classList.add('hidden');
-    document.getElementById('stopHalf2Btn').classList.add('hidden');
     document.getElementById('endMatchBtn').classList.add('hidden');
 
     if (actualStatus === 'scheduled' || actualStatus === 'waiting') {
@@ -385,7 +384,7 @@ function updateButtonStates(match) {
             document.getElementById('stopHalf1Btn').classList.remove('hidden');
             // endMatchBtn intentionally hidden during half 1 — available in halftime popup instead
         } else if (match.currentHalf === 2) {
-            document.getElementById('stopHalf2Btn').classList.remove('hidden');
+            // stopHalf2Btn removed — only End Match button shown during half 2
             document.getElementById('endMatchBtn').classList.remove('hidden');
         }
     } else if (actualStatus === 'half1_ended') {

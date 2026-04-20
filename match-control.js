@@ -60,8 +60,14 @@ function startHalf(half) {
         database.ref('matches/' + matchId).update(updates).then(function() {
             // Update buttons
             document.getElementById('startHalf' + half + 'Btn').classList.add('hidden');
-            document.getElementById('stopHalf' + half + 'Btn').classList.remove('hidden');
-            document.getElementById('endMatchBtn').classList.remove('hidden');
+            // stopHalf2Btn is removed from UI — endMatch() handles ending half 2
+            if (half === 1) {
+                document.getElementById('stopHalf1Btn').classList.remove('hidden');
+                // endMatchBtn stays hidden during half 1 — available in halftime popup
+            } else {
+                // Half 2: show only End Match button
+                document.getElementById('endMatchBtn').classList.remove('hidden');
+            }
 
             currentHalf = half;
             
@@ -131,13 +137,13 @@ function stopHalf(half) {
         stopTimerSync();
         
         // Update buttons
-        document.getElementById('stopHalf' + half + 'Btn').classList.add('hidden');
-        
         if (half === 1) {
+            document.getElementById('stopHalf1Btn').classList.add('hidden');
             document.getElementById('startHalf2Btn').classList.remove('hidden');
             // Show halftime popup
             showHalftimePopup();
         }
+        // half 2 stop is handled by endMatch() directly — no separate stopHalf2Btn
     });
 }
 
@@ -214,7 +220,6 @@ function endMatch() {
         
         // Hide all half buttons
         document.getElementById('stopHalf1Btn').classList.add('hidden');
-        document.getElementById('stopHalf2Btn').classList.add('hidden');
         document.getElementById('startHalf2Btn').classList.add('hidden');
         document.getElementById('endMatchBtn').classList.add('hidden');
     });
