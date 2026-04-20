@@ -171,6 +171,8 @@
                     <button class="button secondary hidden" id="startHalf2Btn" onclick="startHalf(2)">▶ Начать 2 тайм</button>
                     <button class="button secondary hidden" id="stopHalf2Btn" onclick="stopHalf(2)">⏸ Остановить 2 тайм</button>
                     <button class="button danger hidden" id="endMatchBtn" onclick="endMatch()">⏹ Закончить матч</button>
+                    <!-- endMatchBtn is hidden during half 1. It appears only during half 2 (playing)
+                         or after half 2 ends. During the halftime break it lives in the halftime popup. -->
                 </div>
                 <!-- Clip marker — only shown when a half is playing -->
                 <div id="clipMarkerSection" style="display:none; margin-top:14px; text-align:center;">
