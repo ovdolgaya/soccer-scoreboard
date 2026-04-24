@@ -82,10 +82,10 @@ function bwHalfStart() {
 }
 
 // ── YOUTUBE SUBSCRIBE REMINDER ──
-// Shown at the start of each half after score moves to top-left.
-// Sequence: slide in → bell rings → bell fills → btn turns grey (subscribed) →
-//           like fills yellow → floats → fade out. Total visible time: 8s.
-function bwSubscribeSequence() {
+// Shown at half start (8s) and during half end before stats (4s).
+// duration: total visible milliseconds (default 8000).
+function bwSubscribeSequence(duration) {
+    duration = duration || 8000;
     const layer = bwSubscribeLayer;
     layer.innerHTML = '';
 
@@ -187,19 +187,19 @@ function bwSubscribeSequence() {
     bwDelay(2300).then(function() {
         spawnFloats();
     });
-    // 6. Fade out at 8s total
-    bwDelay(7200).then(function() {
+    // 6. Fade out
+    bwDelay(duration - 800).then(function() {
         banner.classList.remove('bw-sub-visible');
         banner.classList.add('bw-sub-hide');
     });
-    bwDelay(8200).then(function() {
+    bwDelay(duration + 200).then(function() {
         layer.innerHTML = '';
     });
 }
 
 // ── HALF END SEQUENCE ──
 // Runs fire-and-forget after half ends.
-// Shows: score bottom (3s) → stats (10s) → match thumbnail.
+// Shows: score bottom (3s) → subscribe reminder (4s) → stats (10s) → match thumbnail.
 // Canvas/stats stay visible until bwHalfStart() clears them instantly.
 async function bwHalfEndSequence() {
     // 1. Score to bottom-center for 3s
@@ -207,7 +207,11 @@ async function bwHalfEndSequence() {
     bwShowScore();
     await bwDelay(3000);
 
-    // 2. Hide score
+    // 2. Subscribe reminder (4s) — plays over the score while it's still visible
+    bwSubscribeSequence(4000);
+    await bwDelay(4000);
+
+    // 3. Hide score
     bwHideScore();
     await bwDelay(400);
 
