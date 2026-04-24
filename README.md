@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: April 14, 2026 (Session 9)
+## Last Updated: April 24, 2026 (Session 10)
 
 ---
 
@@ -107,10 +107,10 @@ Table (≤10 goals) or card grid (>10). Assist chips in table, assist badge in c
 Full-screen 1920×1080 widget for Larix/OBS. Automates the entire presentation:
 
 1. **Load** — match thumbnail (15s) → roster thumbnail (15s) → transparent
-2. **Half starts** — canvas/stats cleared **instantly** → score bottom-center (5s) → top-left
+2. **Half starts** — canvas/stats cleared **instantly** → score bottom-center (5s) → top-left → YouTube subscribe reminder (8s)
 3. **Playing** — score widget top-left with live timer
 4. **Goal** — goal card bottom-center (5s) → score bottom-center (3s) → top-left
-5. **Half ends** — score bottom-center (3s) → stats full-screen (10s) → match thumbnail with score
+5. **Half ends** — score bottom-center (3s) → YouTube subscribe reminder (4s) → stats full-screen (10s) → match thumbnail with score
 6. **Next half starts** — thumbnail/stats cleared instantly → repeat from step 2
 
 Score widget uses exact `widget.html` layout. Stats overlay: full-screen solid background, table ≤7 / cards >7.
@@ -164,6 +164,8 @@ Score widget uses exact `widget.html` layout. Stats overlay: full-screen solid b
 - [ ] broadcast-widget.html: score visible at top-left after half starts
 - [ ] broadcast-widget.html: stats full-screen solid background
 - [ ] broadcast-widget.html: own goal card shows team 1 logo + team 2 name
+- [ ] broadcast-widget.html: YouTube subscribe reminder shown at half start (8s, bottom-left)
+- [ ] broadcast-widget.html: YouTube subscribe reminder shown at half end (4s, after score hides)
 - [ ] Roster thumbnail: dark header band, cards correct
 - [ ] Championship stats: W/D/L, ⚽/👟 toggle, medals
 - [ ] PWA cache cleared after deployment

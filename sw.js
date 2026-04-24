@@ -2,7 +2,7 @@
 // Strategy: Network-first for everything (app requires live Firebase data)
 // Only caches static shell files so the app loads offline gracefully
 
-const CACHE_NAME = 'scoreboard-v1';
+const CACHE_NAME = 'scoreboard-v2';
 
 const STATIC_SHELL = [
   './',
