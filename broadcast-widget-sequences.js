@@ -207,13 +207,13 @@ async function bwHalfEndSequence() {
     bwShowScore();
     await bwDelay(3000);
 
-    // 2. Subscribe reminder (4s) — plays over the score while it's still visible
-    bwSubscribeSequence(4000);
-    await bwDelay(4000);
-
-    // 3. Hide score
+    // 2. Hide score
     bwHideScore();
     await bwDelay(400);
+
+    // 3. Subscribe reminder (4s) — clean screen, no overlap
+    bwSubscribeSequence(4000);
+    await bwDelay(4000);
 
     // 3. Stats overlay (if goals exist)
     const hasStats = await bwRenderStats(bwMatchData);
