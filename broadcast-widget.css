@@ -429,6 +429,151 @@ html, body {
 #bw-transition-overlay.bw-flash { opacity: 1; }
 
 /* ══════════════════════════════════════════════════
+   LAYER 5 — YOUTUBE SUBSCRIBE REMINDER
+══════════════════════════════════════════════════ */
+#bw-subscribe-layer {
+    position: absolute;
+    bottom: 48px;
+    left: 48px;
+    pointer-events: none;
+    z-index: 90;
+}
+
+.bw-sub-banner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.80);
+    border-radius: 80px;
+    padding: 14px 28px 14px 18px;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.5s ease, transform 0.5s cubic-bezier(.22,1,.36,1);
+}
+.bw-sub-banner.bw-sub-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+.bw-sub-banner.bw-sub-hide {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.bw-sub-yt-icon {
+    flex-shrink: 0;
+    width: 64px;
+    height: 46px;
+}
+
+.bw-sub-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.bw-sub-text-top {
+    font-size: 20px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.55);
+    white-space: nowrap;
+}
+.bw-sub-text-main {
+    font-size: 26px;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.bw-sub-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #FF0000;
+    border-radius: 40px;
+    padding: 10px 26px;
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    transition: background 0.3s ease;
+}
+.bw-sub-btn.bw-sub-btn-done {
+    background: #555555;
+}
+
+.bw-sub-bell,
+.bw-sub-like {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.bw-sub-bell svg,
+.bw-sub-like svg {
+    width: 26px;
+    height: 26px;
+}
+.bw-sub-icon-filled {
+    position: absolute;
+    left: 0; top: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.bw-sub-like-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    border: 2px solid rgba(255,255,255,0.25);
+    transition: background 0.3s, border-color 0.3s;
+    flex-shrink: 0;
+}
+.bw-sub-like-btn.bw-sub-like-done {
+    background: rgba(252,220,0,0.2);
+    border-color: rgba(252,220,0,0.6);
+}
+
+/* bell ring keyframe */
+@keyframes bwBellRing {
+    0%,100% { transform: rotate(0deg); }
+    10%,30%  { transform: rotate(-18deg); }
+    20%,40%  { transform: rotate(18deg); }
+    50%      { transform: rotate(0deg); }
+}
+.bw-bell-ringing { animation: bwBellRing 0.6s ease-in-out; }
+
+/* pop keyframe for icon transitions */
+@keyframes bwIconPop {
+    0%   { transform: scale(0.4); }
+    70%  { transform: scale(1.35); }
+    100% { transform: scale(1.0); }
+}
+.bw-icon-pop { animation: bwIconPop 0.32s ease-out; }
+
+/* floating likes */
+.bw-sub-floats {
+    position: absolute;
+    bottom: 70px;
+    left: 0;
+    pointer-events: none;
+}
+.bw-sub-float {
+    position: absolute;
+    font-size: 32px;
+    opacity: 0;
+    animation: bwFloatUp 1.4s ease-out forwards;
+}
+@keyframes bwFloatUp {
+    0%   { opacity: 1; transform: translateY(0) scale(1); }
+    70%  { opacity: 0.7; }
+    100% { opacity: 0; transform: translateY(-80px) scale(0.6); }
+}
+
+/* ══════════════════════════════════════════════════
    LOADING INDICATOR
 ══════════════════════════════════════════════════ */
 #bw-loading {

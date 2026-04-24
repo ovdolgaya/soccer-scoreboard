@@ -76,6 +76,124 @@ function bwHalfStart() {
         return bwFlashTransition(600);
     }).then(function() {
         bwScoreToTopLeft();
+        // Show YouTube subscribe reminder after score settles at top-left
+        bwDelay(400).then(function() { bwSubscribeSequence(); });
+    });
+}
+
+// ── YOUTUBE SUBSCRIBE REMINDER ──
+// Shown at the start of each half after score moves to top-left.
+// Sequence: slide in → bell rings → bell fills → btn turns grey (subscribed) →
+//           like fills yellow → floats → fade out. Total visible time: 8s.
+function bwSubscribeSequence() {
+    const layer = bwSubscribeLayer;
+    layer.innerHTML = '';
+
+    const floatsEl = document.createElement('div');
+    floatsEl.className = 'bw-sub-floats';
+    layer.appendChild(floatsEl);
+
+    layer.insertAdjacentHTML('beforeend', `
+        <div class="bw-sub-banner" id="bw-sub-banner">
+            <svg class="bw-sub-yt-icon" viewBox="0 0 68 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="68" height="48" rx="11" fill="#FF0000"/>
+                <polygon points="27,14 27,34 47,24" fill="white"/>
+            </svg>
+            <div class="bw-sub-text">
+                <span class="bw-sub-text-top">Смотрите нас на</span>
+                <span class="bw-sub-text-main">YouTube</span>
+            </div>
+            <div class="bw-sub-btn" id="bw-sub-btn">
+                <span class="bw-sub-bell" id="bw-sub-bell">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M18 11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2v-5z"/>
+                        <path d="M10 20a2 2 0 0 0 4 0"/>
+                    </svg>
+                    <svg class="bw-sub-icon-filled" id="bw-sub-bell-filled" viewBox="0 0 24 24" fill="white">
+                        <path d="M18 11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2v-5z"/>
+                        <path d="M10 20a2 2 0 0 0 4 0"/>
+                    </svg>
+                </span>
+                <span id="bw-sub-label">Подписаться</span>
+            </div>
+            <div class="bw-sub-like-btn" id="bw-sub-like-btn">
+                <span class="bw-sub-like" id="bw-sub-like">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2">
+                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+                        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                    </svg>
+                    <svg class="bw-sub-icon-filled" id="bw-sub-like-filled" viewBox="0 0 24 24" fill="#FCDC00">
+                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+                        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" fill="#FCDC00" stroke="none"/>
+                    </svg>
+                </span>
+            </div>
+        </div>
+    `);
+
+    const banner     = document.getElementById('bw-sub-banner');
+    const btn        = document.getElementById('bw-sub-btn');
+    const label      = document.getElementById('bw-sub-label');
+    const bell       = document.getElementById('bw-sub-bell');
+    const bellFilled = document.getElementById('bw-sub-bell-filled');
+    const likeBtn    = document.getElementById('bw-sub-like-btn');
+    const like       = document.getElementById('bw-sub-like');
+    const likeFilled = document.getElementById('bw-sub-like-filled');
+
+    function subPop(el) {
+        el.classList.remove('bw-icon-pop');
+        void el.offsetWidth;
+        el.classList.add('bw-icon-pop');
+    }
+
+    function spawnFloats() {
+        const items = ['👍','❤️','🔥','⚽','💛','👍','❤️','⚽'];
+        items.forEach(function(emoji, i) {
+            setTimeout(function() {
+                const el = document.createElement('span');
+                el.className = 'bw-sub-float';
+                el.textContent = emoji;
+                el.style.left = (Math.random() * 100) + 'px';
+                floatsEl.appendChild(el);
+                setTimeout(function() { el.remove(); }, 1500);
+            }, i * 130);
+        });
+    }
+
+    // 1. Slide in
+    bwDelay(100).then(function() {
+        banner.classList.add('bw-sub-visible');
+    });
+    // 2. Bell rings
+    bwDelay(700).then(function() {
+        bell.classList.add('bw-bell-ringing');
+    });
+    // 3. Bell outline → filled + button turns grey
+    bwDelay(1300).then(function() {
+        bellFilled.style.opacity = '1';
+        bell.querySelector('svg').style.opacity = '0';
+        subPop(bell);
+        btn.classList.add('bw-sub-btn-done');
+        label.textContent = '✓ Подписан!';
+    });
+    // 4. Like outline → filled yellow
+    bwDelay(2100).then(function() {
+        likeFilled.style.opacity = '1';
+        like.querySelector('svg').style.opacity = '0';
+        subPop(like);
+        likeBtn.classList.add('bw-sub-like-done');
+    });
+    // 5. Floats
+    bwDelay(2300).then(function() {
+        spawnFloats();
+    });
+    // 6. Fade out at 8s total
+    bwDelay(7200).then(function() {
+        banner.classList.remove('bw-sub-visible');
+        banner.classList.add('bw-sub-hide');
+    });
+    bwDelay(8200).then(function() {
+        layer.innerHTML = '';
     });
 }
 
