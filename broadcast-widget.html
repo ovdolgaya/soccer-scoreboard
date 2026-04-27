@@ -9,18 +9,6 @@
     <script src="firebase-config-widget.js"></script>
     <script src="roster-thumbnail-helper.js"></script>
     <link rel="stylesheet" href="broadcast-widget.css">
-    <script>
-    // Load 2K override CSS before any rendering
-    (function() {
-        const res = new URLSearchParams(window.location.search).get('res');
-        if (res === '2k') {
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = 'broadcast-widget-2k.css';
-            document.head.appendChild(link);
-        }
-    })();
-    </script>
 </head>
 <body>
 
@@ -64,12 +52,6 @@
 // ════════════════════════════════════════════════════════════════
 
 const BW_MATCH_ID = new URLSearchParams(window.location.search).get('match');
-const BW_RES      = new URLSearchParams(window.location.search).get('res'); // null | '2k'
-const BW_W        = BW_RES === '2k' ? 2560 : 1920;
-const BW_H        = BW_RES === '2k' ? 1440 : 1080;
-// Set canvas dimensions to match resolution (CSS sizing handled by stylesheet)
-document.getElementById('bw-canvas').width  = BW_W;
-document.getElementById('bw-canvas').height = BW_H;
 
 // ── DOM refs ──
 const bwStage          = document.getElementById('bw-stage');
@@ -206,9 +188,28 @@ if (!BW_MATCH_ID) {
             bwScoreToTopLeft();
             bwShowScore();
             bwStartTimer(matchData);
+        } else if (s === 'ended' || s === 'half2_ended') {
+            // Страница открыта после окончания матча — сразу показываем статистику
+            // скорборд не показываем — статистика занимает весь экран
+            const hasStats = await bwRenderStats(matchData);
+            if (hasStats) {
+                bwShowStats();
+            } else {
+                // Нет голов — показываем матч-thumbnail
+                const thumbUrl = await bwCacheMatchThumb(matchData, true);
+                bwMatchThumbURL = thumbUrl;
+                bwShowCachedImage(thumbUrl);
+                bwShowCanvas();
+            }
+        } else if (s === 'half1_ended') {
+            // Перерыв — показываем матч-thumbnail
+            bwScoreToTopLeft();
+            bwShowScore();
+            const thumbUrl = await bwCacheMatchThumb(matchData, true);
+            bwMatchThumbURL = thumbUrl;
+            bwShowCachedImage(thumbUrl);
+            bwShowCanvas();
         }
-        // For half1_ended / half2_ended / ended: canvas already shown by intro skip,
-        // nothing extra needed — the Firebase listener will handle future changes.
 
         bwLastStatus = s;
 
