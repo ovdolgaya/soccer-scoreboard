@@ -21,7 +21,8 @@ function bwDrawMatchThumb(matchData, showScore, callback) {
     function drawAll(champLogoImg, t1, t2) {
         const canvas = bwCanvas;
         const ctx    = bwCtx;
-        const W = 1920, H = 1080;
+        // BW_W / BW_H are set in broadcast-widget.html based on ?res= param
+        const W = BW_W, H = BW_H;
         canvas.width = W; canvas.height = H;
         const SCALE = W / 1280;
 
@@ -211,7 +212,7 @@ function bwShowCachedImage(url) {
     if (!img) {
         img = document.createElement('img');
         img.id = 'bw-canvas-img';
-        img.style.cssText = 'width:1920px;height:1080px;object-fit:cover;position:absolute;inset:0;';
+        img.style.cssText = `width:${BW_W}px;height:${BW_H}px;object-fit:cover;position:absolute;inset:0;`;
         bwCanvasLayer.appendChild(img);
     }
     img.src = url;

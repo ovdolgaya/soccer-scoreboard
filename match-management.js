@@ -773,7 +773,7 @@ function copyStatsWidgetUrl() {
     }
 }
 
-function copyBroadcastWidgetUrl() {
+function copyBroadcastWidgetUrl(res) {
     if (!matchId) {
         alert('Матч не выбран');
         return;
@@ -787,11 +787,13 @@ function copyBroadcastWidgetUrl() {
         basePath = basePath.replace('index.html', '');
     }
 
-    const broadcastUrl = window.location.origin + basePath + '/broadcast-widget.html?match=' + matchId;
+    const resParam = res === '2k' ? '&res=2k' : '';
+    const broadcastUrl = window.location.origin + basePath + '/broadcast-widget.html?match=' + matchId + resParam;
+    const label = res === '2k' ? '🎬 Ссылка Трансляция 2К скопирована!' : '🎬 Ссылка Трансляция HD скопирована!';
 
     try {
         navigator.clipboard.writeText(broadcastUrl).then(function() {
-            showToast('🎬 Ссылка на трансляцию скопирована!');
+            showToast(label);
         }).catch(function() {
             fallbackCopyTextToClipboard(broadcastUrl);
         });

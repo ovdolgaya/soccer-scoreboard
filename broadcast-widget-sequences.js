@@ -201,29 +201,37 @@ function bwSubscribeSequence(duration) {
 // Runs fire-and-forget after half ends.
 // Shows: score bottom (3s) → subscribe reminder (4s) → stats (10s) → match thumbnail.
 // Canvas/stats stay visible until bwHalfStart() clears them instantly.
+// Guard checks after every long await — if status became 'playing' we stop immediately.
 async function bwHalfEndSequence() {
     // 1. Score to bottom-center for 3s
     bwScoreToBottom();
     bwShowScore();
     await bwDelay(3000);
+    if (bwMatchData && bwMatchData.status === 'playing') return;
 
     // 2. Hide score
     bwHideScore();
     await bwDelay(400);
+    if (bwMatchData && bwMatchData.status === 'playing') return;
 
     // 3. Subscribe reminder (4s) — clean screen, no overlap
     bwSubscribeSequence(4000);
     await bwDelay(4000);
+    if (bwMatchData && bwMatchData.status === 'playing') return;
 
-    // 3. Stats overlay (if goals exist)
+    // 4. Stats overlay (if goals exist)
     const hasStats = await bwRenderStats(bwMatchData);
+    if (bwMatchData && bwMatchData.status === 'playing') return;
 
     if (hasStats) {
         await bwFlashTransition(700, function() { bwShowStats(); });
+        if (bwMatchData && bwMatchData.status === 'playing') { bwHideStatsInstant(); return; }
         await bwDelay(10000);
+        if (bwMatchData && bwMatchData.status === 'playing') { bwHideStatsInstant(); return; }
 
         // Pre-render match thumb while stats are showing
         const thumbUrl = await bwCacheMatchThumb(bwMatchData, true);
+        if (bwMatchData && bwMatchData.status === 'playing') { bwHideStatsInstant(); return; }
         bwMatchThumbURL = thumbUrl;
         bwShowCachedImage(thumbUrl);
 
@@ -235,6 +243,7 @@ async function bwHalfEndSequence() {
     } else {
         // No stats — go straight to match thumbnail
         const thumbUrl = await bwCacheMatchThumb(bwMatchData, true);
+        if (bwMatchData && bwMatchData.status === 'playing') return;
         bwMatchThumbURL = thumbUrl;
         bwShowCachedImage(thumbUrl);
         await bwFlashTransition(700, function() { bwShowCanvas(); });

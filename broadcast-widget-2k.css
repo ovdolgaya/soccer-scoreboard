@@ -1,0 +1,236 @@
+/* ══════════════════════════════════════════════════
+   BROADCAST WIDGET — 2K OVERRIDES (2560×1440)
+   Loaded only when ?res=2k is in the URL.
+   Scale factor vs HD: 2560/1920 = 1.333
+   Every px value = original × 1.333, rounded.
+══════════════════════════════════════════════════ */
+
+html, body {
+    width: 2560px;
+    height: 1440px;
+}
+
+#bw-stage {
+    width: 2560px;
+    height: 1440px;
+}
+
+.bw-layer {
+    width: 2560px;
+    height: 1440px;
+}
+
+/* ── Layer 1: canvas & cached image ── */
+#bw-canvas-layer canvas {
+    width: 2560px;
+    height: 1440px;
+}
+#bw-canvas-layer img {
+    width: 2560px;
+    height: 1440px;
+}
+
+/* ── Stats header ── */
+.bw-stats-header {
+    gap: 43px;
+    padding: 48px 75px;
+}
+
+.bw-stats-logo {
+    width: 147px;
+    height: 147px;
+    border-radius: 21px;
+    padding: 13px;
+}
+
+.bw-stats-team-name { font-size: 64px; }
+.bw-stats-sub       { font-size: 35px; }
+
+.bw-stats-score-badge {
+    border-radius: 32px;
+    padding: 24px 59px;
+}
+
+.bw-stats-score-num { font-size: 96px; }
+.bw-stats-score-sep { font-size: 64px; }
+.bw-stats-score-opp { font-size: 96px; }
+
+/* ── Stats content / table ── */
+.bw-stats-content {
+    padding: 48px 64px 64px;
+}
+
+.bw-half-header td {
+    padding: 19px 37px 13px;
+    font-size: 32px;
+}
+
+.bw-cell-time {
+    width: 173px;
+    padding: 27px 0 27px 37px;
+    font-size: 40px;
+}
+
+.bw-cell-number {
+    width: 147px;
+    padding: 27px 29px;
+}
+
+.bw-number-badge {
+    border-radius: 19px;
+    padding: 9px 24px;
+    font-size: 35px;
+    min-width: 107px;
+}
+
+.bw-cell-name {
+    padding: 27px 32px 27px 8px;
+    font-size: 45px;
+}
+
+.bw-cell-name .bw-first-name {
+    font-size: 37px;
+    margin-right: 13px;
+}
+
+.bw-assist-chip {
+    border-radius: 16px;
+    padding: 7px 21px 7px 16px;
+    margin-right: 11px;
+}
+
+.bw-assist-chip-num {
+    border-radius: 11px;
+    padding: 3px 13px;
+    font-size: 29px;
+}
+
+.bw-assist-chip-name { font-size: 32px; }
+
+/* ── Cards grid ── */
+.bw-cards-grid { gap: 32px; }
+
+.bw-player-card {
+    border-radius: 37px;
+    height: 293px;
+    border-left-width: 8px;
+}
+
+.bw-player-photo-wrap {
+    width: 293px;
+    height: 293px;
+}
+
+.bw-player-photo    { max-height: 293px; }
+
+.bw-player-avatar {
+    width: 293px;
+    height: 293px;
+    font-size: 75px;
+}
+
+.bw-player-info     { padding: 0 32px; }
+.bw-player-number   { font-size: 37px; }
+.bw-player-firstname { font-size: 35px; }
+.bw-player-lastname { font-size: 45px; }
+.bw-player-assist-badge { font-size: 29px; }
+
+.bw-goal-count      { padding: 0 32px; min-width: 107px; }
+.bw-goal-count-number { font-size: 64px; }
+.bw-goal-count-label  { font-size: 27px; }
+
+/* ── Score widget ── */
+.bw-scoreboard {
+    border-radius: 27px;
+    padding: 16px 27px;
+    gap: 16px;
+    min-width: 460px;
+}
+
+.team-logo-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+}
+
+.score-number {
+    font-size: 107px;
+    min-width: 80px;
+}
+
+.score-separator { font-size: 67px; padding: 0 5px; }
+.timer           { font-size: 35px; }
+.status-message  { font-size: 17px; }
+
+/* ── Score positions ── */
+.bw-pos-topleft {
+    top: 27px;
+    left: 27px;
+}
+
+.bw-pos-bottom {
+    bottom: 64px;
+}
+
+/* ── Goal notification (large card, bottom-centered) ── */
+#bw-goal-notif {
+    width: 1200px;
+    bottom: 80px;
+}
+
+#bw-goal-notif .goal-card              { border-radius: 27px; }
+#bw-goal-notif .goal-card-inner        { min-height: 187px !important; }
+#bw-goal-notif .goal-card-number       { min-width: 200px; padding: 0 40px; }
+#bw-goal-notif .goal-card-number span  { font-size: 51px; }
+#bw-goal-notif .goal-card-info         { padding: 27px 48px; gap: 11px; }
+#bw-goal-notif .goal-card-label        { font-size: 24px; letter-spacing: 0.15em; }
+#bw-goal-notif .goal-card-name         { font-size: 45px; }
+#bw-goal-notif .goal-card-name .first-name { font-size: 35px; }
+#bw-goal-notif .goal-card-assist       { font-size: 29px; margin-top: 5px; }
+#bw-goal-notif .goal-card-ball         { font-size: 61px; padding: 0 48px; }
+#bw-goal-notif .goal-card-number img   { width: 96px !important; height: 96px !important; border-radius: 13px !important; }
+#bw-goal-notif .goal-card-progress     { height: 7px; }
+
+/* ── Subscribe reminder ── */
+#bw-subscribe-layer {
+    bottom: 64px;
+    left: 64px;
+}
+
+.bw-sub-banner {
+    gap: 27px;
+    border-radius: 107px;
+    padding: 19px 37px 19px 24px;
+}
+
+.bw-sub-yt-icon { width: 85px; height: 61px; }
+.bw-sub-text-top  { font-size: 27px; }
+.bw-sub-text-main { font-size: 35px; }
+
+.bw-sub-btn {
+    gap: 13px;
+    border-radius: 53px;
+    padding: 13px 35px;
+    font-size: 32px;
+}
+
+.bw-sub-bell svg,
+.bw-sub-like svg { width: 35px; height: 35px; }
+
+.bw-sub-like-btn { width: 77px; height: 77px; }
+
+/* ── Loading ── */
+.bw-loading-text { font-size: 56px; }
+
+/* ── Floating likes — start above the taller 2K banner ── */
+.bw-sub-floats {
+    bottom: 107px;   /* HD banner ~74px + margin; 2K banner ~99px + margin */
+}
+
+.bw-sub-float { font-size: 43px; }
+
+@keyframes bwFloatUp {
+    0%   { opacity: 1; transform: translateY(0) scale(1); }
+    70%  { opacity: 0.7; }
+    100% { opacity: 0; transform: translateY(-107px) scale(0.6); }
+}
