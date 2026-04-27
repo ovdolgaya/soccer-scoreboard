@@ -380,6 +380,8 @@ html, body {
     width: 100%;
     font-family: 'Lexend', Calibri, sans-serif;
     box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 /* ── КАРТОЧКА ОСНОВНОЙ КОМАНДЫ ── */
