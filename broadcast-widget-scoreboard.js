@@ -111,32 +111,105 @@ function bwStartTimer(matchData) {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  GOAL CARD BUILDER
+//  GOAL CARD BUILDER — новый дизайн по макету Figma
 // ════════════════════════════════════════════════════════════════
 
-// Goal card builder — exact copy from widget.html
-function buildCardHtml({ teamColor, numberClass, numberContent, numberStyle, label, nameContent, assistLine, hideBall }) {
-    const hasAssist = assistLine && assistLine.length > 0;
-    const cardHeight = hasAssist ? '76px' : '56px';
-    const assistHtml = hasAssist ? `<div class="goal-card-assist">${assistLine}</div>` : '';
-    const ballHtml = hideBall ? '' : '<div class="goal-card-ball">⚽</div>';
-    const numExtraStyle = numberStyle ? `;${numberStyle}` : '';
+// Карточка гола основной команды (БАТЭ)
+// photoSrc  — base64/url фото игрока (или '' → лого команды)
+// logoSrc   — лого команды (fallback если нет фото)
+// number    — номер игрока
+// firstName, lastName — имя/фамилия
+// minute    — строка "64'"
+// assists   — массив {name, number} или []
+// teamColor — цвет команды для жёлтого разделителя (всегда #e3c600 для своей)
+function buildHomeGoalCard({ photoSrc, logoSrc, number, firstName, lastName, minute, assists, teamName }) {
+    const imgSrc = photoSrc || logoSrc || '';
+    const photoHtml = imgSrc
+        ? `<img class="ngc-photo-img" src="${imgSrc}" alt="" onerror="this.style.display='none'">`
+        : '';
+
+    const nameHtml = `${firstName ? `<span class="ngc-firstname">${firstName}</span>` : ''}<span class="ngc-lastname">${(lastName||'').toUpperCase()}</span>`;
+
+    let assistsHtml = '';
+    if (assists && assists.length > 0) {
+        const rows = assists.map(function(a) {
+            const fullName = [a.firstName, a.lastName ? a.lastName.toUpperCase() : ''].filter(Boolean).join(' ');
+            return `<div class="ngc-assist-row">
+                <span class="ngc-assist-name">${fullName || '—'}</span>
+                <span class="ngc-assist-num">#${a.number||'?'}</span>
+            </div>`;
+        }).join('');
+        assistsHtml = `<div class="ngc-assists">
+            <div class="ngc-assists-title">Ассистенты</div>
+            <div class="ngc-assists-list">${rows}</div>
+        </div>`;
+    }
+
     return `
-        <div class="goal-card">
-            <div class="goal-card-inner" style="height:${cardHeight}">
-                <div class="goal-card-number ${numberClass}" style="--goal-team-color:${teamColor}${numExtraStyle}">
-                    ${numberContent}
+        <div class="ngc ngc-home">
+            <div class="ngc-photo">
+                ${photoHtml}
+                <div class="ngc-photo-footer"></div>
+                <div class="ngc-num-badge">${number||'?'}</div>
+            </div>
+            <div class="ngc-sep"></div>
+            <div class="ngc-panel">
+                <div class="ngc-left">
+                    <div class="ngc-goal-row">
+                        <span class="ngc-goal-word">Гол!</span>
+                        <span class="ngc-minute">${minute||''}</span>
+                    </div>
+                    <div class="ngc-name">${nameHtml}</div>
+                    ${teamName ? `<div class="ngc-club">${teamName}</div>` : ''}
                 </div>
-                <div class="goal-card-info">
-                    <div class="goal-card-label" style="color:${teamColor}">${label}</div>
-                    <div class="goal-card-name">${nameContent}</div>
-                    ${assistHtml}
-                </div>
-                ${ballHtml}
-                <div class="goal-card-progress" style="background:${teamColor}"></div>
+                ${assistsHtml}
+                <div class="ngc-progress" style="background:linear-gradient(to right,#e3c600,rgba(227,198,0,0.05))"></div>
             </div>
         </div>
     `;
+}
+
+// Карточка гола соперника / автогол
+// logoSrc   — лого команды соперника
+// teamName  — название команды
+// teamColor — цвет команды соперника (разделитель + progress)
+// minute    — строка "64'"
+// label     — 'Гол!' или 'Автогол'
+function buildOppGoalCard({ logoSrc, teamName, teamColor, minute, label }) {
+    const logoHtml = logoSrc
+        ? `<img src="${logoSrc}" alt="" style="width:80px;height:80px;object-fit:contain;">`
+        : `<span style="font-size:48px;">⚽</span>`;
+
+    return `
+        <div class="ngc ngc-opp">
+            <div class="ngc-opp-logo">
+                ${logoHtml}
+            </div>
+            <div class="ngc-opp-sep" style="background:${teamColor}"></div>
+            <div class="ngc-opp-panel">
+                <div>
+                    <div class="ngc-goal-row">
+                        <span class="ngc-opp-goal-word">${label||'Гол!'}</span>
+                        <span class="ngc-opp-minute">${minute||''}</span>
+                    </div>
+                    <div class="ngc-opp-name">${(teamName||'Соперник').toUpperCase()}</div>
+                </div>
+                <div class="ngc-progress" style="background:linear-gradient(to right,${teamColor},rgba(0,0,0,0.03))"></div>
+            </div>
+        </div>
+    `;
+}
+
+// Форматирует время матча в строку "5'" 
+// matchTime хранится как "MM:SS" (например "05:19") → показываем только минуты
+function _fmtMinute(goal) {
+    if (!goal.matchTime) return '';
+    const parts = (goal.matchTime || '').split(':');
+    if (parts.length >= 1) {
+        const minutes = parseInt(parts[0] || 0, 10);
+        return minutes + `'`;
+    }
+    return '';
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -341,51 +414,48 @@ function bwHandleOppGoal() {
 }
 
 function showPlayerGoalCard(goal, player) {
-    const teamColor = bwMatchData ? (bwMatchData._t1Color || '#08399A') : '#08399A';
-    let numberHtml, nameHtml;
-    if (player) {
-        numberHtml = `<span>#${player.number || goal.playerNumber || '?'}</span>`;
-        nameHtml   = `${player.firstName ? `<span class="first-name">${player.firstName}</span>` : ''}${(player.lastName||'').toUpperCase()}`;
-    } else {
-        numberHtml = `<span>#${goal.playerNumber || '?'}</span>`;
-        nameHtml   = 'НЕИЗВЕСТНЫЙ';
-    }
-    let assistLine = '';
+    const teamColor  = bwMatchData ? (bwMatchData._t1Color || '#08399A') : '#08399A';
+    const teamLogo   = bwMatchData ? (bwMatchData._t1Logo  || '') : '';
+    const teamName   = bwMatchData ? (bwMatchData.team1Name || '') : '';
+    const photoSrc   = player ? (player.photo || '') : '';
+    const number     = player ? (player.number || goal.playerNumber || '?') : (goal.playerNumber || '?');
+    const firstName  = player ? (player.firstName || '') : '';
+    const lastName   = player ? (player.lastName  || '') : 'НЕИЗВЕСТНЫЙ';
+    const minute     = _fmtMinute(goal);
+
+    const assists = [];
     if (goal.assists && goal.assists.length > 0) {
-        const parts = goal.assists.map(function(a) {
+        goal.assists.forEach(function(a) {
             const ap = a.playerId ? bwPlayersCache[a.playerId] : null;
-            return '#' + (ap ? ap.number : (a.playerNumber||'?')) + (ap && ap.lastName ? ' ' + ap.lastName.toUpperCase() : '');
+            assists.push({
+                firstName: ap ? (ap.firstName || '') : '',
+                lastName:  ap ? (ap.lastName  || '') : '',
+                number:    ap ? (ap.number || a.playerNumber || '?') : (a.playerNumber || '?')
+            });
         });
-        assistLine = '👟 ' + parts.join(' · ');
     }
-    renderNotification(buildCardHtml({ teamColor, numberClass: '', numberContent: numberHtml, label: 'Гол!', nameContent: nameHtml, assistLine }), teamColor);
+
+    const html = buildHomeGoalCard({ photoSrc, logoSrc: teamLogo, number, firstName, lastName, minute, assists, teamName });
+    renderNotification(html, teamColor);
 }
 
 function showOpponentGoalCard(matchData) {
-    const t2Id     = matchData.team2Id;
-    const cached   = t2Id ? (bwTeamsCache[t2Id] || {}) : {};
+    const t2Id      = matchData.team2Id;
+    const cached    = t2Id ? (bwTeamsCache[t2Id] || {}) : {};
     const teamColor = matchData._t2Color || cached.color || '#4A90E2';
     const teamLogo  = matchData._t2Logo  || cached.logo  || '';
     const teamName  = matchData.team2Name || 'Соперник';
-    const logoContent = teamLogo
-        ? `<img src="${teamLogo}" style="width:100%;height:100%;object-fit:contain;display:block;">`
-        : '<span>⚽</span>';
-    const numberStyle = teamLogo
-        ? `padding:4px;box-shadow:inset 0 0 0 3px ${teamColor};background:#fff;border-radius:20px 0 0 20px;`
-        : '';
-    renderNotification(buildCardHtml({ teamColor, numberClass: 'opponent', numberContent: logoContent, numberStyle, label: 'Гол!', nameContent: `<span class="opponent-text">${teamName}</span>` }), teamColor);
+
+    // minute not available for opponent goals — no goal record
+    const html = buildOppGoalCard({ logoSrc: teamLogo, teamName, teamColor, minute: '', label: 'Гол!' });
+    renderNotification(html, teamColor);
 }
 
 function showOwnGoalCard() {
-    // Own goal always scores for team1 — show their logo/color
-    const teamColor  = bwMatchData ? (bwMatchData._t1Color || '#08399A') : '#08399A';
-    const teamLogo   = bwMatchData ? (bwMatchData._t1Logo  || '') : '';
-    const oppName    = bwMatchData ? (bwMatchData.team2Name || 'Соперник') : 'Соперник';
-    const logoContent = teamLogo
-        ? `<img src="${teamLogo}" style="width:100%;height:100%;object-fit:contain;display:block;">`
-        : '<span>⚽</span>';
-    const numberStyle = teamLogo
-        ? `padding:4px;box-shadow:inset 0 0 0 3px ${teamColor};background:#fff;border-radius:20px 0 0 20px;`
-        : '';
-    renderNotification(buildCardHtml({ teamColor, numberClass: 'opponent', numberContent: logoContent, numberStyle, label: 'Автогол', nameContent: `<span class="own-goal-text">Автогол ${oppName}</span>` }), teamColor);
+    const teamColor = bwMatchData ? (bwMatchData._t1Color || '#08399A') : '#08399A';
+    const teamLogo  = bwMatchData ? (bwMatchData._t1Logo  || '') : '';
+    const oppName   = bwMatchData ? (bwMatchData.team2Name || 'Соперник') : 'Соперник';
+
+    const html = buildOppGoalCard({ logoSrc: teamLogo, teamName: oppName, teamColor, minute: '', label: 'Автогол' });
+    renderNotification(html, teamColor);
 }

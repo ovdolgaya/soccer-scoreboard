@@ -348,47 +348,19 @@ html, body {
 }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-/* ── Goal notification — exact copy from widget.html ── */
-.goal-card { border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
-.goal-card-inner {
-    position: relative; display: flex; width: 100%;
-    min-height: 56px; align-items: stretch;
-}
-.goal-card-number {
-    display: flex; align-items: center; justify-content: center;
-    background: var(--goal-team-color, #08399A);
-    min-width: 80px; padding: 0 16px; flex-shrink: 0;
-}
-.goal-card-number span { font-size: 20px; font-weight: 900; color: white; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,0.3); white-space: nowrap; }
-.goal-card-number.own-goal  { background: #64748b; }
-.goal-card-number.opponent  { background: var(--goal-team-color, #4A90E2); }
-.goal-card-info {
-    flex: 1; background: rgba(255,255,255,0.92); padding: 0 18px;
-    display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0;
-}
-.goal-card-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; line-height: 1; }
-.goal-card-name { font-size: 17px; font-weight: 800; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
-.goal-card-name .first-name { font-size: 13px; font-weight: 500; color: #475569; margin-right: 5px; }
-.goal-card-assist { font-size: 11px; font-weight: 600; color: #64748b; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
-.own-goal-text, .opponent-text { font-size: 15px; color: #475569; font-weight: 700; }
-.goal-card-ball { background: rgba(255,255,255,0.92); padding: 0 18px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; border-left: 1px solid rgba(0,0,0,0.06); }
-.goal-card-progress { position: absolute; bottom: 0; left: 0; height: 3px; width: 100%; animation: progressShrink 5s linear forwards; }
-@keyframes progressShrink { from { width: 100%; } to { width: 0%; } }
-
 /* ══════════════════════════════════════════════════
-   LAYER 4 — GOAL NOTIFICATION
+   LAYER 4 — GOAL NOTIFICATION (новый дизайн Figma)
    Large, bottom-centered, independent of score widget
 ══════════════════════════════════════════════════ */
 #bw-goal-notif {
     position: fixed;
     left: 50%;
     bottom: 60px;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(20px);
     z-index: 9999;
     pointer-events: none;
     width: 900px;
     opacity: 0;
-    transform: translateX(-50%) translateY(20px);
     transition: opacity 0.4s ease, transform 0.4s ease;
 }
 #bw-goal-notif.bw-notif-visible {
@@ -400,19 +372,149 @@ html, body {
     transform: translateX(-50%) translateY(12px);
     transition: opacity 0.5s ease, transform 0.5s ease;
 }
-/* Scale up all goal card internals for full-screen display */
-#bw-goal-notif .goal-card { border-radius: 20px; }
-#bw-goal-notif .goal-card-inner { min-height: 140px !important; height: auto !important; }
-#bw-goal-notif .goal-card-number { min-width: 150px; padding: 0 30px; }
-#bw-goal-notif .goal-card-number span { font-size: 38px; }
-#bw-goal-notif .goal-card-info { padding: 20px 36px; gap: 8px; }
-#bw-goal-notif .goal-card-label { font-size: 18px; letter-spacing: 0.15em; }
-#bw-goal-notif .goal-card-name { font-size: 34px; }
-#bw-goal-notif .goal-card-name .first-name { font-size: 26px; }
-#bw-goal-notif .goal-card-assist { font-size: 22px; margin-top: 4px; }
-#bw-goal-notif .goal-card-ball { font-size: 46px; padding: 0 36px; }
-#bw-goal-notif .goal-card-number img { width: 72px !important; height: 72px !important; border-radius: 10px !important; }
-#bw-goal-notif .goal-card-progress { height: 5px; }
+
+/* ── Общая обёртка карточки ── */
+.ngc {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    font-family: 'Lexend', Calibri, sans-serif;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+}
+
+/* ── КАРТОЧКА ОСНОВНОЙ КОМАНДЫ ── */
+
+/* radial glow — фон за фото, не поверх */
+.ngc-photo {
+    width: 150px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 55%, rgba(0,51,160,0.55) 0%, #0d1b3e 75%);
+}
+.ngc-photo-img {
+    width: 100%; height: calc(100% - 16px);
+    margin-top: 16px;
+    object-fit: contain;
+    object-position: bottom center;
+    display: block;
+    position: relative; z-index: 1;
+}
+/* тонкий градиент снизу — 20px, цвет совпадает с тёмным краем фона панели */
+.ngc-photo-footer {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 20px;
+    background: linear-gradient(to bottom, rgba(3,19,52,0) 0%, rgba(3,19,52,1) 100%);
+    z-index: 3;
+}
+/* жёлтый бейдж с номером */
+.ngc-num-badge {
+    position: absolute; top: 8px; left: 8px; z-index: 5;
+    background: #FCDC00; color: #0d1b3e;
+    font-size: 16px; font-weight: 700;
+    border-radius: 6px; padding: 5px 10px; line-height: 1.1;
+    white-space: nowrap;
+}
+
+/* жёлтый разделитель */
+.ngc-sep {
+    width: 4px;
+    flex-shrink: 0;
+    background: #e3c600;
+}
+
+/* основная панель */
+.ngc-panel {
+    flex: 1; min-width: 0;
+    background: linear-gradient(to right, rgba(3,19,52,0.92), rgba(25,71,186,0.88));
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 22px 22px 26px;
+    position: relative; overflow: hidden;
+}
+
+.ngc-left { flex-shrink: 0; min-width: 0; }
+
+.ngc-goal-row { display: flex; align-items: baseline; gap: 12px; }
+.ngc-goal-word {
+    font-size: 56px; font-weight: 700; line-height: 1;
+    color: #e3c600; letter-spacing: -2px;
+    text-shadow: 0 2px 1px rgba(0,0,0,0.06), 0 4px 1.5px rgba(0,0,0,0.07);
+}
+.ngc-minute {
+    font-size: 22px; font-weight: 400;
+    color: rgba(226,226,232,0.6); letter-spacing: 2px; text-transform: uppercase;
+}
+.ngc-name {
+    font-size: 32px; font-weight: 400; line-height: 1.1;
+    color: #e2e2e8; letter-spacing: -0.7px; text-transform: uppercase;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-top: 6px;
+}
+.ngc-firstname { color: rgba(226,226,232,0.65); margin-right: 8px; }
+.ngc-lastname  { color: #e3c600; }
+.ngc-club { margin-top: 3px; font-size: 12px; color: #c4c5d5; letter-spacing: 1.4px; text-transform: uppercase; }
+
+/* блок ассистентов — строго внутри */
+.ngc-assists {
+    flex-shrink: 0;
+    padding-left: 20px;
+    border-left: 1px solid rgba(68,70,83,0.35);
+    display: flex; flex-direction: column; align-items: flex-end;
+    max-width: 220px;
+}
+.ngc-assists-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    color: #e3c600; text-transform: uppercase; padding-bottom: 10px; white-space: nowrap;
+}
+.ngc-assists-list { display: flex; flex-direction: column; gap: 7px; }
+.ngc-assist-row  { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.ngc-assist-name {
+    font-size: 13px; color: rgba(226,226,232,0.8);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; text-align: right;
+}
+.ngc-assist-num {
+    background: #333539; border-right: 2px solid #b6c4ff;
+    padding: 3px 10px 3px 8px;
+    font-size: 13px; color: #e2e2e8; white-space: nowrap; flex-shrink: 0;
+}
+
+/* progress bar */
+.ngc-progress {
+    position: absolute; bottom: 0; left: 0; height: 4px;
+    animation: ngcShrink 5s linear forwards;
+}
+@keyframes ngcShrink { from { width: 100%; } to { width: 0; } }
+
+/* ── КАРТОЧКА СОПЕРНИКА ── */
+.ngc-opp-logo {
+    width: 130px; flex-shrink: 0;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    position: relative; z-index: 1;
+}
+.ngc-opp-sep { width: 4px; flex-shrink: 0; }
+.ngc-opp-panel {
+    flex: 1;
+    background: #fff;
+    display: flex; align-items: center;
+    padding: 22px 26px;
+    position: relative; overflow: hidden;
+}
+.ngc-opp-goal-word {
+    font-size: 56px; font-weight: 700; line-height: 1;
+    color: rgba(0,0,0,0.6); letter-spacing: -2px;
+    text-shadow: 0 2px 1px rgba(0,0,0,0.06), 0 4px 1.5px rgba(0,0,0,0.07);
+}
+.ngc-opp-minute {
+    font-size: 22px; font-weight: 400;
+    color: rgba(0,0,0,0.45); letter-spacing: 2px; text-transform: uppercase; margin-left: 12px;
+}
+.ngc-opp-name {
+    font-size: 32px; font-weight: 800;
+    color: rgba(0,0,0,0.6); letter-spacing: -0.7px; text-transform: uppercase;
+    margin-top: 6px;
+}
+
 
 /* ══════════════════════════════════════════════════
    TRANSITION OVERLAY — cross-fade helper
