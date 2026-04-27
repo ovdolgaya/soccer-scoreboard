@@ -451,7 +451,7 @@ html, body {
 }
 .ngc-firstname { color: rgba(226,226,232,0.65); margin-right: 8px; }
 .ngc-lastname  { color: #e3c600; }
-.ngc-club { margin-top: 3px; font-size: 12px; color: #c4c5d5; letter-spacing: 1.4px; text-transform: uppercase; }
+.ngc-club { margin-top: 4px; font-size: 16px; font-weight: 600; color: #c4c5d5; letter-spacing: 1.2px; text-transform: uppercase; }
 
 /* блок ассистентов — строго внутри */
 .ngc-assists {
@@ -459,22 +459,22 @@ html, body {
     padding-left: 20px;
     border-left: 1px solid rgba(68,70,83,0.35);
     display: flex; flex-direction: column; align-items: flex-end;
-    max-width: 220px;
+    max-width: 260px;
 }
 .ngc-assists-title {
-    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    font-size: 13px; font-weight: 700; letter-spacing: 2px;
     color: #e3c600; text-transform: uppercase; padding-bottom: 10px; white-space: nowrap;
 }
-.ngc-assists-list { display: flex; flex-direction: column; gap: 7px; }
+.ngc-assists-list { display: flex; flex-direction: column; gap: 8px; }
 .ngc-assist-row  { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .ngc-assist-name {
-    font-size: 13px; color: rgba(226,226,232,0.8);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; text-align: right;
+    font-size: 16px; font-weight: 600; color: rgba(226,226,232,0.85);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 175px; text-align: right;
 }
 .ngc-assist-num {
     background: #333539; border-right: 2px solid #b6c4ff;
     padding: 3px 10px 3px 8px;
-    font-size: 13px; color: #e2e2e8; white-space: nowrap; flex-shrink: 0;
+    font-size: 15px; font-weight: 700; color: #e2e2e8; white-space: nowrap; flex-shrink: 0;
 }
 
 /* progress bar */

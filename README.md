@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: April 24, 2026 (Session 10)
+## Last Updated: April 27, 2026 (Session 11)
 
 ---
 
@@ -19,7 +19,8 @@
 | `index.html` | Match dashboard and cockpit |
 | `widget.html` | Live scoreboard widget for OBS overlay |
 | `goals-widget.html` | Goal statistics overlay for OBS |
-| `broadcast-widget.html` | Full-screen automated broadcast director (1920×1080) |
+| `broadcast-widget.html` | Full-screen automated broadcast director (supports HD 1920×1080 and 2K 2560×1440) |
+| `broadcast-widget-2k.css` | 2K resolution overrides (loaded dynamically when `?res=2k`) |
 | `broadcast-widget-sequences.js` | State machine: layer helpers, half start/end sequences, status handler |
 | `broadcast-widget-scoreboard.js` | Scoreboard rendering and goal notification cards |
 | `broadcast-widget-canvas.js` | Canvas/thumbnail rendering helpers |
@@ -55,7 +56,7 @@
 - Score controls with goal scorer modal (player grid + own goal + assists)
 - Goal removal modal
 - Retroactive goal entry for ended matches
-- Resources panel: **Табло**, **Заставка**, **Команда**, **Статистика**, **Трансляция**
+- Resources panel: **Табло**, **Заставка**, **Команда**, **Статистика**, **Трансляция HD**, **Трансляция 2К**
 
 ### Clip Markers
 - "📍 Отметить момент" button appears only while a half is playing
@@ -104,7 +105,7 @@ Real-time score + timer for OBS. Goal notification card (5s):
 Table (≤10 goals) or card grid (>10). Assist chips in table, assist badge in cards.
 
 ### `broadcast-widget.html` — Automated Broadcast Director
-Full-screen 1920×1080 widget for Larix/OBS. Automates the entire presentation:
+Full-screen widget for Larix/OBS. Supports **HD (1920×1080)** and **2K (2560×1440)** via `?res=2k` URL parameter. Automates the entire presentation:
 
 1. **Load** — match thumbnail (15s) → roster thumbnail (15s) → transparent
 2. **Half starts** — canvas/stats cleared **instantly** → score bottom-center (5s) → top-left → YouTube subscribe reminder (8s)
@@ -115,7 +116,21 @@ Full-screen 1920×1080 widget for Larix/OBS. Automates the entire presentation:
 
 Score widget uses exact `widget.html` layout. Stats overlay: full-screen solid background, table ≤7 / cards >7.
 
-**State machine design:** `playing` always wins — `bwHalfStart()` runs synchronously and instantly clears whatever is on screen before starting the score intro animation. No abort flags or sequence guards needed.
+**State machine design:** `playing` always wins — `bwHalfStart()` runs synchronously and instantly clears whatever is on screen. `bwHalfEndSequence()` has guard checks after every long `await` — if status becomes `playing` mid-sequence the sequence exits without touching the screen.
+
+#### 2K Resolution
+- URL parameter `?res=2k` loads `broadcast-widget-2k.css` dynamically before render
+- Canvas dimensions set via `BW_W`/`BW_H` globals (2560×1440 or 1920×1080)
+- `broadcast-widget-canvas.js` uses `BW_W`/`BW_H` instead of hardcoded values — `SCALE = W/1280` auto-scales everything
+- Resources panel has two buttons: **Трансляция HD** and **Трансляция 2К**
+- OBS Browser Source must be set to matching resolution (1920×1080 or 2560×1440)
+
+#### Goal Notification Cards (new design)
+**Home team goal** — player photo (roster style: dark bg, radial glow, yellow number badge top-left) | yellow separator | blue gradient panel (Гол! + minute + first/last name + club) | optional Ассистенты block (name + #number per row)
+
+**Opponent goal / Own goal** — white block with team logo | team-color separator | white panel (Гол!/Автогол + minute + team name). Separator and progress bar use team's color dynamically.
+
+`matchTime` stored as `MM:SS` → displayed as whole minutes only (e.g. `"05:19"` → `5'`).
 
 ---
 
@@ -150,7 +165,7 @@ Score widget uses exact `widget.html` layout. Stats overlay: full-screen solid b
 
 - [ ] Match list sorts correctly (upcoming first, played newest first)
 - [ ] Create/edit modal: dropdowns populate, saves correctly
-- [ ] Resources panel: all 5 buttons work (Табло, Заставка, Команда, Статистика, Трансляция)
+- [ ] Resources panel: Трансляция HD and Трансляция 2К copy correct URLs
 - [ ] Goal modal: assist multi-select, modal stays open, scorer saves with assists
 - [ ] Assist picker: pre-populates, saves, × removes individual assist
 - [ ] Clip button appears only while half is playing
@@ -163,9 +178,14 @@ Score widget uses exact `widget.html` layout. Stats overlay: full-screen solid b
 - [ ] broadcast-widget.html: match details screen hides instantly when half 2 starts
 - [ ] broadcast-widget.html: score visible at top-left after half starts
 - [ ] broadcast-widget.html: stats full-screen solid background
+- [ ] broadcast-widget.html: goal card shows player photo + yellow number badge
+- [ ] broadcast-widget.html: goal card shows Ассистенты with full name + number
+- [ ] broadcast-widget.html: goal card shows minute correctly (not seconds)
+- [ ] broadcast-widget.html: opponent card uses team color for separator
 - [ ] broadcast-widget.html: own goal card shows team 1 logo + team 2 name
-- [ ] broadcast-widget.html: YouTube subscribe reminder shown at half start (8s, bottom-left)
-- [ ] broadcast-widget.html: YouTube subscribe reminder shown at half end (4s, after score hides)
+- [ ] broadcast-widget.html: YouTube subscribe reminder shown at half start (8s)
+- [ ] broadcast-widget.html: YouTube subscribe reminder shown at half end (4s)
+- [ ] broadcast-widget.html ?res=2k: all elements scale to 2560×1440
 - [ ] Roster thumbnail: dark header band, cards correct
 - [ ] Championship stats: W/D/L, ⚽/👟 toggle, medals
 - [ ] PWA cache cleared after deployment
@@ -183,6 +203,7 @@ Score widget uses exact `widget.html` layout. Stats overlay: full-screen solid b
 7. Broadcast widget: manual override mode
 8. Match notes / venue field
 9. Export match report (PDF)
+10. Team archive (`isArchived: true` flag — proposed, not yet implemented)
 
 ---
 
