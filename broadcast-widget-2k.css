@@ -139,28 +139,28 @@ html, body {
 .bw-goal-count-number { font-size: 64px; }
 .bw-goal-count-label  { font-size: 27px; }
 
-/* ── Score widget ── */
+/* ── Score widget — 2× bigger than HD for same visual weight ── */
 .bw-scoreboard {
-    border-radius: 27px;
-    padding: 16px 27px;
-    gap: 16px;
-    min-width: 460px;
+    border-radius: 40px;
+    padding: 24px 48px;
+    gap: 24px;
+    min-width: 800px;
 }
 
 .team-logo-img {
-    width: 80px;
-    height: 80px;
-    border-radius: 12px;
+    width: 120px;
+    height: 120px;
+    border-radius: 18px;
 }
 
 .score-number {
-    font-size: 107px;
-    min-width: 80px;
+    font-size: 160px;
+    min-width: 120px;
 }
 
-.score-separator { font-size: 67px; padding: 0 5px; }
-.timer           { font-size: 35px; }
-.status-message  { font-size: 17px; }
+.score-separator { font-size: 107px; padding: 0 8px; }
+.timer           { font-size: 52px; }
+.status-message  { font-size: 26px; }
 
 /* ── Score positions ── */
 .bw-pos-topleft {
@@ -172,12 +172,39 @@ html, body {
     bottom: 64px;
 }
 
-/* ── Goal notification (large card, bottom-centered) ── */
+/* ── Goal notification — 2× width and height for readability in 2K ── */
 #bw-goal-notif {
-    width: 1200px;
-    bottom: 80px;
+    width: 1800px;
+    bottom: 120px;
 }
 
+/* новые карточки ngc — 2× */
+#bw-goal-notif .ngc-photo        { width: 280px; }
+#bw-goal-notif .ngc-num-badge    { font-size: 26px; padding: 8px 16px; border-radius: 10px; top: 12px; left: 12px; }
+#bw-goal-notif .ngc-sep          { width: 7px; }
+#bw-goal-notif .ngc-panel        { padding: 36px 36px 36px 48px; }
+#bw-goal-notif .ngc-goal-word    { font-size: 96px; }
+#bw-goal-notif .ngc-minute       { font-size: 38px; }
+#bw-goal-notif .ngc-name         { font-size: 56px; margin-top: 10px; }
+#bw-goal-notif .ngc-club         { font-size: 20px; margin-top: 5px; }
+#bw-goal-notif .ngc-assists      { max-width: 340px; padding-left: 32px; }
+#bw-goal-notif .ngc-assists-title { font-size: 17px; padding-bottom: 14px; }
+#bw-goal-notif .ngc-assist-row   { gap: 14px; }
+#bw-goal-notif .ngc-assist-name  { font-size: 20px; max-width: 220px; }
+#bw-goal-notif .ngc-assist-num   { font-size: 20px; padding: 4px 14px 4px 10px; }
+#bw-goal-notif .ngc-progress     { height: 6px; }
+#bw-goal-notif .ngc-photo-footer { height: 32px; }
+
+/* карточка соперника 2× */
+#bw-goal-notif .ngc-opp-logo     { width: 220px; padding: 28px; }
+#bw-goal-notif .ngc-opp-logo img { width: 140px; height: 140px; }
+#bw-goal-notif .ngc-opp-sep      { width: 7px; }
+#bw-goal-notif .ngc-opp-panel    { padding: 36px 48px; }
+#bw-goal-notif .ngc-opp-goal-word { font-size: 96px; }
+#bw-goal-notif .ngc-opp-minute   { font-size: 38px; }
+#bw-goal-notif .ngc-opp-name     { font-size: 56px; margin-top: 10px; }
+
+/* старые карточки (widget.html goal-card) если ещё используются */
 #bw-goal-notif .goal-card              { border-radius: 27px; }
 #bw-goal-notif .goal-card-inner        { min-height: 187px !important; }
 #bw-goal-notif .goal-card-number       { min-width: 200px; padding: 0 40px; }
