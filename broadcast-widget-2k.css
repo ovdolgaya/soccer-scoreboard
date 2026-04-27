@@ -107,37 +107,53 @@ html, body {
 
 .bw-assist-chip-name { font-size: 32px; }
 
-/* ── Cards grid ── */
-.bw-cards-grid { gap: 32px; }
+/* ── Cards grid — новый стиль ×1.333 ── */
+.bw-cards-grid { gap: 19px; }
 
 .bw-player-card {
-    border-radius: 37px;
-    height: 293px;
-    border-left-width: 8px;
+    border-radius: 11px;
+    min-height: 213px;
 }
 
 .bw-player-photo-wrap {
-    width: 293px;
-    height: 293px;
+    width: 160px;
+    padding-top: 37px;
 }
 
-.bw-player-photo    { max-height: 293px; }
+.bw-player-photo {
+    top: 37px;
+    height: calc(100% - 37px);
+}
 
 .bw-player-avatar {
-    width: 293px;
-    height: 293px;
-    font-size: 75px;
+    width: 160px;
+    font-size: 19px;
 }
 
-.bw-player-info     { padding: 0 32px; }
-.bw-player-number   { font-size: 37px; }
-.bw-player-firstname { font-size: 35px; }
-.bw-player-lastname { font-size: 45px; }
-.bw-player-assist-badge { font-size: 29px; }
+.bw-player-logo-wrap {
+    width: 160px;
+    padding: 21px;
+}
 
-.bw-goal-count      { padding: 0 32px; min-width: 107px; }
-.bw-goal-count-number { font-size: 64px; }
-.bw-goal-count-label  { font-size: 27px; }
+.bw-player-logo-wrap img { width: 93px; height: 93px; }
+
+.bw-player-num-badge {
+    font-size: 17px;
+    padding: 4px 10px;
+    border-radius: 7px;
+    top: 10px; left: 10px;
+}
+
+.bw-player-info     { padding: 13px 19px; }
+.bw-player-firstname { font-size: 21px; }
+.bw-player-lastname  { font-size: 37px; }
+
+.bw-goal-count      { min-width: 120px; }
+.bw-goal-count-goals  { padding: 0 21px; }
+.bw-goal-count-assists { padding: 0 21px; }
+.bw-goal-count-number { font-size: 53px; }
+.bw-goal-count-number.bw-assist-num { font-size: 40px; }
+.bw-goal-count-label  { font-size: 15px; }
 
 /* ── Score widget — scale ×1.33 от HD ── */
 #bw-score-layer.bw-pos-topleft {

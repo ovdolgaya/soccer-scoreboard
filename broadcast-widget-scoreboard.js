@@ -369,7 +369,7 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
         });
         const scorerList = Object.values(scorers).filter(s => s.goals > 0).sort((a,b) => b.goals - a.goals);
         const goalLabel   = n => n===1?'гол':n<=4?'гола':'голов';
-        const assistLabel = n => n===1?'асс':n<=4?'асс':'асс';
+        const assistLabel = n => n===1?'передача':n<=4?'передачи':'передач';
         html += '<div class="bw-cards-grid">';
         scorerList.forEach(function(sc, idx) {
             const delay = (idx * 0.06).toFixed(2) + 's';
@@ -416,7 +416,7 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
             const assistsHtml = sc.assists > 0
                 ? `<div class="bw-goal-count-assists">
                        <div class="bw-goal-count-number bw-assist-num">${sc.assists}</div>
-                       <div class="bw-goal-count-label">асс</div>
+                       <div class="bw-goal-count-label">${assistLabel(sc.assists)}</div>
                    </div>`
                 : '';
 
