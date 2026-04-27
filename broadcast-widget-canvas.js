@@ -21,8 +21,9 @@ function bwDrawMatchThumb(matchData, showScore, callback) {
     function drawAll(champLogoImg, t1, t2) {
         const canvas = bwCanvas;
         const ctx    = bwCtx;
-        // BW_W / BW_H are set in broadcast-widget.html based on ?res= param
-        const W = BW_W, H = BW_H;
+        // BW_W / BW_H set in broadcast-widget.html; fallback to 1920×1080 for safety
+        const W = (typeof BW_W !== 'undefined' ? BW_W : 1920);
+        const H = (typeof BW_H !== 'undefined' ? BW_H : 1080);
         canvas.width = W; canvas.height = H;
         const SCALE = W / 1280;
 
@@ -130,9 +131,14 @@ function bwDrawMatchThumb(matchData, showScore, callback) {
             ctx.fillText(matchData.team1Name || '', cx1, squareY + squareSize + Math.round(20*SCALE));
             ctx.fillText(matchData.team2Name || '', cx2, squareY + squareSize + Math.round(20*SCALE));
 
-            // Date
+            // Date or status label
             let dateStr = '';
-            if (matchData.scheduledTime) {
+            const status = matchData.status || '';
+            if (showScore && (status === 'half1_ended' || status === 'half2_ended')) {
+                dateStr = 'ПЕРЕРЫВ';
+            } else if (showScore && status === 'ended') {
+                dateStr = 'МАТЧ ОКОНЧЕН';
+            } else if (matchData.scheduledTime) {
                 const d = new Date(matchData.scheduledTime);
                 dateStr = String(d.getDate()).padStart(2,'0') + '.' +
                           String(d.getMonth()+1).padStart(2,'0') + '.' +
@@ -212,7 +218,7 @@ function bwShowCachedImage(url) {
     if (!img) {
         img = document.createElement('img');
         img.id = 'bw-canvas-img';
-        img.style.cssText = `width:${BW_W}px;height:${BW_H}px;object-fit:cover;position:absolute;inset:0;`;
+        img.style.cssText = `width:${typeof BW_W !== 'undefined' ? BW_W : 1920}px;height:${typeof BW_H !== 'undefined' ? BW_H : 1080}px;object-fit:cover;position:absolute;inset:0;`;
         bwCanvasLayer.appendChild(img);
     }
     img.src = url;

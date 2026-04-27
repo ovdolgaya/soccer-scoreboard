@@ -71,7 +71,7 @@ html, body {
             width: 100%;
             border-radius: 0;
             overflow: hidden;
-            background: rgba(0, 44, 138,0.93);
+            background: radial-gradient(ellipse at center, rgba(25,71,186,0.8) 0%, rgba(0,51,160,0.90) 100%);
             display: flex;
             flex-direction: column;
         }
@@ -199,50 +199,110 @@ html, body {
 .bw-cards-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+    gap: 14px;
 }
+
+/* ── карточки статистики — стиль карточки гола ── */
 .bw-player-card {
-    background: rgba(255,255,255,0.93);
-    border-radius: 28px; height: 220px;
     display: flex; align-items: stretch;
-    border-left: 6px solid #FCDC00;
-    overflow: hidden;
+    border-radius: 8px; overflow: hidden;
+    height: 110px; position: relative;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
     animation: bwCardIn 0.4s ease both;
-    position: relative;
 }
 .bw-card-accent { display: none; }
 @keyframes bwCardIn {
-    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    from { opacity: 0; transform: translateY(10px) scale(0.97); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* фото блок */
 .bw-player-photo-wrap {
-    width: 220px; height: 220px; flex-shrink: 0;
-    overflow: hidden; display: flex; align-items: flex-end; justify-content: center;
+    width: 90px; flex-shrink: 0; position: relative;
+    background: radial-gradient(circle at 50% 55%, rgba(0,51,160,0.55) 0%, #0d1b3e 75%);
+    overflow: hidden;
+    display: flex; align-items: flex-end; justify-content: center;
 }
 .bw-player-photo {
-    width: 100%; height: auto; max-height: 220px;
-    object-fit: contain; object-position: bottom; display: block;
+    width: 100%; height: calc(100% - 12px); margin-top: 12px;
+    object-fit: contain; object-position: bottom center; display: block;
+    position: relative; z-index: 1;
 }
+.bw-player-photo-footer {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 18px;
+    background: linear-gradient(to bottom, rgba(3,19,52,0) 0%, rgba(3,19,52,1) 100%);
+    z-index: 3;
+}
+.bw-player-num-badge {
+    position: absolute; top: 6px; left: 6px; z-index: 5;
+    background: #FCDC00; color: #0d1b3e;
+    font-size: 11px; font-weight: 700;
+    border-radius: 4px; padding: 2px 6px; line-height: 1.2;
+    font-family: 'Lexend', Calibri, sans-serif;
+}
+
+/* аватар (нет фото) */
 .bw-player-avatar {
-    width: 220px; height: 220px;
-    background: linear-gradient(160deg, var(--bw-team-color, #08399A), #1e5fd4);
+    width: 90px; flex-shrink: 0;
+    background: linear-gradient(160deg, #1947BA 0%, #08399A 100%);
     display: flex; align-items: center; justify-content: center;
-    font-size: 56px; font-weight: 900; color: #fff; flex-shrink: 0;
+    font-size: 14px; font-weight: 700; color: #fff;
 }
+
+/* лого (автогол) */
+.bw-player-logo-wrap {
+    width: 90px; flex-shrink: 0;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px;
+}
+.bw-player-logo-wrap img { width: 58px; height: 58px; object-fit: contain; }
+
+/* жёлтый разделитель */
+.bw-card-sep { width: 3px; flex-shrink: 0; background: #e3c600; }
+
+/* центральная панель — имя как в карточке гола */
 .bw-player-info {
-    flex: 1; display: flex; flex-direction: column; justify-content: center;
-    padding: 0 24px; min-width: 0; overflow: hidden; gap: 4px;
+    flex: 1; min-width: 0;
+    background: linear-gradient(135deg, rgba(3,19,52,0.92) 0%, rgba(25,71,186,0.88) 100%);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 10px 14px; overflow: hidden; gap: 0;
 }
-.bw-player-number { font-size: 28px; font-weight: 900; color: var(--bw-team-color, #08399A); letter-spacing: 0.04em; }
-.bw-player-firstname { font-size: 26px; font-weight: 500; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bw-player-lastname { font-size: 34px; font-weight: 800; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bw-player-assist-badge { font-size: 22px; color: #64748b; margin-top: 4px; }
+.bw-player-number   { display: none; }
+.bw-player-firstname { font-size: 13px; font-weight: 400; color: rgba(226,226,232,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bw-player-lastname  { font-size: 20px; font-weight: 800; color: #e3c600; text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bw-player-assist-badge { display: none; }
+.bw-card-progress   { display: none; }
+
+/* правый блок — вертикально: голы сверху, ассисты снизу */
 .bw-goal-count {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 0 24px; border-left: 2px solid rgba(0,0,0,0.06); min-width: 80px;
+    flex-shrink: 0; display: flex; flex-direction: column; align-items: stretch;
+    border-left: 1px solid rgba(255,255,255,0.1);
+    min-width: 64px;
 }
-.bw-goal-count-number { font-size: 48px; font-weight: 900; color: var(--bw-team-color, #08399A); line-height: 1; }
-.bw-goal-count-label { font-size: 20px; font-weight: 600; color: #94a3b8; }
+.bw-goal-count-goals {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 0 14px;
+    background: rgba(3,19,52,0.85);
+}
+.bw-goal-count-assists {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 0 14px;
+    background: rgba(3,19,52,0.6);
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+.bw-goal-count-number {
+    font-size: 26px; font-weight: 900; color: #FCDC00; line-height: 1;
+    font-family: 'Lexend', Calibri, sans-serif;
+}
+.bw-goal-count-number.bw-assist-num {
+    font-size: 20px; color: rgba(255,255,255,0.5);
+}
+.bw-goal-count-label {
+    font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.35);
+    text-transform: uppercase; margin-top: 1px; letter-spacing: 0.5px;
+    font-family: 'Lexend', Calibri, sans-serif;
+}
 
 /* ══════════════════════════════════════════════════
    LAYER 3 — SCORE WIDGET
@@ -493,28 +553,29 @@ html, body {
     display: flex; align-items: center; justify-content: center;
     padding: 16px;
     position: relative; z-index: 1;
+    box-shadow: 4px 0 12px rgba(0,0,0,0.25);
 }
-.ngc-opp-sep { width: 4px; flex-shrink: 0; }
+.ngc-opp-sep { display: none; }
 .ngc-opp-panel {
     flex: 1;
-    background: #fff;
     display: flex; align-items: center;
     padding: 22px 26px;
     position: relative; overflow: hidden;
 }
 .ngc-opp-goal-word {
     font-size: 56px; font-weight: 700; line-height: 1;
-    color: rgba(0,0,0,0.6); letter-spacing: -2px;
-    text-shadow: 0 2px 1px rgba(0,0,0,0.06), 0 4px 1.5px rgba(0,0,0,0.07);
+    color: #fff; letter-spacing: -2px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6);
 }
 .ngc-opp-minute {
     font-size: 22px; font-weight: 400;
-    color: rgba(0,0,0,0.45); letter-spacing: 2px; text-transform: uppercase; margin-left: 12px;
+    color: rgba(255,255,255,0.75); letter-spacing: 2px; text-transform: uppercase; margin-left: 12px;
 }
 .ngc-opp-name {
     font-size: 32px; font-weight: 800;
-    color: rgba(0,0,0,0.6); letter-spacing: -0.7px; text-transform: uppercase;
+    color: #fff; letter-spacing: -0.7px; text-transform: uppercase;
     margin-top: 6px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6);
 }
 
 

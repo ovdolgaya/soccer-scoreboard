@@ -139,28 +139,15 @@ html, body {
 .bw-goal-count-number { font-size: 64px; }
 .bw-goal-count-label  { font-size: 27px; }
 
-/* ── Score widget — ×1.333 от HD ── */
-.bw-scoreboard {
-    border-radius: 27px;
-    padding: 16px 27px;
-    gap: 16px;
-    min-width: 460px;
+/* ── Score widget — scale ×1.33 от HD ── */
+#bw-score-layer.bw-pos-topleft {
+    transform: scale(1.33);
+    transform-origin: top left;
 }
 
-.team-logo-img {
-    width: 80px;
-    height: 80px;
-    border-radius: 12px;
+#bw-score-layer.bw-pos-bottom {
+    transform: translateX(-50%) scale(2.5);
 }
-
-.score-number {
-    font-size: 107px;
-    min-width: 80px;
-}
-
-.score-separator { font-size: 67px; padding: 0 5px; }
-.timer           { font-size: 35px; }
-.status-message  { font-size: 17px; }
 
 /* ── Score positions ── */
 .bw-pos-topleft {
@@ -172,7 +159,7 @@ html, body {
     bottom: 64px;
 }
 
-/* ── Goal notification — ×1.333 от HD ── */
+/* ── Goal notification ── */
 #bw-goal-notif {
     width: 1200px;
     bottom: 80px;
@@ -180,29 +167,29 @@ html, body {
 
 /* карточки ngc — ×1.333 */
 #bw-goal-notif .ngc-photo        { width: 200px; }
-#bw-goal-notif .ngc-num-badge    { font-size: 21px; padding: 6px 12px; border-radius: 8px; top: 10px; left: 10px; }
+#bw-goal-notif .ngc-num-badge    { font-size: 20px; padding: 6px 10px; border-radius: 7px; top: 9px; left: 9px; }
 #bw-goal-notif .ngc-sep          { width: 5px; }
-#bw-goal-notif .ngc-panel        { padding: 28px 28px 28px 36px; }
-#bw-goal-notif .ngc-goal-word    { font-size: 72px; }
-#bw-goal-notif .ngc-minute       { font-size: 28px; }
-#bw-goal-notif .ngc-name         { font-size: 43px; margin-top: 8px; }
-#bw-goal-notif .ngc-club         { font-size: 21px; margin-top: 4px; }
-#bw-goal-notif .ngc-assists      { max-width: 290px; padding-left: 26px; }
-#bw-goal-notif .ngc-assists-title { font-size: 14px; padding-bottom: 13px; }
-#bw-goal-notif .ngc-assist-row   { gap: 12px; }
-#bw-goal-notif .ngc-assist-name  { font-size: 17px; max-width: 185px; }
-#bw-goal-notif .ngc-assist-num   { font-size: 16px; padding: 3px 12px 3px 10px; }
+#bw-goal-notif .ngc-panel        { padding: 24px 24px 24px 32px; }
+#bw-goal-notif .ngc-goal-word    { font-size: 68px; }
+#bw-goal-notif .ngc-minute       { font-size: 26px; }
+#bw-goal-notif .ngc-name         { font-size: 42px; margin-top: 7px; }
+#bw-goal-notif .ngc-club         { font-size: 26px; margin-top: 4px; }
+#bw-goal-notif .ngc-assists      { max-width: 290px; padding-left: 24px; }
+#bw-goal-notif .ngc-assists-title { font-size: 18px; padding-bottom: 11px; }
+#bw-goal-notif .ngc-assist-row   { gap: 10px; }
+#bw-goal-notif .ngc-assist-name  { font-size: 22px; max-width: 200px; }
+#bw-goal-notif .ngc-assist-num   { font-size: 21px; padding: 3px 10px 3px 8px; }
 #bw-goal-notif .ngc-progress     { height: 5px; }
-#bw-goal-notif .ngc-photo-footer { height: 27px; }
+#bw-goal-notif .ngc-photo-footer { height: 26px; }
 
-/* карточка соперника ×1.333 */
-#bw-goal-notif .ngc-opp-logo     { width: 173px; padding: 21px; }
+/* карточка соперника */
+#bw-goal-notif .ngc-opp-logo     { width: 165px; padding: 20px; }
 #bw-goal-notif .ngc-opp-logo img { width: 107px; height: 107px; }
 #bw-goal-notif .ngc-opp-sep      { width: 5px; }
-#bw-goal-notif .ngc-opp-panel    { padding: 28px 36px; }
-#bw-goal-notif .ngc-opp-goal-word { font-size: 72px; }
-#bw-goal-notif .ngc-opp-minute   { font-size: 28px; }
-#bw-goal-notif .ngc-opp-name     { font-size: 43px; margin-top: 8px; }
+#bw-goal-notif .ngc-opp-panel    { padding: 24px 32px; }
+#bw-goal-notif .ngc-opp-goal-word { font-size: 68px; }
+#bw-goal-notif .ngc-opp-minute   { font-size: 26px; }
+#bw-goal-notif .ngc-opp-name     { font-size: 42px; margin-top: 7px; }
 
 /* старые карточки goal-card если нужны */
 #bw-goal-notif .goal-card              { border-radius: 27px; }

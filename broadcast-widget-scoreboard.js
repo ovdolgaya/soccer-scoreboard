@@ -169,8 +169,36 @@ function buildHomeGoalCard({ photoSrc, logoSrc, number, firstName, lastName, min
     `;
 }
 
-// Карточка гола соперника / автогол
-// logoSrc   — лого команды соперника
+// Карточка автогола — стиль карточки БАТЭ (синий градиент),
+// но вместо фото — лого команды 1 (БАТЭ), без номера игрока,
+// "Автогол" жёлтым, внизу название команды которая совершила автогол.
+function buildOwnGoalCard({ logoSrc, oppTeamName, minute }) {
+    const logoHtml = logoSrc
+        ? `<img class="ngc-photo-img" src="${logoSrc}" alt="" style="object-fit:contain;padding:16px;">`
+        : '';
+
+    return `
+        <div class="ngc ngc-home">
+            <div class="ngc-photo" style="display:flex;align-items:center;justify-content:center;">
+                ${logoHtml}
+                <div class="ngc-photo-footer"></div>
+            </div>
+            <div class="ngc-sep"></div>
+            <div class="ngc-panel">
+                <div class="ngc-left">
+                    <div class="ngc-goal-row">
+                        <span class="ngc-goal-word">Автогол</span>
+                        <span class="ngc-minute">${minute||''}</span>
+                    </div>
+                    ${oppTeamName ? `<div class="ngc-club" style="font-size:20px;margin-top:6px;color:rgba(226,226,232,0.7);">Автогол команды ${oppTeamName}</div>` : ''}
+                </div>
+                <div class="ngc-progress" style="background:linear-gradient(to right,#e3c600,rgba(227,198,0,0.05))"></div>
+            </div>
+        </div>
+    `;
+}
+
+
 // teamName  — название команды
 // teamColor — цвет команды соперника (разделитель + progress)
 // minute    — строка "64'"
@@ -185,16 +213,16 @@ function buildOppGoalCard({ logoSrc, teamName, teamColor, minute, label }) {
             <div class="ngc-opp-logo">
                 ${logoHtml}
             </div>
-            <div class="ngc-opp-sep" style="background:${teamColor}"></div>
-            <div class="ngc-opp-panel">
-                <div>
+            <div class="ngc-opp-panel" style="background:${teamColor};">
+                <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(0,0,0,0) 30%,rgba(0,0,0,0.45) 100%);pointer-events:none;"></div>
+                <div style="position:relative;z-index:1;">
                     <div class="ngc-goal-row">
                         <span class="ngc-opp-goal-word">${label||'Гол!'}</span>
                         <span class="ngc-opp-minute">${minute||''}</span>
                     </div>
                     <div class="ngc-opp-name">${(teamName||'Соперник').toUpperCase()}</div>
                 </div>
-                <div class="ngc-progress" style="background:linear-gradient(to right,${teamColor},rgba(0,0,0,0.03))"></div>
+                <div class="ngc-progress" style="background:linear-gradient(to right,rgba(255,255,255,0.5),rgba(255,255,255,0.03))"></div>
             </div>
         </div>
     `;
@@ -340,23 +368,73 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
             });
         });
         const scorerList = Object.values(scorers).filter(s => s.goals > 0).sort((a,b) => b.goals - a.goals);
-        const goalLabel = n => n===1?'гол':n<=4?'гола':'голов';
+        const goalLabel   = n => n===1?'гол':n<=4?'гола':'голов';
+        const assistLabel = n => n===1?'асс':n<=4?'асс':'асс';
         html += '<div class="bw-cards-grid">';
-        scorerList.forEach(function(sc) {
+        scorerList.forEach(function(sc, idx) {
+            const delay = (idx * 0.06).toFixed(2) + 's';
+
             if (sc.isOwnGoal) {
-                html += `<div class="bw-player-card bw-own-goal"><div class="bw-card-accent"></div><div class="bw-player-avatar">⚽</div><div class="bw-player-info"><div class="bw-player-number">АГ</div><div class="bw-player-lastname">Автогол</div></div><div class="bw-goal-count"><div class="bw-goal-count-number">${sc.goals}</div><div class="bw-goal-count-label">${goalLabel(sc.goals)}</div></div></div>`;
+                // Автогол — лого команды 1 на тёмном фоне (как у игроков), название команды 2
+                const team2Name = matchData.team2Name || 'Соперник';
+                const ogLogoHtml = logoUrl
+                    ? `<div class="bw-player-photo-wrap" style="display:flex;align-items:center;justify-content:center;">
+                           <img src="${logoUrl}" alt="" style="width:60px;height:60px;object-fit:contain;position:relative;z-index:1;">
+                       </div>`
+                    : `<div class="bw-player-avatar">⚽</div>`;
+                html += `<div class="bw-player-card bw-own-goal" style="animation-delay:${delay}">
+                    ${ogLogoHtml}
+                    <div class="bw-card-sep"></div>
+                    <div class="bw-player-info">
+                        <div class="bw-player-firstname">Автогол команды</div>
+                        <div class="bw-player-lastname">${team2Name.toUpperCase()}</div>
+                    </div>
+                    <div class="bw-goal-count">
+                        <div class="bw-goal-count-goals">
+                            <div class="bw-goal-count-number">${sc.goals}</div>
+                            <div class="bw-goal-count-label">${goalLabel(sc.goals)}</div>
+                        </div>
+                    </div>
+                </div>`;
                 return;
             }
-            const p    = sc.playerId ? (bwPlayersCache[sc.playerId]||null) : null;
-            const num  = p ? ('#'+p.number) : (sc.playerNumber ? '#'+sc.playerNumber : '?');
-            const fn   = p ? (p.firstName||'') : '';
-            const ln   = p ? (p.lastName||'').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
-            const photo= p ? (p.photo||'') : '';
-            const photoHtml = photo
-                ? `<div class="bw-player-photo-wrap"><img class="bw-player-photo" src="${photo}" alt="${ln}" onerror="this.style.display='none'"></div>`
-                : `<div class="bw-player-avatar">${num}</div>`;
-            const assistBadge = sc.assists > 0 ? `<div class="bw-player-assist-badge">👟 ${sc.assists}</div>` : '';
-            html += `<div class="bw-player-card"><div class="bw-card-accent"></div>${photoHtml}<div class="bw-player-info"><div class="bw-player-number">${num}</div>${fn?`<div class="bw-player-firstname">${fn}</div>`:''}<div class="bw-player-lastname">${ln}</div>${assistBadge}</div><div class="bw-goal-count"><div class="bw-goal-count-number">${sc.goals}</div><div class="bw-goal-count-label">${goalLabel(sc.goals)}</div></div></div>`;
+
+            const p     = sc.playerId ? (bwPlayersCache[sc.playerId]||null) : null;
+            const num   = p ? p.number : (sc.playerNumber||'?');
+            const fn    = p ? (p.firstName||'') : '';
+            const ln    = p ? (p.lastName||'').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
+            const photo = p ? (p.photo||'') : '';
+
+            const photoBlockHtml = photo
+                ? `<div class="bw-player-photo-wrap">
+                       <img class="bw-player-photo" src="${photo}" alt="${ln}" onerror="this.style.display='none'">
+                       <div class="bw-player-photo-footer"></div>
+                       <div class="bw-player-num-badge">${num}</div>
+                   </div>`
+                : `<div class="bw-player-avatar"><span style="font-size:14px;font-weight:700;">#${num}</span></div>`;
+
+            const assistsHtml = sc.assists > 0
+                ? `<div class="bw-goal-count-assists">
+                       <div class="bw-goal-count-number bw-assist-num">${sc.assists}</div>
+                       <div class="bw-goal-count-label">асс</div>
+                   </div>`
+                : '';
+
+            html += `<div class="bw-player-card" style="animation-delay:${delay}">
+                ${photoBlockHtml}
+                <div class="bw-card-sep"></div>
+                <div class="bw-player-info">
+                    ${fn ? `<div class="bw-player-firstname">${fn}</div>` : ''}
+                    <div class="bw-player-lastname">${ln}</div>
+                </div>
+                <div class="bw-goal-count">
+                    <div class="bw-goal-count-goals">
+                        <div class="bw-goal-count-number">${sc.goals}</div>
+                        <div class="bw-goal-count-label">${goalLabel(sc.goals)}</div>
+                    </div>
+                    ${assistsHtml}
+                </div>
+            </div>`;
         });
         html += '</div>';
     }
@@ -456,6 +534,6 @@ function showOwnGoalCard() {
     const teamLogo  = bwMatchData ? (bwMatchData._t1Logo  || '') : '';
     const oppName   = bwMatchData ? (bwMatchData.team2Name || 'Соперник') : 'Соперник';
 
-    const html = buildOppGoalCard({ logoSrc: teamLogo, teamName: oppName, teamColor, minute: '', label: 'Автогол' });
+    const html = buildOwnGoalCard({ logoSrc: teamLogo, oppTeamName: oppName, minute: '' });
     renderNotification(html, teamColor);
 }
