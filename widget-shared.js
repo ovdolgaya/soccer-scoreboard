@@ -38,41 +38,25 @@ function wsFetchTeamData(teamId) {
 }
 
 // ── Players cache prefill ──
-const _wsPrefillDone = {};   // teamId → true — guard против повторных запросов
-
 function wsPrefillPlayersCache(teamId) {
     if (!teamId) return;
-    if (_wsPrefillDone[teamId]) {
-        console.log('[wsPlayersCache] skip — already loaded for team', teamId);
-        return;
-    }
-    _wsPrefillDone[teamId] = true;        // помечаем сразу, чтобы не запустить дважды параллельно
-
     const cached = typeof _rosterCache !== 'undefined' && _rosterCache['players_' + teamId];
     if (cached) {
         try {
-            let count = 0;
             cached.forEach(function(childSnap) {
                 const p = childSnap.val();
-                if (p && childSnap.key) { wsPlayersCache[childSnap.key] = p; count++; }
+                if (p && childSnap.key) wsPlayersCache[childSnap.key] = p;
             });
-            console.log('[wsPlayersCache] loaded', count, 'players from _rosterCache (no Firebase request)');
             return;
         } catch(e) { /* fallthrough */ }
     }
-    console.log('[wsPlayersCache] fetching from Firebase for team', teamId, '...');
     database.ref('players').orderByChild('teamId').equalTo(teamId)
         .once('value').then(function(snap) {
-            let count = 0;
             snap.forEach(function(childSnap) {
                 const p = childSnap.val();
-                if (p && !p.isDeleted) { wsPlayersCache[childSnap.key] = p; count++; }
+                if (p && !p.isDeleted) wsPlayersCache[childSnap.key] = p;
             });
-            console.log('[wsPlayersCache] loaded', count, 'players from Firebase');
-        }).catch(function(err) {
-            console.error('[wsPlayersCache] Firebase error, will retry next time:', err);
-            delete _wsPrefillDone[teamId];
-        });
+        }).catch(function() {});
 }
 
 // ════════════════════════════════════════════════════════════════
