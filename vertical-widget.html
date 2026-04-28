@@ -41,7 +41,7 @@
     #vw-score-wrap .status-message { font-family: Arial, sans-serif; }
 
     /* Scoreboard ×1.5 */
-    #vw-score-wrap .score-container  { border-radius: 15px; min-width: 900px; width: max-content; }
+    #vw-score-wrap .score-container  { border-radius: 15px; min-width: 1000px; width: max-content; }
     #vw-score-wrap .team             { gap: 15px; padding: 12px 18px; }
     #vw-score-wrap .team.team1       { min-width: 300px; }
     #vw-score-wrap .team.team2       { min-width: 300px; }
@@ -131,6 +131,13 @@ function vwInit() {
         return;
     }
 
+    // Одноразовая загрузка игроков — только при старте, не при каждом обновлении матча
+    database.ref('matches/' + VW_MATCH_ID).once('value', function(snap) {
+        const initialData = snap.val();
+        if (initialData) wsPrefillPlayersCache(initialData.team1Id);
+    });
+
+    // Слушатель обновлений матча — только UI, без загрузки игроков
     database.ref('matches/' + VW_MATCH_ID).on('value', function(snap) {
         const matchData = snap.val();
         if (!matchData) return;
@@ -143,7 +150,6 @@ function vwInit() {
 
         wsRenderScoreboard(matchData, vwScoreboard, vwTimerEl);
         wsStartTimer(matchData, vwTimerRef);
-        wsPrefillPlayersCache(matchData.team1Id);
 
         vwScoreWrap.style.display = 'flex';
         vwLoading.classList.add('vw-hidden');
