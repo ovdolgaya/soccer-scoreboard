@@ -56,7 +56,13 @@ const STATIC_SHELL = [
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
-      return cache.addAll(STATIC_SHELL);
+      return Promise.all(
+        STATIC_SHELL.map(function(url) {
+          return cache.add(url).catch(function(err) {
+            console.error('[SW] Failed to cache:', url, err);
+          });
+        })
+      );
     })
   );
   self.skipWaiting();
