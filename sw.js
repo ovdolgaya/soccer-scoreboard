@@ -12,13 +12,44 @@ const STATIC_SHELL = [
   './match-helpers.js',
   './match-management.js',
   './match-control.js',
+  './match-edit-modal.js',
   './goal-tracking.js',
   './roster-thumbnail-helper.js',
+  './roster.js',
+  './roster-styles.css',
   './auth.js',
   './nav.js',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+  './icon192.png',
+  './icon512.png',
+  // Streaming widgets
+  './widget.html',
+  './goals-widget.html',
+  './broadcast-widget.html',
+  './broadcast-widget.css',
+  './broadcast-widget-2k.css',
+  './broadcast-widget-canvas.js',
+  './broadcast-widget-scoreboard.js',
+  './broadcast-widget-sequences.js',
+  // Shared widget modules
+  './widget-shared.css',
+  './widget-shared-2k.css',
+  './widget-shared.js',
+  './widget-goal-listener.js',
+  // Vertical widget
+  './vertical-widget.html',
+  // Firebase widget config
+  './firebase-config-widget.js',
+  // Player/coach placeholder images
+  './soccerplayer.png',
+  './soccerplayer_blue.png',
+  './soccerplayer_yellow.png',
+  './goalkeeper.png',
+  './goalkeeper_blue.png',
+  './goalkeeper_yellow.png',
+  './coach.png',
+  './coach_yellow.png',
+  './football.png'
 ];
 
 // Install: cache static shell
