@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Vertical Widget 2K</title>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config-widget.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="widget-shared.css">
+    <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+        width: 1440px; height: 2560px;
+        overflow: hidden; background: transparent;
+        font-family: 'Lexend', Calibri, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    #vw-score-wrap {
+        margin-top: 80px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 10;
+    }
+
+    /* Scoreboard font — Arial */
+    #vw-score-wrap .team-name,
+    #vw-score-wrap .score-num,
+    #vw-score-wrap .half-indicator,
+    #vw-score-wrap .timer,
+    #vw-score-wrap .status-message { font-family: Arial, sans-serif; }
+
+    /* Scoreboard ×1.5 */
+    #vw-score-wrap .score-container  { border-radius: 15px; min-width: 900px; width: max-content; }
+    #vw-score-wrap .team             { gap: 15px; padding: 12px 18px; }
+    #vw-score-wrap .team.team1       { min-width: 300px; }
+    #vw-score-wrap .team.team2       { min-width: 300px; }
+    #vw-score-wrap .team-logo        { width: 66px; height: 66px; border-radius: 8px; }
+    #vw-score-wrap .team-name        { font-size: 30px; }
+    #vw-score-wrap .score-card       { padding: 0 21px; }
+    #vw-score-wrap .score-num        { font-size: 60px; min-width: 51px; }
+    #vw-score-wrap .score-divider    { width: 3px; height: 45px; margin: 0 15px; }
+    #vw-score-wrap .timer-container  { height: 66px; min-width: 0; width: max-content; max-width: 1300px; padding: 0 30px; border-bottom-right-radius: 15px; border-bottom-left-radius: 15px; }
+    #vw-score-wrap .half-indicator   { font-size: 20px; }
+    #vw-score-wrap .timer            { font-size: 39px; }
+    #vw-score-wrap .status-message   { font-size: 20px; }
+
+    /* Goal notification */
+    #vw-goal-notif {
+        position: fixed; left: 50%; bottom: 100px;
+        transform: translateX(-50%) translateY(30px);
+        z-index: 9999; pointer-events: none;
+        width: 1300px; opacity: 0;
+        transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    #vw-goal-notif.ws-notif-visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #vw-goal-notif.ws-notif-hiding  { opacity: 0; transform: translateX(-50%) translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+
+    /* ngc overrides ×1.5 */
+    #vw-goal-notif .ngc-photo        { width: 220px; }
+    #vw-goal-notif .ngc-photo-img    { height: calc(100% - 22px); margin-top: 22px; }
+    #vw-goal-notif .ngc-photo-footer { height: 28px; }
+    #vw-goal-notif .ngc-num-badge    { font-size: 22px; padding: 7px 13px; border-radius: 8px; top: 11px; left: 11px; }
+    #vw-goal-notif .ngc-sep          { width: 6px; }
+    #vw-goal-notif .ngc-panel        { padding: 30px 30px 30px 38px; }
+    #vw-goal-notif .ngc-goal-word    { font-size: 80px; }
+    #vw-goal-notif .ngc-minute       { font-size: 30px; }
+    #vw-goal-notif .ngc-name         { font-size: 48px; margin-top: 8px; }
+    #vw-goal-notif .ngc-club         { font-size: 30px; margin-top: 6px; }
+    #vw-goal-notif .ngc-assists      { max-width: 400px; padding-left: 28px; }
+    #vw-goal-notif .ngc-assists-title { font-size: 20px; padding-bottom: 14px; }
+    #vw-goal-notif .ngc-assist-row   { gap: 12px; }
+    #vw-goal-notif .ngc-assist-name  { font-size: 26px; max-width: 280px; }
+    #vw-goal-notif .ngc-assist-num   { font-size: 24px; padding: 4px 14px 4px 10px; }
+    #vw-goal-notif .ngc-progress     { height: 6px; }
+    #vw-goal-notif .ngc-opp-logo     { width: 190px; padding: 20px; }
+    #vw-goal-notif .ngc-opp-logo-img { width: 150px; height: 150px; }
+    #vw-goal-notif .ngc-opp-panel    { padding: 30px 40px; }
+    #vw-goal-notif .ngc-opp-goal-word { font-size: 80px; }
+    #vw-goal-notif .ngc-opp-minute   { font-size: 30px; margin-left: 16px; }
+    #vw-goal-notif .ngc-opp-name     { font-size: 48px; margin-top: 8px; }
+
+    #vw-loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .vw-loading-text { font-size: 72px; font-weight: 700; color: white; }
+    .vw-hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="vw-loading"><div class="vw-loading-text">Загрузка...</div></div>
+
+<div id="vw-score-wrap" style="display:none;">
+    <div id="vw-scoreboard"></div>
+    <div id="vw-timer" class="timer-container"></div>
+</div>
+
+<div id="vw-goal-notif"></div>
+
+<script src="widget-shared.js"></script>
+<script src="widget-goal-listener.js"></script>
+
+<script>
+// ══════════════════════════════════════════════
+//  VERTICAL WIDGET 2K — 1440×2560 (Shorts)
+// ══════════════════════════════════════════════
+
+const VW_MATCH_ID  = new URLSearchParams(window.location.search).get('match');
+const vwLoading    = document.getElementById('vw-loading');
+const vwScoreWrap  = document.getElementById('vw-score-wrap');
+const vwScoreboard = document.getElementById('vw-scoreboard');
+const vwTimerEl    = document.getElementById('vw-timer');
+const vwGoalNotif  = document.getElementById('vw-goal-notif');
+
+let vwMatchData  = null;
+const vwTimerRef = { id: null };
+const vwTimeouts = { show: null, hide: null };
+
+function vwInit() {
+    if (!VW_MATCH_ID) {
+        vwLoading.querySelector('.vw-loading-text').textContent = 'Укажите ?match=ID';
+        return;
+    }
+
+    database.ref('matches/' + VW_MATCH_ID).on('value', function(snap) {
+        const matchData = snap.val();
+        if (!matchData) return;
+        // Сохраняем кэшированные _t* поля — они устанавливаются асинхронно в wsRenderScoreboard
+        matchData._t1Logo  = matchData._t1Logo  || (vwMatchData && vwMatchData._t1Logo)  || '';
+        matchData._t2Logo  = matchData._t2Logo  || (vwMatchData && vwMatchData._t2Logo)  || '';
+        matchData._t1Color = matchData._t1Color || (vwMatchData && vwMatchData._t1Color) || '#08399A';
+        matchData._t2Color = matchData._t2Color || (vwMatchData && vwMatchData._t2Color) || '#4A90E2';
+        vwMatchData = matchData;
+
+        wsRenderScoreboard(matchData, vwScoreboard, vwTimerEl);
+        wsStartTimer(matchData, vwTimerRef);
+        wsPrefillPlayersCache(matchData.team1Id);
+
+        vwScoreWrap.style.display = 'flex';
+        vwLoading.classList.add('vw-hidden');
+    });
+
+    wsInitGoalListener({
+        matchId:      VW_MATCH_ID,
+        notifEl:      vwGoalNotif,
+        timeouts:     vwTimeouts,
+        getMatchData: function() { return vwMatchData; }
+    });
+}
+
+vwInit();
+</script>
+</body>
+</html>

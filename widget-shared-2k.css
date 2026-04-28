@@ -1,0 +1,46 @@
+/* ══════════════════════════════════════════════════
+   WIDGET SHARED 2K OVERRIDES (2560×1440)
+   Используется в broadcast-widget-2k.css и vertical-widget-2k.css
+   Все значения = HD × 1.333
+══════════════════════════════════════════════════ */
+
+/* ── Scoreboard ×1.333 ── */
+.score-container  { border-radius: 13px; min-width: 800px; }
+.team             { gap: 13px; padding: 11px 16px; }
+.team.team1       { min-width: 267px; }
+.team.team2       { min-width: 267px; }
+.team-logo        { width: 59px; height: 59px; border-radius: 7px; }
+.team-name        { font-size: 27px; }
+.score-card       { padding: 0 19px; }
+.score-num        { font-size: 53px; min-width: 45px; }
+.score-divider    { width: 3px; height: 40px; margin: 0 13px; }
+.timer-container  { height: 59px; max-width: 533px; gap: 13px; border-bottom-right-radius: 13px; border-bottom-left-radius: 13px; }
+.half-indicator   { font-size: 17px; }
+.timer            { font-size: 35px; }
+.status-message   { font-size: 17px; }
+
+/* ── Goal card ×1.333 (через контейнер #bw-goal-notif или .ws-goal-notif) ── */
+.ws-2k .ngc           { border-radius: 11px; }
+.ws-2k .ngc-photo     { width: 200px; }
+.ws-2k .ngc-photo-img { height: calc(100% - 21px); margin-top: 21px; }
+.ws-2k .ngc-photo-footer { height: 27px; }
+.ws-2k .ngc-num-badge { font-size: 21px; padding: 7px 13px; border-radius: 8px; top: 11px; left: 11px; }
+.ws-2k .ngc-sep       { width: 5px; }
+.ws-2k .ngc-panel     { padding: 29px 29px 29px 35px; }
+.ws-2k .ngc-goal-word { font-size: 75px; }
+.ws-2k .ngc-minute    { font-size: 29px; }
+.ws-2k .ngc-name      { font-size: 43px; margin-top: 8px; }
+.ws-2k .ngc-club      { font-size: 24px; margin-top: 5px; }
+.ws-2k .ngc-assists   { max-width: 433px; padding-left: 27px; }
+.ws-2k .ngc-assists-title { font-size: 20px; padding-bottom: 13px; }
+.ws-2k .ngc-assist-row    { gap: 13px; }
+.ws-2k .ngc-assist-name   { font-size: 24px; max-width: 293px; }
+.ws-2k .ngc-assist-num    { font-size: 23px; padding: 4px 13px 4px 11px; }
+.ws-2k .ngc-progress      { height: 5px; }
+.ws-2k .ngc-opp-logo          { width: 173px; padding: 21px; }
+.ws-2k .ngc-opp-logo-img      { width: 130px; height: 130px; }
+.ws-2k .ngc-opp-logo-fallback { font-size: 64px; }
+.ws-2k .ngc-opp-panel     { padding: 29px 43px; }
+.ws-2k .ngc-opp-goal-word { font-size: 75px; }
+.ws-2k .ngc-opp-minute    { font-size: 29px; margin-left: 16px; }
+.ws-2k .ngc-opp-name      { font-size: 43px; margin-top: 8px; }

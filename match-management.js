@@ -787,18 +787,44 @@ function copyBroadcastWidgetUrl(res) {
         basePath = basePath.replace('index.html', '');
     }
 
-    const resParam = res === '2k' ? '&res=2k' : '';
-    const broadcastUrl = window.location.origin + basePath + '/broadcast-widget.html?match=' + matchId + resParam;
-    const label = res === '2k' ? '🎬 Ссылка Трансляция 2К скопирована!' : '🎬 Ссылка Трансляция HD скопирована!';
+    let broadcastUrl = window.location.origin + basePath + '/broadcast-widget.html?match=' + matchId;
+    if (res) broadcastUrl += '&res=' + res;
 
     try {
         navigator.clipboard.writeText(broadcastUrl).then(function() {
-            showToast(label);
+            showToast(res ? '🎬 Ссылка на трансляцию 2К скопирована!' : '🎬 Ссылка на трансляцию скопирована!');
         }).catch(function() {
             fallbackCopyTextToClipboard(broadcastUrl);
         });
     } catch (err) {
         fallbackCopyTextToClipboard(broadcastUrl);
+    }
+}
+
+function copyVerticalWidgetUrl() {
+    if (!matchId) {
+        alert('Матч не выбран');
+        return;
+    }
+
+    let basePath = window.location.pathname;
+    if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
+    if (basePath.endsWith('/index.html')) {
+        basePath = basePath.replace('/index.html', '');
+    } else if (basePath.endsWith('index.html')) {
+        basePath = basePath.replace('index.html', '');
+    }
+
+    const url = window.location.origin + basePath + '/vertical-widget.html?match=' + matchId;
+
+    try {
+        navigator.clipboard.writeText(url).then(function() {
+            showToast('📱 Ссылка на вертикальное табло 2К скопирована!');
+        }).catch(function() {
+            fallbackCopyTextToClipboard(url);
+        });
+    } catch (err) {
+        fallbackCopyTextToClipboard(url);
     }
 }
 

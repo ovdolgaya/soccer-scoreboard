@@ -242,40 +242,6 @@ async function bwHalfEndSequence() {
     // Canvas stays visible — bwHalfStart() will clear it instantly when next half begins
 }
 
-// ── PREFILL PLAYERS CACHE ──
-// Загружает всех игроков команды в bwPlayersCache заранее,
-// используя _rosterCache если он уже заполнен (ноль Firebase запросов),
-// иначе делает один запрос /players?teamId=X.
-// Вызывается при старте виджета для team1 — чтобы к первому голу
-// данные игроков уже были в памяти.
-function bwPrefillPlayersCache(teamId) {
-    if (!teamId) return;
-    // Если _rosterCache уже заполнен после roster thumbnail — берём оттуда
-    const cached = typeof _rosterCache !== 'undefined' && _rosterCache['players_' + teamId];
-    if (cached) {
-        cached.forEach(function(snap) {
-            // _rosterCache хранит Firebase snapshot — итерируем
-        });
-        // _rosterCache['players_' + teamId] — это Firebase DataSnapshot
-        // forEach по нему даёт childSnapshot
-        try {
-            cached.forEach(function(childSnap) {
-                const p = childSnap.val();
-                if (p && childSnap.key) bwPlayersCache[childSnap.key] = p;
-            });
-            return; // готово, без Firebase запроса
-        } catch(e) { /* fallthrough к Firebase */ }
-    }
-    // Иначе — один Firebase запрос на всю команду
-    database.ref('players').orderByChild('teamId').equalTo(teamId)
-        .once('value').then(function(snap) {
-            snap.forEach(function(childSnap) {
-                const p = childSnap.val();
-                if (p && !p.isDeleted) bwPlayersCache[childSnap.key] = p;
-            });
-        }).catch(function() { /* тихо игнорируем — ленивая загрузка сработает при голе */ });
-}
-
 // ── INTRO SEQUENCE (on page load) ──
 async function bwIntroSequence(matchData) {
     bwIntroShown = true;

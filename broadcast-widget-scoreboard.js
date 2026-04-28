@@ -1,243 +1,86 @@
 // ════════════════════════════════════════════════════════════════
 //  BROADCAST WIDGET — SCOREBOARD, TIMER, STATS, GOAL CARDS
-//  Depends on: bwScoreboard, bwStatsBox, bwGoalNotif,
-//              bwMatchData, bwTeamsCache, bwPlayersCache,
-//              bwFetchTeamData(), bwSetCssColor(),
-//              bwPostGoalAnnouncement(), database, BW_MATCH_ID
+//  Depends on: widget-shared.js, widget-goal-listener.js,
+//              broadcast-widget.html (bwPlayersCache, bwTeamsCache,
+//              bwFetchTeamData, bwScoreboard, bwGoalNotif, bwMatchData)
 // ════════════════════════════════════════════════════════════════
 
-// ── Color helpers ──
-function lightenColor(hex, percent) {
-    const num = parseInt((hex || '#08399A').replace('#', ''), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min(255, (num >> 16) + amt);
-    const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
-    const B = Math.min(255, (num & 0x0000FF) + amt);
-    return '#' + (0x1000000 + (R * 0x10000) + (G * 0x100) + B).toString(16).slice(1);
-}
+// Aliases для shared функций (broadcast сохраняет bw* именование)
+function _fmtMinute(goal)            { return wsFmtMinute(goal); }
+function buildHomeGoalCard(opts)     { return wsBuildHomeGoalCard(opts); }
+function buildOwnGoalCard(opts)      { return wsBuildOwnGoalCard(opts); }
+function buildOppGoalCard(opts)      { return wsBuildOppGoalCard(opts); }
+function getMatchStatus(matchData)   { return wsGetMatchStatus(matchData); }
+function getTimerContent(matchData)  { return wsGetTimerContent(matchData); }
 
-function _applyScoreboardColors(t1Color, t2Color) {
-    document.documentElement.style.setProperty('--team1-color', t1Color);
-    document.documentElement.style.setProperty('--team1-color-light', lightenColor(t1Color, 10));
-    document.documentElement.style.setProperty('--team2-color', t2Color);
-    document.documentElement.style.setProperty('--team2-color-light', lightenColor(t2Color, 10));
-}
+// Timer interval holder для wsStartTimer
+const _bwTimerRef = { id: null };
 
-// ════════════════════════════════════════════════════════════════
-//  SCOREBOARD
-// ════════════════════════════════════════════════════════════════
-
-function getMatchStatus(matchData) {
-    if (matchData.scheduledTime && matchData.scheduledTime > Date.now()) return 'scheduled';
-    return matchData.status || 'waiting';
-}
-
-function getTimerContent(matchData) {
-    const status = getMatchStatus(matchData);
-    if (status === 'scheduled') {
-        const d = new Date(matchData.scheduledTime);
-        return `<div class="status-message">Матч начнется ${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} в ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</div>`;
-    }
-    if (status === 'waiting')     return '<div class="status-message">Ожидание начала матча</div>';
-    if (status === 'ended')       return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
-    if (status === 'half1_ended') return '<div class="status-message">1 ТАЙМ ОКОНЧЕН</div>';
-    if (status === 'half2_ended') return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
-    if (status === 'playing') {
-        const halfText = matchData.currentHalf === 1 ? '1 ТАЙМ' : '2 ТАЙМ';
-        const initElapsed = Math.max(0, Date.now() - matchData.startTime);
-        const initSec = Math.floor(initElapsed / 1000);
-        const ih = String(Math.floor(initSec / 3600)).padStart(2, '0');
-        const im = String(Math.floor((initSec % 3600) / 60)).padStart(2, '0');
-        const is = String(initSec % 60).padStart(2, '0');
-        return `<span class="half-indicator">${halfText}:</span><span class="timer" id="timerDisplay">${ih}:${im}:${is}</span>`;
-    }
-    return '<div class="timer">00:00:00</div>';
-}
-
-// Called on data update — fetches team data then renders
 function bwRenderScoreboard(matchData) {
     if (!matchData) return;
-    const t1Id = matchData.team1Id, t2Id = matchData.team2Id;
-    Promise.all([bwFetchTeamData(t1Id), bwFetchTeamData(t2Id)]).then(function(teams) {
-        const t1Logo  = (teams[0] && teams[0].logo)  || '';
-        const t2Logo  = (teams[1] && teams[1].logo)  || '';
-        const t1Color = (teams[0] && teams[0].color) || '#08399A';
-        const t2Color = (teams[1] && teams[1].color) || '#4A90E2';
-        // Cache on matchData for fast re-renders
-        matchData._t1Logo = t1Logo; matchData._t2Logo = t2Logo;
-        matchData._t1Color = t1Color; matchData._t2Color = t2Color;
-        _applyScoreboardColors(t1Color, t2Color);
-        _renderScoreboardHtml(matchData, t1Logo, t2Logo);
-    });
-}
+    // Fetch teams (uses bwFetchTeamData from HTML which populates bwTeamsCache)
+    Promise.all([bwFetchTeamData(matchData.team1Id), bwFetchTeamData(matchData.team2Id)])
+    .then(function(teams) {
+        const t1 = teams[0] || {}, t2 = teams[1] || {};
+        matchData._t1Logo  = t1.logo  || '';
+        matchData._t2Logo  = t2.logo  || '';
+        matchData._t1Color = t1.color || '#08399A';
+        matchData._t2Color = t2.color || '#4A90E2';
+        wsApplyTeamColors(matchData._t1Color, matchData._t2Color);
 
-function _renderScoreboardHtml(matchData, t1Logo, t2Logo) {
-    const scoreboardHtml = `
-        <div class="score-container">
-            <div class="team team1">
-                ${t1Logo ? `<img src="${t1Logo}" class="team-logo" alt="">` : ''}
-                <div class="team-name">${matchData.team1Name || ''}</div>
+        bwScoreboard.innerHTML = `
+            <div class="score-container">
+                <div class="team team1">
+                    ${t1.logo ? `<img src="${t1.logo}" class="team-logo" alt="">` : ''}
+                    <div class="team-name">${matchData.team1Name || ''}</div>
+                </div>
+                <div class="score-card">
+                    <span class="score-num">${matchData.score1 || 0}</span>
+                    <div class="score-divider"></div>
+                    <span class="score-num">${matchData.score2 || 0}</span>
+                </div>
+                <div class="team team2">
+                    ${t2.logo ? `<img src="${t2.logo}" class="team-logo" alt="">` : ''}
+                    <div class="team-name">${matchData.team2Name || ''}</div>
+                </div>
             </div>
-            <div class="score-card">
-                <span class="score-num">${matchData.score1 || 0}</span>
-                <div class="score-divider"></div>
-                <span class="score-num">${matchData.score2 || 0}</span>
-            </div>
-            <div class="team team2">
-                ${t2Logo ? `<img src="${t2Logo}" class="team-logo" alt="">` : ''}
-                <div class="team-name">${matchData.team2Name || ''}</div>
-            </div>
-        </div>
-        <div class="timer-container" id="timerBar">
-            ${getTimerContent(matchData)}
-        </div>
-    `;
-    bwScoreboard.innerHTML = scoreboardHtml;
+            <div class="timer-container" id="timerBar">
+                ${wsGetTimerContent(matchData)}
+            </div>`;
+    });
 }
 
 function bwStartTimer(matchData) {
     if (bwTimerInterval) { clearInterval(bwTimerInterval); bwTimerInterval = null; }
-    if (matchData.status !== 'playing') return;
-    bwTimerInterval = setInterval(function() {
-        const el = document.getElementById('timerDisplay');
-        if (!el) return;
-        const elapsed  = Math.max(0, Date.now() - (matchData.startTime || Date.now()));
-        const totalSec = Math.floor(elapsed / 1000);
-        const h = String(Math.floor(totalSec/3600)).padStart(2,'0');
-        const m = String(Math.floor((totalSec%3600)/60)).padStart(2,'0');
-        const s = String(totalSec%60).padStart(2,'0');
-        el.textContent = h + ':' + m + ':' + s;
-    }, 100);
+    wsStartTimer(matchData, _bwTimerRef);
+    bwTimerInterval = _bwTimerRef.id;
 }
 
-// ════════════════════════════════════════════════════════════════
-//  GOAL CARD BUILDER — новый дизайн по макету Figma
-// ════════════════════════════════════════════════════════════════
+// ── Notification (broadcast uses #bw-goal-notif) ──
+const _bwNotifTimeouts = { show: null, hide: null };
 
-// Карточка гола основной команды (БАТЭ)
-// photoSrc  — base64/url фото игрока (или '' → лого команды)
-// logoSrc   — лого команды (fallback если нет фото)
-// number    — номер игрока
-// firstName, lastName — имя/фамилия
-// minute    — строка "64'"
-// assists   — массив {name, number} или []
-// teamColor — цвет команды для жёлтого разделителя (всегда #e3c600 для своей)
-function buildHomeGoalCard({ photoSrc, logoSrc, number, firstName, lastName, minute, assists, teamName }) {
-    const imgSrc = photoSrc || logoSrc || '';
-    const photoHtml = imgSrc
-        ? `<img class="ngc-photo-img" src="${imgSrc}" alt="" onerror="this.style.display='none'">`
-        : '';
-
-    const nameHtml = `${firstName ? `<span class="ngc-firstname">${firstName}</span>` : ''}<span class="ngc-lastname">${(lastName||'').toUpperCase()}</span>`;
-
-    let assistsHtml = '';
-    if (assists && assists.length > 0) {
-        const rows = assists.map(function(a) {
-            const fullName = [a.firstName, a.lastName ? a.lastName.toUpperCase() : ''].filter(Boolean).join(' ');
-            return `<div class="ngc-assist-row">
-                <span class="ngc-assist-name">${fullName || '—'}</span>
-                <span class="ngc-assist-num">#${a.number||'?'}</span>
-            </div>`;
-        }).join('');
-        assistsHtml = `<div class="ngc-assists">
-            <div class="ngc-assists-title">Ассистенты</div>
-            <div class="ngc-assists-list">${rows}</div>
-        </div>`;
-    }
-
-    return `
-        <div class="ngc ngc-home">
-            <div class="ngc-photo">
-                ${photoHtml}
-                <div class="ngc-photo-footer"></div>
-                <div class="ngc-num-badge">${number||'?'}</div>
-            </div>
-            <div class="ngc-sep"></div>
-            <div class="ngc-panel">
-                <div class="ngc-left">
-                    <div class="ngc-goal-row">
-                        <span class="ngc-goal-word">Гол!</span>
-                        <span class="ngc-minute">${minute||''}</span>
-                    </div>
-                    <div class="ngc-name">${nameHtml}</div>
-                    ${teamName ? `<div class="ngc-club">${teamName}</div>` : ''}
-                </div>
-                ${assistsHtml}
-                <div class="ngc-progress" style="background:linear-gradient(to right,#e3c600,rgba(227,198,0,0.05))"></div>
-            </div>
-        </div>
-    `;
+function renderNotification(html) {
+    wsShowGoalNotif(bwGoalNotif, html, _bwNotifTimeouts, 5000, bwPostGoalAnnouncement);
 }
 
-// Карточка автогола — стиль карточки БАТЭ (синий градиент),
-// но вместо фото — лого команды 1 (БАТЭ), без номера игрока,
-// "Автогол" жёлтым, внизу название команды которая совершила автогол.
-function buildOwnGoalCard({ logoSrc, oppTeamName, minute }) {
-    const logoHtml = logoSrc
-        ? `<img class="ngc-photo-img" src="${logoSrc}" alt="" style="object-fit:contain;padding:16px;">`
-        : '';
-
-    return `
-        <div class="ngc ngc-home">
-            <div class="ngc-photo" style="display:flex;align-items:center;justify-content:center;">
-                ${logoHtml}
-                <div class="ngc-photo-footer"></div>
-            </div>
-            <div class="ngc-sep"></div>
-            <div class="ngc-panel">
-                <div class="ngc-left">
-                    <div class="ngc-goal-row">
-                        <span class="ngc-goal-word">Автогол</span>
-                        <span class="ngc-minute">${minute||''}</span>
-                    </div>
-                    ${oppTeamName ? `<div class="ngc-club" style="font-size:20px;margin-top:6px;color:rgba(226,226,232,0.7);">Автогол команды ${oppTeamName}</div>` : ''}
-                </div>
-                <div class="ngc-progress" style="background:linear-gradient(to right,#e3c600,rgba(227,198,0,0.05))"></div>
-            </div>
-        </div>
-    `;
+function bwHandleNewGoal(goal) {
+    wsHandleGoal(goal, bwGoalNotif, _bwNotifTimeouts, function() { return bwMatchData; }, 5000, bwPostGoalAnnouncement);
 }
 
-
-// teamName  — название команды
-// teamColor — цвет команды соперника (разделитель + progress)
-// minute    — строка "64'"
-// label     — 'Гол!' или 'Автогол'
-function buildOppGoalCard({ logoSrc, teamName, teamColor, minute, label }) {
-    const logoHtml = logoSrc
-        ? `<img src="${logoSrc}" alt="" style="width:80px;height:80px;object-fit:contain;">`
-        : `<span style="font-size:48px;">⚽</span>`;
-
-    return `
-        <div class="ngc ngc-opp">
-            <div class="ngc-opp-logo">
-                ${logoHtml}
-            </div>
-            <div class="ngc-opp-panel" style="background:${teamColor};">
-                <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(0,0,0,0) 30%,rgba(0,0,0,0.45) 100%);pointer-events:none;"></div>
-                <div style="position:relative;z-index:1;">
-                    <div class="ngc-goal-row">
-                        <span class="ngc-opp-goal-word">${label||'Гол!'}</span>
-                        <span class="ngc-opp-minute">${minute||''}</span>
-                    </div>
-                    <div class="ngc-opp-name">${(teamName||'Соперник').toUpperCase()}</div>
-                </div>
-                <div class="ngc-progress" style="background:linear-gradient(to right,rgba(255,255,255,0.5),rgba(255,255,255,0.03))"></div>
-            </div>
-        </div>
-    `;
+function bwHandleOppGoal() {
+    if (bwMatchData) wsShowOppGoalCard(bwMatchData, bwGoalNotif, _bwNotifTimeouts, false, 5000, bwPostGoalAnnouncement);
 }
 
-// Форматирует время матча в строку "5'" 
-// matchTime хранится как "MM:SS" (например "05:19") → показываем только минуты
-function _fmtMinute(goal) {
-    if (!goal.matchTime) return '';
-    const parts = (goal.matchTime || '').split(':');
-    if (parts.length >= 1) {
-        const minutes = parseInt(parts[0] || 0, 10);
-        return minutes + `'`;
-    }
-    return '';
+function showPlayerGoalCard(goal, player) {
+    wsShowHomeGoalCard(goal, bwMatchData, bwGoalNotif, _bwNotifTimeouts);
+}
+
+function showOpponentGoalCard(matchData) {
+    wsShowOppGoalCard(matchData, bwGoalNotif, _bwNotifTimeouts);
+}
+
+function showOwnGoalCard() {
+    wsShowOwnGoalCard(bwMatchData, bwGoalNotif, _bwNotifTimeouts, null);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -443,97 +286,5 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
     return html;
 }
 
-// ════════════════════════════════════════════════════════════════
-//  GOAL NOTIFICATION CARD
-// ════════════════════════════════════════════════════════════════
 
-function renderNotification(cardHtml, teamColor) {
-    const el = bwGoalNotif;
-    if (bwNotifTimeout)     { clearTimeout(bwNotifTimeout);     bwNotifTimeout     = null; }
-    if (bwNotifHideTimeout) { clearTimeout(bwNotifHideTimeout); bwNotifHideTimeout = null; }
 
-    el.style.setProperty('--goal-team-color', teamColor);
-    el.classList.remove('bw-notif-visible', 'bw-notif-hiding');
-    el.innerHTML = cardHtml;
-    void el.offsetHeight;  // force reflow
-    el.classList.add('bw-notif-visible');
-    bwNotifVisible = true;
-
-    bwNotifTimeout = setTimeout(function() {
-        el.classList.remove('bw-notif-visible');
-        el.classList.add('bw-notif-hiding');
-        bwNotifHideTimeout = setTimeout(function() {
-            el.classList.remove('bw-notif-hiding');
-            el.innerHTML = '';
-            bwNotifVisible = false;
-            bwPostGoalAnnouncement();
-        }, 600);
-    }, 5000);
-}
-
-function bwHandleNewGoal(goal) {
-    if (goal.isOwnGoal) {
-        showOwnGoalCard();
-        return;
-    }
-    const needed = [];
-    if (goal.playerId && !bwPlayersCache[goal.playerId]) needed.push(goal.playerId);
-    if (goal.assists) goal.assists.forEach(a => { if (a.playerId && !bwPlayersCache[a.playerId]) needed.push(a.playerId); });
-    Promise.all(needed.map(pid =>
-        database.ref('players/' + pid).once('value').then(s => { if (s.val()) bwPlayersCache[pid] = s.val(); })
-    )).then(function() {
-        showPlayerGoalCard(goal, goal.playerId ? (bwPlayersCache[goal.playerId]||null) : null);
-    });
-}
-
-function bwHandleOppGoal() {
-    if (!bwMatchData) return;
-    showOpponentGoalCard(bwMatchData);
-}
-
-function showPlayerGoalCard(goal, player) {
-    const teamColor  = bwMatchData ? (bwMatchData._t1Color || '#08399A') : '#08399A';
-    const teamLogo   = bwMatchData ? (bwMatchData._t1Logo  || '') : '';
-    const teamName   = bwMatchData ? (bwMatchData.team1Name || '') : '';
-    const photoSrc   = player ? (player.photo || '') : '';
-    const number     = player ? (player.number || goal.playerNumber || '?') : (goal.playerNumber || '?');
-    const firstName  = player ? (player.firstName || '') : '';
-    const lastName   = player ? (player.lastName  || '') : 'НЕИЗВЕСТНЫЙ';
-    const minute     = _fmtMinute(goal);
-
-    const assists = [];
-    if (goal.assists && goal.assists.length > 0) {
-        goal.assists.forEach(function(a) {
-            const ap = a.playerId ? bwPlayersCache[a.playerId] : null;
-            assists.push({
-                firstName: ap ? (ap.firstName || '') : '',
-                lastName:  ap ? (ap.lastName  || '') : '',
-                number:    ap ? (ap.number || a.playerNumber || '?') : (a.playerNumber || '?')
-            });
-        });
-    }
-
-    const html = buildHomeGoalCard({ photoSrc, logoSrc: teamLogo, number, firstName, lastName, minute, assists, teamName });
-    renderNotification(html, teamColor);
-}
-
-function showOpponentGoalCard(matchData) {
-    const t2Id      = matchData.team2Id;
-    const cached    = t2Id ? (bwTeamsCache[t2Id] || {}) : {};
-    const teamColor = matchData._t2Color || cached.color || '#4A90E2';
-    const teamLogo  = matchData._t2Logo  || cached.logo  || '';
-    const teamName  = matchData.team2Name || 'Соперник';
-
-    // minute not available for opponent goals — no goal record
-    const html = buildOppGoalCard({ logoSrc: teamLogo, teamName, teamColor, minute: '', label: 'Гол!' });
-    renderNotification(html, teamColor);
-}
-
-function showOwnGoalCard() {
-    const teamColor = bwMatchData ? (bwMatchData._t1Color || '#08399A') : '#08399A';
-    const teamLogo  = bwMatchData ? (bwMatchData._t1Logo  || '') : '';
-    const oppName   = bwMatchData ? (bwMatchData.team2Name || 'Соперник') : 'Соперник';
-
-    const html = buildOwnGoalCard({ logoSrc: teamLogo, oppTeamName: oppName, minute: '' });
-    renderNotification(html, teamColor);
-}
