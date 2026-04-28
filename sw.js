@@ -2,7 +2,7 @@
 // Strategy: Network-first for everything (app requires live Firebase data)
 // Only caches static shell files so the app loads offline gracefully
 
-const CACHE_NAME = 'scoreboard-v5';
+const CACHE_NAME = 'scoreboard-v6';
 
 const STATIC_SHELL = [
   './',
@@ -53,13 +53,14 @@ const STATIC_SHELL = [
 ];
 
 // Install: cache static shell
+// Используем индивидуальные add() вместо addAll() — один 404 не валит весь SW
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
       return Promise.all(
         STATIC_SHELL.map(function(url) {
           return cache.add(url).catch(function(err) {
-            console.error('[SW] Failed to cache:', url, err);
+            console.warn('[SW] Failed to cache:', url, err);
           });
         })
       );

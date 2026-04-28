@@ -2,29 +2,23 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="football.png">
     <title>Broadcast Widget</title>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="firebase-config-widget.js"></script>
     <script src="roster-thumbnail-helper.js"></script>
-    <link rel="stylesheet" href="widget-shared.css">
     <link rel="stylesheet" href="broadcast-widget.css">
     <script>
     // Load 2K override CSS before any rendering
     (function() {
         const res = new URLSearchParams(window.location.search).get('res');
         if (res === '2k') {
-            ['widget-shared-2k.css', 'broadcast-widget-2k.css'].forEach(function(href) {
-                const link = document.createElement('link');
-                link.rel = 'stylesheet'; link.href = href;
-                document.head.appendChild(link);
-            });
-            // Add ws-2k class so widget-shared-2k.css overrides apply to goal cards
-            document.addEventListener('DOMContentLoaded', function() {
-                const notif = document.getElementById('bw-goal-notif');
-                if (notif) notif.classList.add('ws-2k');
-            });
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'broadcast-widget-2k.css';
+            document.head.appendChild(link);
         }
     })();
     </script>
@@ -133,21 +127,6 @@ function bwSetCssColor(color) {
     document.documentElement.style.setProperty('--bw-team-color', color || '#08399A');
 }
 
-// Prefills both bwPlayersCache (for stats) and wsPlayersCache (for goal cards)
-function bwPrefillPlayersCache(teamId) {
-    if (!teamId) return;
-    database.ref('players').orderByChild('teamId').equalTo(teamId)
-        .once('value').then(function(snap) {
-            snap.forEach(function(child) {
-                const p = child.val();
-                if (p && !p.isDeleted) {
-                    bwPlayersCache[child.key] = p;
-                    wsPlayersCache[child.key] = p;  // shared cache for goal cards
-                }
-            });
-        }).catch(function() {});
-}
-
 function bwLightenColor(hex, pct) {
     const num = parseInt((hex || '#08399A').replace('#',''), 16);
     const amt = Math.round(2.55 * pct);
@@ -169,10 +148,6 @@ function bwFlashTransition(durationMs, midFn) {
     });
 }
 </script>
-
-<!-- Shared modules — scoreboard, goal cards, goal listener -->
-<script src="widget-shared.js"></script>
-<script src="widget-goal-listener.js"></script>
 
 <!-- Helper modules (depend on state vars above) -->
 <script src="broadcast-widget-canvas.js"></script>
@@ -214,9 +189,6 @@ if (!BW_MATCH_ID) {
         matchData._t1Color = t1.color || '#08399A';
         matchData._t2Color = t2.color || '#4A90E2';
         bwSetCssColor(t1.color || '#08399A');
-
-        // Prefill players cache for instant goal cards
-        if (matchData.team1Id) bwPrefillPlayersCache(matchData.team1Id);
 
         // Render scoreboard
         bwRenderScoreboard(matchData);
@@ -269,11 +241,6 @@ if (!BW_MATCH_ID) {
             if (!updated) return;
 
             const prevScore2 = bwMatchData ? (bwMatchData.score2 || 0) : 0;
-            // Сохраняем кэшированные поля — они добавляются асинхронно и отсутствуют в Firebase объекте
-            updated._t1Logo  = updated._t1Logo  || (bwMatchData && bwMatchData._t1Logo)  || '';
-            updated._t2Logo  = updated._t2Logo  || (bwMatchData && bwMatchData._t2Logo)  || '';
-            updated._t1Color = updated._t1Color || (bwMatchData && bwMatchData._t1Color) || '#08399A';
-            updated._t2Color = updated._t2Color || (bwMatchData && bwMatchData._t2Color) || '#4A90E2';
             bwMatchData = updated;
 
             // Opponent goal detection

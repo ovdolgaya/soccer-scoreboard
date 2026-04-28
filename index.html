@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="football.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#08399A">
     <meta name="mobile-web-app-capable" content="yes">
@@ -141,40 +142,26 @@
             <!-- Match Resources Section (Consolidated) -->
             <div class="match-resources" id="matchResourcesSection" style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #e2e8f0;">
                 <h3 style="margin-bottom: 15px; color: #1e293b;">📦 Ресурсы матча</h3>
-
-                <!-- Icon buttons row -->
-                <div style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center;">
-                    <button onclick="copyWidgetUrl()" title="Табло" style="background: #3b82f6; border: none; border-radius: 10px; width: 52px; height: 52px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: white; transition: background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                        <i class="fas fa-tv" style="font-size: 18px;"></i>
-                        <span style="font-size: 9px; font-weight: 600; letter-spacing: 0.02em;">Табло</span>
-                    </button>
-                    <button onclick="generateThumbnail()" title="Заставка" style="background: #3b82f6; border: none; border-radius: 10px; width: 52px; height: 52px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: white; transition: background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                        <i class="fas fa-image" style="font-size: 18px;"></i>
-                        <span style="font-size: 9px; font-weight: 600; letter-spacing: 0.02em;">Заставка</span>
-                    </button>
-                    <button onclick="downloadTeamRoster()" title="Команда" style="background: #3b82f6; border: none; border-radius: 10px; width: 52px; height: 52px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: white; transition: background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                        <i class="fas fa-users" style="font-size: 18px;"></i>
-                        <span style="font-size: 9px; font-weight: 600; letter-spacing: 0.02em;">Команда</span>
-                    </button>
-                    <button onclick="copyStatsWidgetUrl()" title="Статистика" style="background: #3b82f6; border: none; border-radius: 10px; width: 52px; height: 52px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: white; transition: background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                        <i class="fas fa-chart-bar" style="font-size: 18px;"></i>
-                        <span style="font-size: 9px; font-weight: 600; letter-spacing: 0.02em;">Стат.</span>
-                    </button>
-                </div>
-
-                <!-- Full buttons row -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                    <button class="button" onclick="copyBroadcastWidgetUrl()" title="Копировать ссылку на виджет трансляции">
-                        <i class="fas fa-film"></i> Трансляция
+                    <button class="button" onclick="copyWidgetUrl()" title="Копировать ссылку на табло">
+                        <i class="fas fa-tv"></i> Табло
                     </button>
-                    <button class="button" onclick="copyBroadcastWidgetUrl('2k')" title="Копировать ссылку на трансляцию 2K">
+                    <button class="button" onclick="generateThumbnail()" title="Скачать заставку для трансляции">
+                        <i class="fas fa-image"></i> Заставка
+                    </button>
+                    <button class="button" onclick="downloadTeamRoster()" title="Скачать состав команды">
+                        <i class="fas fa-users"></i> Команда
+                    </button>
+                    <button class="button" onclick="copyStatsWidgetUrl()" title="Копировать ссылку на виджет статистики">
+                        <i class="fas fa-chart-bar"></i> Статистика
+                    </button>
+                    <button class="button" onclick="copyBroadcastWidgetUrl('hd')" title="Копировать ссылку на трансляцию HD (1920×1080)">
+                        <i class="fas fa-film"></i> Трансляция HD
+                    </button>
+                    <button class="button" onclick="copyBroadcastWidgetUrl('2k')" title="Копировать ссылку на трансляцию 2К (2560×1440)">
                         <i class="fas fa-film"></i> Трансляция 2К
                     </button>
-                    <button class="button" onclick="copyVerticalWidgetUrl()" title="Копировать ссылку на вертикальное табло 2К (Shorts)">
-                        <i class="fas fa-mobile-alt"></i> Табло 2К
-                    </button>
                 </div>
-
                 <div id="copyMessage" style="color: #10b981; font-weight: bold; display: none; margin-top: 10px; text-align: center;">
                     ✓ Ссылка скопирована!
                 </div>

@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="football.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Чемпионаты — Soccer Scoreboard</title>
 
@@ -758,10 +759,9 @@ function generateChampThumbnail(champTitle, btn) {
     btn.disabled = true;
 
     const matches = group.matches.slice().sort(function(a, b) {
-        // Unified sort key:
-        // 1. Matches with a known date/time sort ascending (earliest first).
-        // 2. Matches without any scheduled date (status 'scheduled' with no date,
-        //    i.e. "Дата уточняется") always go to the very end, ordered by createdAt.
+        // Unified sort key — always returns a comparable value:
+        // scheduledTime (ms number) > matchDate ("YYYY-MM-DD") > createdAt (ms number)
+        // Convert matchDate to a timestamp so everything is numeric and comparable.
         function key(m) {
             if (m.scheduledTime) return m.scheduledTime;
             if (m.matchDate) {
@@ -769,15 +769,9 @@ function generateChampThumbnail(champTitle, btn) {
                 const p = m.matchDate.split('-');
                 return new Date(+p[0], +p[1] - 1, +p[2]).getTime();
             }
-            // No date at all — push to end; use createdAt as a tiebreaker within this group
-            return Infinity;
+            return m.createdAt || 0;
         }
-        const ka = key(a), kb = key(b);
-        if (ka === Infinity && kb === Infinity) {
-            // Both undated — sort by creation time so order is stable
-            return (a.createdAt || 0) - (b.createdAt || 0);
-        }
-        return ka - kb;  // ascending — earliest first
+        return key(a) - key(b);  // ascending — earliest first
     });
 
     // Collect unique logo URLs — resolve from teams cache first, fall back to embedded
@@ -1855,20 +1849,16 @@ function _renderChampScorerTable() {
     }
 
     const maxVal = filtered[0][mode]; // goals or assists
-    let rank = 0;
-    let prevVal = null;
-    let html = filtered.map(function(s) {
-        const val  = s[mode];
-        // Dense rank — tied players get the same rank
-        if (val !== prevVal) { rank++; prevVal = val; }
+    let html = filtered.map(function(s, i) {
         const name = s.lastName
             ? ((s.firstName ? s.firstName + ' ' : '') + s.lastName.toUpperCase())
             : ('Игрок #' + s.number);
+        const val  = s[mode];
         const barW = maxVal > 0 ? Math.round(val / maxVal * 100) : 0;
-        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
         return `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;">
-          <div style="font-size:16px;width:20px;text-align:center;flex-shrink:0;">${medal || ('<span style="font-size:12px;color:#94a3b8;">' + rank + '</span>')}</div>
+          <div style="font-size:16px;width:20px;text-align:center;flex-shrink:0;">${medal || ('<span style="font-size:12px;color:#94a3b8;">' + (i+1) + '</span>')}</div>
           <div style="background:#08399A;color:#fff;border-radius:6px;padding:3px 8px;font-size:13px;font-weight:700;flex-shrink:0;width:44px;text-align:center;">#${s.number}</div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:14px;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(name)}</div>
