@@ -41,10 +41,8 @@ const STATIC_SHELL = [
   // Firebase widget config
   './firebase-config-widget.js',
   // Player/coach placeholder images
-  './soccerplayer.png',
-  './soccerplayer_blue.png',
-  './soccerplayer_yellow.png',
-  './goalkeeper.png',
+  './soccer_player_blue.png',
+  './soccer_player_yellow.png',
   './goalkeeper_blue.png',
   './goalkeeper_yellow.png',
   './coach.png',
