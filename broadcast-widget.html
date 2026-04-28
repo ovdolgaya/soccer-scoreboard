@@ -250,9 +250,8 @@ if (!BW_MATCH_ID) {
                 bwShowCanvas();
             }
         } else if (s === 'half1_ended') {
-            // Перерыв — показываем матч-thumbnail
-            bwScoreToTopLeft();
-            bwShowScore();
+            // Перерыв — показываем матч-thumbnail без скорборда
+            bwHideScore();
             const thumbUrl = await bwCacheMatchThumb(matchData, true);
             bwMatchThumbURL = thumbUrl;
             bwShowCachedImage(thumbUrl);
