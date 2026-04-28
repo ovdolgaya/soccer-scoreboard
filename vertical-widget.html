@@ -130,6 +130,13 @@ function vwInit() {
         return;
     }
 
+    // Одноразовая загрузка — кэшируем игроков только один раз при старте
+    database.ref('matches/' + VW_MATCH_ID).once('value', function(snap) {
+        const initialData = snap.val();
+        if (initialData) wsPrefillPlayersCache(initialData.team1Id);
+    });
+
+    // Слушатель обновлений матча — только UI, без загрузки игроков
     database.ref('matches/' + VW_MATCH_ID).on('value', function(snap) {
         const matchData = snap.val();
         if (!matchData) return;
@@ -142,7 +149,6 @@ function vwInit() {
 
         wsRenderScoreboard(matchData, vwScoreboard, vwTimerEl);
         wsStartTimer(matchData, vwTimerRef);
-        wsPrefillPlayersCache(matchData.team1Id);
 
         vwScoreWrap.style.display = 'flex';
         vwLoading.classList.add('vw-hidden');
