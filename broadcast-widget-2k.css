@@ -157,12 +157,12 @@ html, body {
 
 /* ── Score widget — scale ×1.0 в top-left (такие же пропорции как HD) ── */
 #bw-score-layer.bw-pos-topleft {
-    transform: scale(1.15);
+    transform: scale(1.2);
     transform-origin: top left;
 }
 
 #bw-score-layer.bw-pos-bottom {
-    transform: translateX(-50%) scale(1.5);
+    transform: translateX(-50%) scale(2.0);
 }
 
 /* ── Score positions ── */
