@@ -2,7 +2,7 @@
 // Strategy: Network-first for everything (app requires live Firebase data)
 // Only caches static shell files so the app loads offline gracefully
 
-const CACHE_NAME = 'scoreboard-v6';
+const CACHE_NAME = 'scoreboard-v7';
 
 const STATIC_SHELL = [
   './',
@@ -38,7 +38,8 @@ const STATIC_SHELL = [
   './widget-goal-listener.js',
   // Vertical widget
   './vertical-widget.html',
-  // Firebase widget config
+  // Firebase config loader + widget config
+  './firebase-config-loader.js',
   './firebase-config-widget.js',
   // Player/coach placeholder images
   './soccer_player_blue.png',
