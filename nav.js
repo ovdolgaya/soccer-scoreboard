@@ -189,6 +189,96 @@
             margin: 4px 0;
         }
 
+        /* Env toggle */
+        #appNav .nav-env-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        #appNav .nav-env-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        #appNav .nav-env-badge {
+            display: inline-block;
+            background: #fef9c3;
+            color: #854d0e;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 4px;
+            letter-spacing: .04em;
+        }
+
+        #appNav .nav-env-badge.prod {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        /* Toggle switch */
+        #appNav .nav-toggle {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        #appNav .nav-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+
+        #appNav .nav-toggle-track {
+            position: absolute;
+            inset: 0;
+            border-radius: 11px;
+            background: #cbd5e1;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #appNav .nav-toggle-track::after {
+            content: '';
+            position: absolute;
+            left: 3px;
+            top: 3px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            transition: transform 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        #appNav .nav-toggle input:checked + .nav-toggle-track {
+            background: #f59e0b;
+        }
+
+        #appNav .nav-toggle input:checked + .nav-toggle-track::after {
+            transform: translateX(18px);
+        }
+
+        /* TEST indicator in nav bar */
+        #appNav .nav-test-badge {
+            background: #fef08a;
+            color: #713f12;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 5px;
+            letter-spacing: .05em;
+            margin-left: 8px;
+        }
+
         /* Hidden until logged in */
         #appNav.nav-hidden {
             display: none;
@@ -234,6 +324,7 @@
         return `
         <div class="nav-inner">
             <a class="nav-brand" href="index.html">⚽ Scoreboard</a>
+            <span class="nav-test-badge" id="navTestBadge" style="display:none;">TEST</span>
 
             <nav class="nav-links">
                 ${link('index.html',         'fas fa-futbol',    'Матчи',       'matches')}
@@ -261,6 +352,18 @@
                         <i class="fas fa-trophy"></i> Чемпионаты
                     </a>
                     <div class="nav-divider"></div>
+                    <div class="nav-env-row">
+                        <span class="nav-env-label">
+                            <i class="fas fa-database"></i>
+                            База данных:
+                            <span class="nav-env-badge" id="navEnvBadge">PROD</span>
+                        </span>
+                        <label class="nav-toggle" title="Переключить на тестовую базу">
+                            <input type="checkbox" id="navEnvToggle" onchange="navToggleEnv(this.checked)">
+                            <span class="nav-toggle-track"></span>
+                        </label>
+                    </div>
+                    <div class="nav-divider"></div>
                     <button class="nav-dropdown-item danger" onclick="navLogout()">
                         <i class="fas fa-sign-out-alt"></i> Выйти
                     </button>
@@ -287,6 +390,18 @@
 
         nav.classList.remove('nav-hidden');
         nav.innerHTML = buildNav(user);
+
+        // Init env toggle state
+        const env = localStorage.getItem('fcEnv') || 'prod';
+        const toggle = document.getElementById('navEnvToggle');
+        const badge  = document.getElementById('navEnvBadge');
+        const testBadge = document.getElementById('navTestBadge');
+        if (toggle) toggle.checked = (env === 'test');
+        if (badge)  {
+            badge.textContent = env === 'test' ? 'TEST' : 'PROD';
+            badge.className   = 'nav-env-badge' + (env === 'test' ? '' : ' prod');
+        }
+        if (testBadge) testBadge.style.display = env === 'test' ? 'inline-block' : 'none';
     };
 
     // ── Dropdown toggle ───────────────────────────────────────────────────────
@@ -301,6 +416,13 @@
         const dd = document.getElementById('navDropdown');
         if (dd) dd.classList.remove('open');
     });
+
+    // ── Env toggle ───────────────────────────────────────────────────────────
+    window.navToggleEnv = function (isTest) {
+        localStorage.setItem('fcEnv', isTest ? 'test' : 'prod');
+        // Reload so Firebase re-initializes with the correct config
+        window.location.reload();
+    };
 
     // ── Logout ────────────────────────────────────────────────────────────────
     window.navLogout = function () {

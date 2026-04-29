@@ -10,18 +10,13 @@
 function changeScore(team, delta) {
     if (!matchId) return;
 
-    database.ref('matches/' + matchId).once('value').then(function(snapshot) {
-        const matchData = snapshot.val();
-        if (matchData) {
-            const scoreKey = 'score' + team;
-            const newScore = Math.max(0, matchData[scoreKey] + delta);
-            
-            const updates = {};
-            updates[scoreKey] = newScore;
-            
-            database.ref('matches/' + matchId).update(updates);
-        }
-    });
+    // Use cached match data — zero Firebase read
+    const matchData = _matchCache;
+    if (!matchData) { showToast('❌ Данные матча недоступны'); return; }
+
+    const scoreKey = 'score' + team;
+    const newScore = Math.max(0, (matchData[scoreKey] || 0) + delta);
+    database.ref('matches/' + matchId).update({ [scoreKey]: newScore });
 }
 
 // ========================================

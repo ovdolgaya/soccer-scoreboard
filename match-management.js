@@ -470,12 +470,19 @@ function loadGoalsStats(forMatchId) {
                 });
             });
 
-            return Promise.all(fetches).then(function(results) {
+            // Also fetch team2 color for opponent goal display
+            const match = _matchDataCache[forMatchId] || {};
+            const team2Id = match.team2Id || null;
+            const colorFetch = team2Id
+                ? database.ref('teams/' + team2Id + '/color').once('value').then(function(s) { return s.val() || '#4A90E2'; })
+                : Promise.resolve('#4A90E2');
+
+            return Promise.all([Promise.all(fetches), colorFetch]).then(function(res) {
                 const players = {};
-                results.forEach(function(r) {
-                    if (r.data) players[r.id] = r.data;
-                });
-                renderGoalsStats(goals, players, body);
+                res[0].forEach(function(r) { if (r.data) players[r.id] = r.data; });
+                const team2Color = res[1];
+                const team2Name  = match.team2Name || 'Соперник';
+                renderGoalsStats(goals, players, body, team2Color, team2Name);
             });
         })
         .catch(function(err) {
@@ -484,7 +491,7 @@ function loadGoalsStats(forMatchId) {
         });
 }
 
-function renderGoalsStats(goals, players, container) {
+function renderGoalsStats(goals, players, container, team2Color, team2Name) {
     let currentHalf = null;
     let html = '';
 
@@ -522,6 +529,22 @@ function renderGoalsStats(goals, players, container) {
 
         const timeStr = g.matchTime || '—';
 
+        // ── Opponent goal row ──
+        if (g.isOpponent) {
+            const oppColor = team2Color || '#4A90E2';
+            const oppName  = team2Name  || 'Соперник';
+            html += '<div style="display:flex; align-items:center; gap:0; padding:10px 20px; border-bottom:1px solid #f1f5f9;">' +
+                    '<div style="width:48px; flex-shrink:0; font-size:13px; font-weight:700; color:' + (g.matchTime ? '#64748b' : '#cbd5e1') + '; font-family:monospace;">' + timeStr + '</div>' +
+                    '<div style="width:1px; height:28px; background:#e2e8f0; margin-right:12px; flex-shrink:0;"></div>' +
+                    '<div style="flex-shrink:0; background:' + oppColor + '; border-radius:6px; width:34px; height:24px; margin-right:10px;"></div>' +
+                    '<div style="flex:1; font-size:14px; font-weight:600; color:#1e293b; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + oppName + '</div>' +
+                    '<div style="display:flex;align-items:center;justify-content:center;font-size:15px; flex-shrink:0; margin-left:8px; height:28px;">⚽</div>' +
+                    '<div style="width:28px; flex-shrink:0; margin-left:4px;"></div>' +
+                    '</div>';
+            return;
+        }
+
+        // ── Home / own goal row ──
         let playerNumber = '—';
         let playerName   = '—';
 
@@ -539,63 +562,28 @@ function renderGoalsStats(goals, players, container) {
             playerName   = 'Неизвестный игрок';
         }
 
-        const rowBg = 'background: transparent;';
-
-        // Build assist chips
         const assists = (g.assists && Array.isArray(g.assists)) ? g.assists : [];
         let assistHtml = '';
 
-        // Existing assist chips with × remove button
         assists.forEach(function(a) {
             const aNum = a.playerNumber || '?';
-            assistHtml +=
-                '<span style="display:inline-flex;align-items:center;gap:3px;' +
-                'background:#e0f2fe;color:#0369a1;border-radius:6px;' +
-                'padding:2px 6px 2px 7px;font-size:12px;font-weight:700;white-space:nowrap;">' +
+            assistHtml += '<span style="display:inline-flex;align-items:center;gap:3px;background:#e0f2fe;color:#0369a1;border-radius:6px;padding:2px 6px 2px 7px;font-size:12px;font-weight:700;white-space:nowrap;">' +
                 '#' + aNum +
-                '<button onclick="removeAssist(\'' + g._key + '\',\'' + a.playerId + '\')" ' +
-                'style="background:none;border:none;color:#0369a1;cursor:pointer;' +
-                'font-size:11px;padding:0 0 0 2px;line-height:1;opacity:.7;" ' +
-                'title="Удалить ассистента">×</button>' +
+                '<button onclick="removeAssist(\'' + g._key + '\',\'' + a.playerId + '\')" style="background:none;border:none;color:#0369a1;cursor:pointer;font-size:11px;padding:0 0 0 2px;line-height:1;opacity:.7;" title="Удалить ассистента">×</button>' +
                 '</span>';
         });
 
-        // 👟 button — always shown, opens assist picker
-        assistHtml +=
-            '<button onclick="openAssistPickerModal(\'' + g._key + '\')" ' +
-            'style="background:none;border:none;cursor:pointer;font-size:15px;' +
-            'padding:0 2px;opacity:' + (assists.length > 0 ? '0.5' : '0.8') + ';' +
-            'display:flex;align-items:center;justify-content:center;height:28px;" ' +
-            'title="' + (assists.length > 0 ? 'Изменить ассистентов' : 'Добавить ассистента') + '">👟</button>';
+        assistHtml += '<button onclick="openAssistPickerModal(\'' + g._key + '\')" style="background:none;border:none;cursor:pointer;font-size:15px;padding:0 2px;opacity:' + (assists.length > 0 ? '0.5' : '0.8') + ';display:flex;align-items:center;justify-content:center;height:28px;" title="' + (assists.length > 0 ? 'Изменить ассистентов' : 'Добавить ассистента') + '">👟</button>';
 
-        html += '<div style="display:flex; align-items:center; gap:0; padding:10px 20px; ' +
-                'border-bottom:1px solid #f1f5f9; ' + rowBg + '">' +
-
-                // Match time
-                '<div style="width:48px; flex-shrink:0; font-size:13px; font-weight:700; ' +
-                'color:' + (g.matchTime ? '#64748b' : '#cbd5e1') + '; font-family:monospace;">' + timeStr + '</div>' +
-
-                // Divider
+        html += '<div style="display:flex; align-items:center; gap:0; padding:10px 20px; border-bottom:1px solid #f1f5f9;">' +
+                '<div style="width:48px; flex-shrink:0; font-size:13px; font-weight:700; color:' + (g.matchTime ? '#64748b' : '#cbd5e1') + '; font-family:monospace;">' + timeStr + '</div>' +
                 '<div style="width:1px; height:28px; background:#e2e8f0; margin-right:12px; flex-shrink:0;"></div>' +
-
-                // Player number badge
-                '<div style="flex-shrink:0; background:#08399A; color:#fff; border-radius:6px; ' +
-                'padding:3px 8px; font-size:12px; font-weight:800; margin-right:10px; ' +
-                'min-width:34px; text-align:center;">' + playerNumber + '</div>' +
-
-                // Player name
-                '<div style="flex:1; font-size:14px; font-weight:600; color:#1e293b; min-width:0; ' +
-                'white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + playerName + '</div>' +
-
-                // Ball icon
-                '<div style="display:flex;align-items:center;justify-content:center;' +
-                'font-size:15px; flex-shrink:0; margin-left:8px; height:28px;">⚽</div>' +
-
-                // Assist chips + 👟 button
+                '<div style="flex-shrink:0; background:#08399A; color:#fff; border-radius:6px; padding:3px 8px; font-size:12px; font-weight:800; margin-right:10px; min-width:34px; text-align:center;">' + playerNumber + '</div>' +
+                '<div style="flex:1; font-size:14px; font-weight:600; color:#1e293b; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + playerName + '</div>' +
+                '<div style="display:flex;align-items:center;justify-content:center;font-size:15px; flex-shrink:0; margin-left:8px; height:28px;">⚽</div>' +
                 '<div style="display:flex; align-items:center; gap:4px; flex-shrink:0; margin-left:4px; flex-wrap:nowrap; height:28px;">' +
                 assistHtml +
                 '</div>' +
-
                 '</div>';
     });
 
@@ -701,131 +689,44 @@ function copyWidgetLinkFromCard(matchIdToCopy, event) {
 }
 
 
-function copyWidgetUrl() {
-    if (!matchId) {
-        alert('Матч не выбран');
-        return;
-    }
-    
-    // Generate widget URL
-    let basePath = window.location.pathname;
-    
-    // Remove trailing slash if present
-    if (basePath.endsWith('/')) {
-        basePath = basePath.slice(0, -1);
-    }
-    
-    // Remove index.html if present
-    if (basePath.endsWith('/index.html')) {
-        basePath = basePath.replace('/index.html', '');
-    } else if (basePath.endsWith('index.html')) {
-        basePath = basePath.replace('index.html', '');
-    }
-    
-    // Add widget.html
-    const widgetUrl = window.location.origin + basePath + '/widget.html?match=' + matchId;
-    
-    // Copy to clipboard
-    const copyMessage = document.getElementById('copyMessage');
-    
-    try {
-        navigator.clipboard.writeText(widgetUrl).then(function() {
-            showCopyMessage();
-        }).catch(function() {
-            fallbackCopyTextToClipboard(widgetUrl);
-        });
-    } catch (err) {
-        fallbackCopyTextToClipboard(widgetUrl);
-    }
-    
-    function showCopyMessage() {
-        copyMessage.style.display = 'block';
-        setTimeout(function() {
-            copyMessage.style.display = 'none';
-        }, 3000);
-    }
+// ----------------------------------------
+// SHARED BASE PATH HELPER
+// ----------------------------------------
+function getBasePath() {
+    let p = window.location.pathname;
+    if (p.endsWith('/')) p = p.slice(0, -1);
+    if (p.endsWith('/index.html')) p = p.replace('/index.html', '');
+    else if (p.endsWith('index.html')) p = p.replace('index.html', '');
+    return window.location.origin + p;
 }
 
-function copyStatsWidgetUrl() {
-    if (!matchId) {
-        alert('Матч не выбран');
-        return;
-    }
-
-    let basePath = window.location.pathname;
-    if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
-    if (basePath.endsWith('/index.html')) {
-        basePath = basePath.replace('/index.html', '');
-    } else if (basePath.endsWith('index.html')) {
-        basePath = basePath.replace('index.html', '');
-    }
-
-    const statsUrl = window.location.origin + basePath + '/goals-widget.html?match=' + matchId;
-
+function _copyUrl(url, toastMsg) {
+    if (!matchId) { showToast('❌ Матч не выбран'); return; }
     try {
-        navigator.clipboard.writeText(statsUrl).then(function() {
-            showToast('📊 Ссылка на статистику скопирована!');
-        }).catch(function() {
-            fallbackCopyTextToClipboard(statsUrl);
-        });
-    } catch (err) {
-        fallbackCopyTextToClipboard(statsUrl);
-    }
-}
-
-function copyBroadcastWidgetUrl(res) {
-    if (!matchId) {
-        alert('Матч не выбран');
-        return;
-    }
-
-    let basePath = window.location.pathname;
-    if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
-    if (basePath.endsWith('/index.html')) {
-        basePath = basePath.replace('/index.html', '');
-    } else if (basePath.endsWith('index.html')) {
-        basePath = basePath.replace('index.html', '');
-    }
-
-    let broadcastUrl = window.location.origin + basePath + '/broadcast-widget.html?match=' + matchId;
-    if (res) broadcastUrl += '&res=' + res;
-
-    try {
-        navigator.clipboard.writeText(broadcastUrl).then(function() {
-            showToast(res ? '🎬 Ссылка на трансляцию 2К скопирована!' : '🎬 Ссылка на трансляцию скопирована!');
-        }).catch(function() {
-            fallbackCopyTextToClipboard(broadcastUrl);
-        });
-    } catch (err) {
-        fallbackCopyTextToClipboard(broadcastUrl);
-    }
-}
-
-function copyVerticalWidgetUrl() {
-    if (!matchId) {
-        alert('Матч не выбран');
-        return;
-    }
-
-    let basePath = window.location.pathname;
-    if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
-    if (basePath.endsWith('/index.html')) {
-        basePath = basePath.replace('/index.html', '');
-    } else if (basePath.endsWith('index.html')) {
-        basePath = basePath.replace('index.html', '');
-    }
-
-    const url = window.location.origin + basePath + '/vertical-widget.html?match=' + matchId;
-
-    try {
-        navigator.clipboard.writeText(url).then(function() {
-            showToast('📱 Ссылка на вертикальное табло 2К скопирована!');
-        }).catch(function() {
-            fallbackCopyTextToClipboard(url);
-        });
+        navigator.clipboard.writeText(url)
+            .then(function() { showToast(toastMsg); })
+            .catch(function() { fallbackCopyTextToClipboard(url); });
     } catch (err) {
         fallbackCopyTextToClipboard(url);
     }
+}
+
+function copyWidgetUrl() {
+    _copyUrl(getBasePath() + '/widget.html?match=' + matchId, '📺 Ссылка на табло скопирована!');
+}
+
+function copyStatsWidgetUrl() {
+    _copyUrl(getBasePath() + '/goals-widget.html?match=' + matchId, '📊 Ссылка на статистику скопирована!');
+}
+
+function copyBroadcastWidgetUrl(res) {
+    const url = getBasePath() + '/broadcast-widget.html?match=' + matchId + (res ? '&res=' + res : '');
+    const msg = res === '2k' ? '🎬 Ссылка на трансляцию 2К скопирована!' : '🎬 Ссылка на трансляцию скопирована!';
+    _copyUrl(url, msg);
+}
+
+function copyVerticalWidgetUrl() {
+    _copyUrl(getBasePath() + '/vertical-widget.html?match=' + matchId, '📱 Ссылка на вертикальное табло 2К скопирована!');
 }
 
 function fallbackCopyTextToClipboard(text) {

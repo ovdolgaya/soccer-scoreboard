@@ -19,7 +19,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
     <!-- Firebase Configuration -->
-    <script src="firebase-config.js"></script>
+    <script src="firebase-config-loader.js"></script>
     
     <!-- Roster Thumbnail Helper -->
     <script src="roster-thumbnail-helper.js"></script>
@@ -176,9 +176,7 @@
                     </button>
                 </div>
 
-                <div id="copyMessage" style="color: #10b981; font-weight: bold; display: none; margin-top: 10px; text-align: center;">
-                    ✓ Ссылка скопирована!
-                </div>
+
             </div>
 
             <div class="time-controls" id="timeControlsSection">
@@ -215,9 +213,9 @@
                 <div class="team-control">
                     <h3 id="team2NameDisplay"></h3>
                     <div class="score-buttons">
-                        <button class="button" onclick="changeScore(2, -1)">−</button>
+                        <button class="button" onclick="requestGoalRemoval(2)">−</button>
                         <span class="score-display" id="score2">0</span>
-                        <button class="button" onclick="changeScore(2, 1)">+</button>
+                        <button class="button" onclick="addOpponentGoal()">+</button>
                     </div>
                 </div>
             </div>

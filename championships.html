@@ -10,7 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="firebase-config.js"></script>
+    <script src="firebase-config-loader.js"></script>
 
     <!-- Shared nav -->
     <script src="match-helpers.js"></script>
@@ -1481,14 +1481,15 @@ function renderStatsBody(match, goalsData) {
         return;
     }
 
-    if (goals.length <= TABLE_MAX_GOALS) {
-        body.innerHTML = buildStatsTable(goals);
-    } else {
-        body.innerHTML = buildStatsCards(aggregateStatsScorers(goalsData));
-    }
+    // Always use table view — card view only used in goals-widget
+    const team2Color = (match.team2Id && _champTeamsCache[match.team2Id])
+        ? (_champTeamsCache[match.team2Id].color || '#4A90E2')
+        : '#4A90E2';
+    const team2Name = match.team2Name || 'Соперник';
+    body.innerHTML = buildStatsTable(goals, team2Color, team2Name);
 }
 
-function buildStatsTable(goals) {
+function buildStatsTable(goals, team2Color, team2Name) {
     const color = getComputedStyle(document.getElementById('statsModal'))
         .getPropertyValue('--team1-color').trim() || '#08399A';
 
@@ -1505,11 +1506,16 @@ function buildStatsTable(goals) {
         const timeStr = g.matchTime || '—';
         let badgeHtml, nameHtml;
 
-        if (g.isOwnGoal) {
+        if (g.isOpponent) {
+            const oppColor = team2Color || '#4A90E2';
+            const oppName  = team2Name  || 'Соперник';
+            badgeHtml = '<span style="display:inline-block;background:' + oppColor + ';border-radius:6px;width:34px;height:22px;vertical-align:middle;"></span>';
+            nameHtml  = '<span style="font-weight:600;color:#1e293b;">' + oppName + '</span>';
+        } else if (g.isOwnGoal) {
             badgeHtml = '<span style="display:inline-block;background:#e2e8f0;color:#64748b;border-radius:6px;padding:3px 8px;font-size:13px;font-weight:700;">АГ</span>';
             nameHtml  = '<span style="color:#64748b;">Автогол</span>';
         } else {
-            const p  = g.playerId ? (statsPlayersCache[g.playerId] || null) : null;
+            const p   = g.playerId ? (statsPlayersCache[g.playerId] || null) : null;
             const num = p ? p.number : (g.playerNumber || '?');
             const fn  = p ? (p.firstName || '') : '';
             const ln  = p ? (p.lastName || '').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
