@@ -42,10 +42,10 @@
 | `roster-thumbnail-helper.js` | Roster thumbnail generator (2560×1440) with session cache |
 | `roster.js` | Roster management logic |
 | `firebase-config-loader.js` | Dynamic Firebase config selector (reads `localStorage.fcEnv`) |
-| `firebase-config.js` | Firebase credentials — PROD with auth (**not in repo**) |
-| `firebase-config-test.js` | Firebase credentials — TEST with auth (**not in repo**) |
+| `firebase-config.js` | Firebase credentials — PROD with auth |
+| `firebase-config-test.js` | Firebase credentials — TEST with auth |
 | `firebase-config-widget.js` | Firebase credentials — PROD, widgets (no auth) |
-| `firebase-config-widget-test.js` | Firebase credentials — TEST, widgets (no auth) (**not in repo**) |
+| `firebase-config-widget-test.js` | Firebase credentials — TEST, widgets (no auth) |
 | `styles.css` | Main styles |
 | `app-layout.css` | Shared layout styles |
 | `roster-styles.css` | Roster page styles |
