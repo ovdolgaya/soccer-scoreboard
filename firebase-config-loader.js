@@ -9,7 +9,10 @@
 // Widget pages (no auth):  <script src="firebase-config-loader.js?widget"></script>
 
 (function () {
-    const env      = localStorage.getItem('fcEnv') || 'prod';
+    // URL param ?env=test takes priority over localStorage
+    // This allows widget links to carry the env with them across browsers/OBS
+    const urlEnv   = new URLSearchParams(window.location.search).get('env');
+    const env      = urlEnv || localStorage.getItem('fcEnv') || 'prod';
     const isWidget = document.currentScript &&
                      document.currentScript.src.indexOf('widget') !== -1;
 

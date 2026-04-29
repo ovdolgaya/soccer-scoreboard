@@ -700,6 +700,12 @@ function getBasePath() {
     return window.location.origin + p;
 }
 
+// Returns '&env=test' when test env is active, '' otherwise
+// Appended to all widget URLs so they work in any browser/OBS context
+function _envSuffix() {
+    return (localStorage.getItem('fcEnv') === 'test') ? '&env=test' : '';
+}
+
 function _copyUrl(url, toastMsg) {
     if (!matchId) { showToast('❌ Матч не выбран'); return; }
     try {
@@ -712,21 +718,21 @@ function _copyUrl(url, toastMsg) {
 }
 
 function copyWidgetUrl() {
-    _copyUrl(getBasePath() + '/widget.html?match=' + matchId, '📺 Ссылка на табло скопирована!');
+    _copyUrl(getBasePath() + '/widget.html?match=' + matchId + _envSuffix(), '📺 Ссылка на табло скопирована!');
 }
 
 function copyStatsWidgetUrl() {
-    _copyUrl(getBasePath() + '/goals-widget.html?match=' + matchId, '📊 Ссылка на статистику скопирована!');
+    _copyUrl(getBasePath() + '/goals-widget.html?match=' + matchId + _envSuffix(), '📊 Ссылка на статистику скопирована!');
 }
 
 function copyBroadcastWidgetUrl(res) {
-    const url = getBasePath() + '/broadcast-widget.html?match=' + matchId + (res ? '&res=' + res : '');
+    const url = getBasePath() + '/broadcast-widget.html?match=' + matchId + (res ? '&res=' + res : '') + _envSuffix();
     const msg = res === '2k' ? '🎬 Ссылка на трансляцию 2К скопирована!' : '🎬 Ссылка на трансляцию скопирована!';
     _copyUrl(url, msg);
 }
 
 function copyVerticalWidgetUrl() {
-    _copyUrl(getBasePath() + '/vertical-widget.html?match=' + matchId, '📱 Ссылка на вертикальное табло 2К скопирована!');
+    _copyUrl(getBasePath() + '/vertical-widget.html?match=' + matchId + _envSuffix(), '📱 Ссылка на вертикальное табло 2К скопирована!');
 }
 
 function fallbackCopyTextToClipboard(text) {
