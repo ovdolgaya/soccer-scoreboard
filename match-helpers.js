@@ -16,24 +16,36 @@ function matchSortKey(m) {
 }
 
 // Sorts a match array in-place:
-//   1. Upcoming first (soonest scheduled date at top)
-//   2. Played after (newest matchDate at top)
+//   1. Active (playing/half*_ended) — first
+//   2. Scheduled upcoming — soonest first
+//   3. Waiting without a date — after scheduled
+//   4. Played — newest first
 function sortMatches(arr) {
     arr.sort(function(a, b) {
         const aUp = UPCOMING_STATUSES.includes(a.status);
         const bUp = UPCOMING_STATUSES.includes(b.status);
 
+        // Played vs upcoming
         if (aUp && !bUp) return -1;
         if (!aUp && bUp) return 1;
 
-        const aKey = matchSortKey(a);
-        const bKey = matchSortKey(b);
-
         if (aUp && bUp) {
-            // Both upcoming: soonest first (ascending)
+            // Within upcoming: 'waiting' without a date always goes last
+            const aNoDate = (a.status === 'waiting' && !a.scheduledTime && !a.matchDate);
+            const bNoDate = (b.status === 'waiting' && !b.scheduledTime && !b.matchDate);
+            if (aNoDate && !bNoDate) return 1;
+            if (!aNoDate && bNoDate) return -1;
+            // Both undated waiting — keep stable
+            if (aNoDate && bNoDate) return 0;
+            // Both have a date — soonest first (ascending)
+            const aKey = matchSortKey(a);
+            const bKey = matchSortKey(b);
             return aKey < bKey ? -1 : aKey > bKey ? 1 : 0;
         }
+
         // Both played: newest first (descending)
+        const aKey = matchSortKey(a);
+        const bKey = matchSortKey(b);
         return aKey > bKey ? -1 : aKey < bKey ? 1 : 0;
     });
     return arr;
