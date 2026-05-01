@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: April 29, 2026 (Session 14)
+## Last Updated: May 1, 2026 (Session 15)
 
 ---
 
@@ -42,10 +42,10 @@
 | `roster-thumbnail-helper.js` | Roster thumbnail generator (2560×1440) with session cache |
 | `roster.js` | Roster management logic |
 | `firebase-config-loader.js` | Dynamic Firebase config selector (reads `localStorage.fcEnv`) |
-| `firebase-config.js` | Firebase credentials — PROD with auth |
-| `firebase-config-test.js` | Firebase credentials — TEST with auth |
+| `firebase-config.js` | Firebase credentials — PROD with auth (**not in repo**) |
+| `firebase-config-test.js` | Firebase credentials — TEST with auth (**not in repo**) |
 | `firebase-config-widget.js` | Firebase credentials — PROD, widgets (no auth) |
-| `firebase-config-widget-test.js` | Firebase credentials — TEST, widgets (no auth) |
+| `firebase-config-widget-test.js` | Firebase credentials — TEST, widgets (no auth) (**not in repo**) |
 | `styles.css` | Main styles |
 | `app-layout.css` | Shared layout styles |
 | `roster-styles.css` | Roster page styles |
@@ -57,9 +57,9 @@
 ## ✅ FEATURES
 
 ### Match Management
-- Match list: upcoming soonest first, played newest first
+- Match list: active → scheduled (soonest first) → waiting (date unknown, always last) → played (newest first)
 - Match cockpit: team names, date, status, quick-edit icon
-- Create/edit via unified modal — team & championship dropdowns
+- Create/edit via unified modal — team & championship dropdowns; date-only entry supported (time optional)
 - Time management: start/stop halves, halftime popup, end match
 - Score controls with goal scorer modal (player grid + own goal + assists)
 - Goal removal modal with per-goal selection
@@ -97,7 +97,7 @@
 - `assists: [{playerId, playerNumber}]` array on goal records
 
 ### Championships
-- Championship Stats Modal: W/D/L, goals for/against, ⚽/👟 toggle, medals
+- Championship Stats Modal: W/D/L, goals for/against, ⚽/👟 toggle, medals (dense rank — tied players share rank and medal)
 - Championship thumbnail (2560×1440)
 - `isPassed` toggle hides from match form
 - Match stats always use table view (no card-grid switch)
@@ -111,7 +111,7 @@
 ### Thumbnails
 - **Match thumbnail** — 1920×1080 canvas, team logos, VS or score, date, championship
 - **Roster thumbnail** — 2560×1440, player cards, coach, GK section
-- **Championship thumbnail** — 2560×1440, card grid ≤15 / table >15
+- **Championship thumbnail** — 2560×1440, card grid ≤15 / table >15; matches sorted: played (date asc) → scheduled (date asc) → undated/waiting (last)
 
 ---
 
