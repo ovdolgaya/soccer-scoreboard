@@ -760,16 +760,15 @@ function generateChampThumbnail(champTitle, btn) {
 
     const matches = group.matches.slice().sort(function(a, b) {
         // Sort order:
-        //   Group 0 — ended/played matches  (earliest date first)
-        //   Group 1 — scheduled with a date (earliest date first)
-        //   Group 2 — scheduled without any date (order doesn't matter)
-        const PLAYED = ['ended', 'half1_ended', 'half2_ended', 'playing', 'waiting'];
+        //   Group 0 — played (ended/playing/half*_ended), has date → earliest first
+        //   Group 1 — scheduled (has date) → earliest first
+        //   Group 2 — waiting or any match without a date → last, order irrelevant
+        const PLAYED_STATUSES = ['ended', 'half1_ended', 'half2_ended', 'playing'];
 
-        function group(m) {
-            if (PLAYED.includes(m.status)) return 0;
-            // has a concrete date?
-            if (m.scheduledTime || m.matchDate) return 1;
-            return 2;
+        function sortGroup(m) {
+            if (m.status === 'waiting' || !(m.scheduledTime || m.matchDate)) return 2;
+            if (PLAYED_STATUSES.includes(m.status)) return 0;
+            return 1; // scheduled with date
         }
 
         function dateMs(m) {
@@ -778,13 +777,13 @@ function generateChampThumbnail(champTitle, btn) {
                 const p = m.matchDate.split('-');
                 return new Date(+p[0], +p[1] - 1, +p[2]).getTime();
             }
-            return m.createdAt || 0;
+            return 0;
         }
 
-        const ga = group(a), gb = group(b);
-        if (ga !== gb) return ga - gb;          // different buckets
-        if (ga === 2)  return 0;                // both undated — stable
-        return dateMs(a) - dateMs(b);           // same bucket — earliest first
+        const ga = sortGroup(a), gb = sortGroup(b);
+        if (ga !== gb) return ga - gb;         // different groups
+        if (ga === 2) return 0;                // both in "last" group — stable
+        return dateMs(a) - dateMs(b);         // same group — earliest first
     });
 
     // Collect unique logo URLs — resolve from teams cache first, fall back to embedded
