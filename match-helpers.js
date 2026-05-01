@@ -16,28 +16,31 @@ function matchSortKey(m) {
 }
 
 // Sorts a match array in-place:
-//   1. Active (playing/half*_ended) — first
-//   2. Scheduled upcoming — soonest first
-//   3. Waiting without a date — after scheduled
-//   4. Played — newest first
+//   1. Active (playing / half1_ended / half2_ended) — first
+//   2. Scheduled (status === 'scheduled') — soonest first
+//   3. Waiting (status === 'waiting') — after scheduled, order by matchDate or createdAt
+//   4. Played (ended / half2_ended) — newest first
+function _upcomingSubGroup(m) {
+    if (m.status === 'playing' || m.status === 'half1_ended') return 0;
+    if (m.status === 'scheduled') return 1;
+    return 2; // waiting or anything else not played
+}
+
 function sortMatches(arr) {
     arr.sort(function(a, b) {
         const aUp = UPCOMING_STATUSES.includes(a.status);
         const bUp = UPCOMING_STATUSES.includes(b.status);
 
-        // Played vs upcoming
+        // Upcoming before played
         if (aUp && !bUp) return -1;
         if (!aUp && bUp) return 1;
 
         if (aUp && bUp) {
-            // Within upcoming: 'waiting' without a date always goes last
-            const aNoDate = (a.status === 'waiting' && !a.scheduledTime && !a.matchDate);
-            const bNoDate = (b.status === 'waiting' && !b.scheduledTime && !b.matchDate);
-            if (aNoDate && !bNoDate) return 1;
-            if (!aNoDate && bNoDate) return -1;
-            // Both undated waiting — keep stable
-            if (aNoDate && bNoDate) return 0;
-            // Both have a date — soonest first (ascending)
+            // Sub-group: active → scheduled → waiting
+            const aSub = _upcomingSubGroup(a);
+            const bSub = _upcomingSubGroup(b);
+            if (aSub !== bSub) return aSub - bSub;
+            // Same sub-group — sort by date ascending
             const aKey = matchSortKey(a);
             const bKey = matchSortKey(b);
             return aKey < bKey ? -1 : aKey > bKey ? 1 : 0;
