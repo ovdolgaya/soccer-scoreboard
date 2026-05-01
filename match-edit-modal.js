@@ -31,16 +31,16 @@
       <div style="padding:20px; display:flex; flex-direction:column; gap:16px;">
 
         <div>
-          <label style="font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:6px;">📅 Дата и время матча</label>
-          <input type="datetime-local" id="editScheduledTime"
+          <label style="font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:6px;">📅 Дата матча</label>
+          <input type="date" id="editMatchDate"
                  style="width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:10px; font-size:14px; box-sizing:border-box;">
-          <div style="font-size:12px; color:#94a3b8; margin-top:4px;">Для запланированных матчей</div>
         </div>
 
         <div>
-          <label style="font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:6px;">📆 Дата проведения</label>
-          <input type="date" id="editMatchDate"
+          <label style="font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:6px;">🕐 Время начала <span style="font-size:11px; color:#94a3b8; font-weight:400;">(необязательно)</span></label>
+          <input type="time" id="editScheduledTime"
                  style="width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:10px; font-size:14px; box-sizing:border-box;">
+          <div style="font-size:12px; color:#94a3b8; margin-top:4px;">Если время известно — матч получит статус «Ожидается»</div>
         </div>
 
         <div>
@@ -124,8 +124,8 @@
             ? '<i class="fas fa-plus-circle"></i> Создать матч'
             : '<i class="fas fa-save"></i> Сохранить изменения';
 
-        document.getElementById('editScheduledTime').value = '';
         document.getElementById('editMatchDate').value     = '';
+        document.getElementById('editScheduledTime').value = '';
         ['1','2'].forEach(function(n) {
             document.getElementById('editTeam' + n + 'Select').value      = '';
             document.getElementById('editTeam' + n + 'Preview').style.display = 'none';
@@ -138,14 +138,13 @@
                 document.getElementById('editModalTitle').textContent =
                     (m.team1Name || '') + ' vs ' + (m.team2Name || '');
 
+                document.getElementById('editMatchDate').value = m.matchDate || '';
                 if (m.scheduledTime) {
                     const d   = new Date(m.scheduledTime);
                     const pad = function(n) { return String(n).padStart(2,'0'); };
                     document.getElementById('editScheduledTime').value =
-                        d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) +
-                        'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                        pad(d.getHours()) + ':' + pad(d.getMinutes());
                 }
-                document.getElementById('editMatchDate').value = m.matchDate || '';
                 if (m.championshipTitle)
                     document.getElementById('editChampionshipSelect').value = m.championshipTitle;
 
@@ -267,20 +266,18 @@
             championshipTitle: document.getElementById('editChampionshipSelect').value || ''
         };
 
-        const scheduledRaw = document.getElementById('editScheduledTime').value;
-        if (scheduledRaw) {
-            const [datePart, timePart] = scheduledRaw.split('T');
-            const [year, month, day]   = datePart.split('-').map(Number);
-            const [hour, minute]       = (timePart || '00:00').split(':').map(Number);
-            const localDate = new Date(year, month - 1, day, hour, minute);
-            updates.scheduledTime = localDate.getTime();
-            updates.matchDate     = datePart;
+        const matchDateVal = document.getElementById('editMatchDate').value;
+        if (matchDateVal) updates.matchDate = matchDateVal;
+
+        const timeVal = document.getElementById('editScheduledTime').value;
+        if (matchDateVal && timeVal) {
+            // Both date and time known — save as scheduledTime timestamp
+            const [year, month, day] = matchDateVal.split('-').map(Number);
+            const [hour, minute]     = timeVal.split(':').map(Number);
+            updates.scheduledTime = new Date(year, month - 1, day, hour, minute).getTime();
         } else {
             updates.scheduledTime = null;
         }
-
-        const matchDateVal = document.getElementById('editMatchDate').value;
-        if (matchDateVal) updates.matchDate = matchDateVal;
 
         // Only recalculate status for matches that haven't started yet.
         // Playing/ended matches keep their current status unchanged.
