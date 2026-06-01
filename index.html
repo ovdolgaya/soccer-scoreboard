@@ -190,13 +190,6 @@
                          or after half 2 ends. During the halftime break it lives in the halftime popup.
                          stopHalf2Btn removed — endMatch() handles ending half 2 directly. -->
                 </div>
-                <!-- Clip marker — only shown when a half is playing -->
-                <div id="clipMarkerSection" style="display:none; margin-top:14px; text-align:center;">
-                    <button class="button" id="clipMarkerBtn" onclick="saveClipMarker()"
-                        style="background:#FCDC00; color:#1e293b; font-weight:700; font-size:15px; padding:10px 24px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
-                        📍 Отметить момент
-                    </button>
-                </div>
             </div>
 
 
@@ -220,6 +213,14 @@
                 </div>
             </div>
 
+            <!-- Clip marker — only shown when a half is playing -->
+                <div id="clipMarkerSection" style="display:none; margin-top:14px; text-align:center;">
+                    <button class="button" id="clipMarkerBtn" onclick="saveClipMarker()"
+                        style="background:#FCDC00; color:#1e293b; font-weight:700; font-size:15px; padding:10px 24px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+                        📍 Отметить момент
+                    </button>
+                </div>
+            
             <!-- Goals Statistics — shown only for ended matches -->
             <div id="goalsStatsSection" style="display:none; background:#f8fafc; border-radius:12px; margin-bottom:20px; border:2px solid #e2e8f0; overflow:hidden;">
                 <div style="padding:16px 20px 12px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
