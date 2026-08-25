@@ -16,19 +16,20 @@
         body {
             background: transparent;
             font-family: Arial, sans-serif;
-            width: 1280px;
+            width: 1140px;
             height: 720px;
             overflow: hidden;
-            display: flex;
             align-items: flex-start;
-            padding: 20px;
+            transform: scale(2);
+            transform-origin: top left;
+            display: flex;
+             align-items: flex-start;
         }
 
         /* ── Outer wrapper — same blue as thumbnails ── */
         .goals-widget {
             width: 100%;
             height: 680px;
-            border-radius: 18px;
             overflow: hidden;
             background: rgba(0, 51, 160, 0.90);
             backdrop-filter: blur(8px);
@@ -512,7 +513,10 @@
 
         // Returns flat sorted array of goal objects for the table view
         function getGoalsList() {
-            return Object.values(goalsData).sort(function(a, b) {
+            const team1Id = matchData && matchData.team1Id;
+            return Object.values(goalsData)
+                .filter(function(g) { return !team1Id || g.teamId === team1Id; })
+                .sort(function(a, b) {
                 if ((a.half||0) !== (b.half||0)) return (a.half||0) - (b.half||0);
                 return (a.matchTime||'').localeCompare(b.matchTime||'');
             });
@@ -521,7 +525,10 @@
         // Returns scorer summary array for the card view
         function aggregateScorers() {
             const scorers = {};
-            Object.values(goalsData).forEach(function(g) {
+            const team1Id = matchData && matchData.team1Id;
+Object.values(goalsData)
+    .filter(function(g) { return !team1Id || g.teamId === team1Id; })
+    .forEach(function(g) {
                 if (g.isOwnGoal) {
                     scorers['og_' + g.timestamp] = { isOwnGoal:true, goals:1, assists:0, times:[g.matchTime||''], halves:[g.half||0] };
                     return;
