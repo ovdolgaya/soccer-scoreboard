@@ -47,29 +47,36 @@ function bwScoreToBottom() {
     bwScoreLayer.classList.add('bw-pos-bottom');
 }
 
+// Bumped on every score-widget/canvas state transition (goal announcement, half start,
+// half end) — invalidates any of these fire-and-forget chains still in flight, so a stale
+// step from an earlier chain can't reposition/show the score or redraw the thumbnail after
+// a newer transition has already moved the widget somewhere else. Each function captures
+// its own token at the point it starts and checks stillValid() before every visible action.
+let bwSeqToken = 0;
+
 // ── POST-GOAL: score widget briefly center-bottom then back ──
 function bwPostGoalAnnouncement() {
     if (!bwMatchData || bwMatchData.status !== 'playing') return;
+    const myToken = bwSeqToken;
+    function stillValid() { return bwSeqToken === myToken; }
+
     bwScoreToBottom();
     bwShowScore();
     bwDelay(3000).then(function() {
+        if (!stillValid()) return;
         return bwFlashTransition(600);
     }).then(function() {
-        bwScoreToTopLeft();
+        if (stillValid()) bwScoreToTopLeft();
     });
 }
 
 // ── HALF START ──
-// Bumped every time a half actually starts — invalidates any bwHalfEndSequence() still
-// in flight, so an early "start next half" click can't have that stale sequence redraw
-// the thumbnail on top of a half that's already live (see bwHalfEndSequence below).
-let bwSeqToken = 0;
-
 // Always called when status becomes 'playing'.
 // Immediately clears whatever was on screen (canvas/stats from half-end),
 // then does the score intro animation.
 function bwHalfStart() {
-    bwSeqToken++;
+    const myToken = ++bwSeqToken;
+    function stillValid() { return bwSeqToken === myToken; }
 
     // Instantly clear any half-end visuals
     bwHideCanvasInstant();
@@ -80,11 +87,15 @@ function bwHalfStart() {
     bwScoreToBottom();
     bwShowScore();
     bwDelay(5000).then(function() {
+        if (!stillValid()) return;
         return bwFlashTransition(600);
     }).then(function() {
+        if (!stillValid()) return;
         bwScoreToTopLeft();
         // Show YouTube subscribe reminder after score settles at top-left
-        bwDelay(400).then(function() { bwSubscribeSequence(); });
+        bwDelay(400).then(function() {
+            if (stillValid()) bwSubscribeSequence();
+        });
     });
 }
 
@@ -212,7 +223,7 @@ function bwSubscribeSequence(duration) {
 // (bwHalfStart bumps bwSeqToken), every checkpoint below bails out immediately instead of
 // letting a stale step re-draw the thumbnail over a half that's already live.
 async function bwHalfEndSequence() {
-    const myToken = bwSeqToken;
+    const myToken = ++bwSeqToken;
     function stillValid() { return bwSeqToken === myToken; }
 
     // 1. Score to bottom-center for 3s
