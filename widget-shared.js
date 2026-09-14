@@ -92,10 +92,13 @@ function wsGetTimerContent(matchData) {
     }
     if (status === 'waiting')     return '<div class="status-message">Ожидание начала матча</div>';
     if (status === 'ended')       return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
+    // half1/2_ended are mid-match breaks awaiting a decision (end match, or continue) —
+    // neither means the match itself is over, so both show "ПЕРЕРЫВ", not "МАТЧ ОКОНЧЕН".
+    // (half3_ended can't occur — a match's last configured half always ends it directly.)
     if (status === 'half1_ended') return '<div class="status-message">ПЕРЕРЫВ</div>';
-    if (status === 'half2_ended') return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
+    if (status === 'half2_ended') return '<div class="status-message">ПЕРЕРЫВ</div>';
     if (status === 'playing') {
-        const halfText = matchData.currentHalf === 1 ? '1 ТАЙМ' : '2 ТАЙМ';
+        const halfText = matchData.currentHalf === 3 ? '3 ТАЙМ' : (matchData.currentHalf === 2 ? '2 ТАЙМ' : '1 ТАЙМ');
         const elapsed  = Math.max(0, Date.now() - matchData.startTime);
         const sec      = Math.floor(elapsed / 1000);
         const h = String(Math.floor(sec / 3600)).padStart(2, '0');

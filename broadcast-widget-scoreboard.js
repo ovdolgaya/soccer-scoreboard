@@ -133,8 +133,9 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
     });
 
     const statusLabels = {
-        'playing':     matchData.currentHalf === 1 ? '1-й тайм' : '2-й тайм',
-        'half1_ended': 'Перерыв', 'half2_ended': '2-й тайм окончен', 'ended': 'Матч окончен'
+        'playing':     matchData.currentHalf === 3 ? '3-й тайм' : (matchData.currentHalf === 2 ? '2-й тайм' : '1-й тайм'),
+        // half1/2_ended are breaks awaiting a decision, not a finished match — both "Перерыв"
+        'half1_ended': 'Перерыв', 'half2_ended': 'Перерыв', 'ended': 'Матч окончен'
     };
     const halfLabel = statusLabels[matchData.status] || '';
 
@@ -161,7 +162,7 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
         sorted.forEach(function(g, idx) {
             if ((g.half||0) !== lastHalf) {
                 lastHalf = g.half||0;
-                const label = lastHalf === 0 ? 'Добавлено вручную' : (lastHalf === 1 ? '1-й тайм' : '2-й тайм');
+                const label = lastHalf === 0 ? 'Добавлено вручную' : (lastHalf === 1 ? '1-й тайм' : (lastHalf === 2 ? '2-й тайм' : '3-й тайм'));
                 html += `<tr class="bw-half-header"><td colspan="5">${label}</td></tr>`;
             }
             const timeStr = g.matchTime || '—';

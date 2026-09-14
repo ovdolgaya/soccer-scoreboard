@@ -17,11 +17,15 @@
     transition: background 0.3s ease;
 }
 .team.team1 {
-    background: linear-gradient(135deg, var(--team1-color, #08399A) 0%, var(--team1-color-light, #0a4ab3) 100%);
+    background:
+        linear-gradient(to right, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 70%),
+        var(--team1-color, #08399A);
     flex-direction: row; justify-content: flex-start; min-width: 200px;
 }
 .team.team2 {
-    background: linear-gradient(135deg, var(--team2-color, #4A90E2) 0%, var(--team2-color-light, #5ea3f5) 100%);
+    background:
+        linear-gradient(to right, rgba(0,0,0,0) 30%, rgba(0,0,0,0.45) 100%),
+        var(--team2-color, #4A90E2);
     flex-direction: row-reverse; justify-content: flex-start; min-width: 200px;
 }
 .team-logo {

@@ -369,29 +369,43 @@ function updateMatchMetadata(match) {
 function updateButtonStates(match) {
     // Get actual status from match data, ignoring scheduled time
     const actualStatus = match.status;
-    
+    // How many halves this match is configured for (1/2/3, set at creation — see match-edit-modal.js).
+    // Existing matches without the field default to 2, preserving prior behavior.
+    const halvesCount = match.halvesCount || 2;
+
     // Reset all buttons
-    document.getElementById('startHalf1Btn').classList.add('hidden');
-    document.getElementById('stopHalf1Btn').classList.add('hidden');
-    document.getElementById('startHalf2Btn').classList.add('hidden');
-    document.getElementById('endMatchBtn').classList.add('hidden');
+    ['startHalf1Btn', 'stopHalf1Btn', 'startHalf2Btn', 'stopHalf2Btn',
+     'startHalf3Btn', 'endMatchBtn'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
 
     if (actualStatus === 'scheduled' || actualStatus === 'waiting') {
         // Can start even if scheduled for future
         document.getElementById('startHalf1Btn').classList.remove('hidden');
     } else if (actualStatus === 'playing') {
-        if (match.currentHalf === 1) {
-            document.getElementById('stopHalf1Btn').classList.remove('hidden');
-            // endMatchBtn intentionally hidden during half 1 — available in halftime popup instead
-        } else if (match.currentHalf === 2) {
-            // stopHalf2Btn removed — only End Match button shown during half 2
+        const half = match.currentHalf || 1;
+        if (half >= halvesCount) {
+            // This is the match's last configured half — stopping ends the match
+            // directly, there's no further half to break into.
             document.getElementById('endMatchBtn').classList.remove('hidden');
+        } else {
+            const btn = document.getElementById('stopHalf' + half + 'Btn');
+            if (btn) btn.classList.remove('hidden');
         }
-    } else if (actualStatus === 'half1_ended') {
-        document.getElementById('startHalf2Btn').classList.remove('hidden');
-    } else if (actualStatus === 'half2_ended') {
-        // Second half ended, show end match button
-        document.getElementById('endMatchBtn').classList.remove('hidden');
+    } else {
+        const m = /^half(\d+)_ended$/.exec(actualStatus || '');
+        if (m) {
+            const endedHalf = parseInt(m[1], 10);
+            if (endedHalf < halvesCount) {
+                const nextBtn = document.getElementById('startHalf' + (endedHalf + 1) + 'Btn');
+                if (nextBtn) nextBtn.classList.remove('hidden');
+            } else {
+                // Shouldn't normally happen — the last half always ends the match
+                // directly (see above) — but offer a way out just in case.
+                document.getElementById('endMatchBtn').classList.remove('hidden');
+            }
+        }
     }
 
     // Show/hide clip marker button based on whether a half is actively playing

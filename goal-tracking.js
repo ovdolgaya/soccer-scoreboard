@@ -137,7 +137,8 @@ function openGoalScorerModal() {
     if (match) {
         getMatchTimeString().then(function(timeStr) {
             const halfLabel = match.currentHalf === 1 ? '1-й тайм' :
-                              match.currentHalf === 2 ? '2-й тайм' : '';
+                              match.currentHalf === 2 ? '2-й тайм' :
+                              match.currentHalf === 3 ? '3-й тайм' : '';
             const info = halfLabel ? halfLabel + ' · ' + timeStr : timeStr;
             const el = document.getElementById('goalModalMatchInfo');
             if (el) el.textContent = info;

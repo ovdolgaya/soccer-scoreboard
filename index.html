@@ -185,10 +185,16 @@
                     <button class="button secondary" id="startHalf1Btn" onclick="startHalf(1)">▶ Начать 1 тайм</button>
                     <button class="button secondary hidden" id="stopHalf1Btn" onclick="stopHalf(1)">⏸ Остановить 1 тайм</button>
                     <button class="button secondary hidden" id="startHalf2Btn" onclick="startHalf(2)">▶ Начать 2 тайм</button>
+                    <button class="button secondary hidden" id="stopHalf2Btn" onclick="stopHalf(2)">⏸ Остановить 2 тайм</button>
+                    <button class="button secondary hidden" id="startHalf3Btn" onclick="startHalf(3)">▶ Начать 3 тайм</button>
                     <button class="button danger hidden" id="endMatchBtn" onclick="endMatch()">⏹ Закончить матч</button>
-                    <!-- endMatchBtn is hidden during half 1. It appears only during half 2 (playing)
-                         or after half 2 ends. During the halftime break it lives in the halftime popup.
-                         stopHalf2Btn removed — endMatch() handles ending half 2 directly. -->
+                    <!-- Which buttons show is entirely driven by match.halvesCount (set at creation —
+                         see match-edit-modal.js) and the current half/status — see updateButtonStates()
+                         in match-management.js. Whichever half equals halvesCount is the match's last:
+                         playing it shows endMatchBtn (stopping ends the match directly) instead of a
+                         "stop half N" button, so there's no stopHalf3Btn — half 3 is always the last
+                         possible half. Earlier halves show "stop half N", which leads to a break popup
+                         offering "start next half" (always) and "Закончить матч" (as a safety valve). -->
                 </div>
             </div>
 
@@ -213,14 +219,14 @@
                 </div>
             </div>
 
-            <!-- Clip marker — only shown when a half is playing -->
+             <!-- Clip marker — only shown when a half is playing -->
                 <div id="clipMarkerSection" style="display:none; margin-top:14px; text-align:center;">
                     <button class="button" id="clipMarkerBtn" onclick="saveClipMarker()"
                         style="background:#FCDC00; color:#1e293b; font-weight:700; font-size:15px; padding:10px 24px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
                         📍 Отметить момент
                     </button>
                 </div>
-            
+
             <!-- Goals Statistics — shown only for ended matches -->
             <div id="goalsStatsSection" style="display:none; background:#f8fafc; border-radius:12px; margin-bottom:20px; border:2px solid #e2e8f0; overflow:hidden;">
                 <div style="padding:16px 20px 12px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:10px;">
@@ -254,7 +260,7 @@
         <div class="halftime-popup-overlay" onclick="closeHalftimePopup()"></div>
         <div class="halftime-popup-content">
             <div class="halftime-popup-header">
-                <h2>⏸️ Перерыв между таймами</h2>
+                <h2 id="halftimePopupTitle">⏸️ Перерыв между таймами</h2>
             </div>
             <div class="halftime-popup-body">
                 <div class="halftime-timer" id="halftimeTimer">05:00</div>
@@ -262,7 +268,7 @@
                     Стандартный перерыв: 5 минут
                 </p>
                 <div class="halftime-popup-actions">
-                    <button class="button" onclick="startSecondHalfFromPopup()" style="flex: 1;">
+                    <button class="button" id="halftimeStartBtn" style="flex: 1;">
                         <i class="fas fa-play-circle"></i> Начать 2 тайм
                     </button>
                     <button class="button danger" onclick="endMatchFromPopup()" style="flex: 1;">

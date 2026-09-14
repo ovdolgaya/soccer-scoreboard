@@ -60,10 +60,17 @@ function bwPostGoalAnnouncement() {
 }
 
 // ── HALF START ──
+// Bumped every time a half actually starts — invalidates any bwHalfEndSequence() still
+// in flight, so an early "start next half" click can't have that stale sequence redraw
+// the thumbnail on top of a half that's already live (see bwHalfEndSequence below).
+let bwSeqToken = 0;
+
 // Always called when status becomes 'playing'.
 // Immediately clears whatever was on screen (canvas/stats from half-end),
 // then does the score intro animation.
 function bwHalfStart() {
+    bwSeqToken++;
+
     // Instantly clear any half-end visuals
     bwHideCanvasInstant();
     bwHideStatsInstant();
@@ -200,44 +207,59 @@ function bwSubscribeSequence(duration) {
 // ── HALF END SEQUENCE ──
 // Runs fire-and-forget after half ends.
 // Shows: score bottom (3s) → subscribe reminder (4s) → stats (10s) → match thumbnail.
-// Canvas/stats stay visible until bwHalfStart() clears them instantly.
+// Canvas/stats stay visible until bwHalfStart() clears them instantly — EXCEPT this whole
+// sequence takes ~8-19s to run, and if the ref starts the next half before it finishes
+// (bwHalfStart bumps bwSeqToken), every checkpoint below bails out immediately instead of
+// letting a stale step re-draw the thumbnail over a half that's already live.
 async function bwHalfEndSequence() {
+    const myToken = bwSeqToken;
+    function stillValid() { return bwSeqToken === myToken; }
+
     // 1. Score to bottom-center for 3s
     bwScoreToBottom();
     bwShowScore();
     await bwDelay(3000);
+    if (!stillValid()) return;
 
     // 2. Hide score
     bwHideScore();
     await bwDelay(400);
+    if (!stillValid()) return;
 
     // 3. Subscribe reminder (4s) — clean screen, no overlap
     bwSubscribeSequence(4000);
     await bwDelay(4000);
+    if (!stillValid()) return;
 
     // 3. Stats overlay (if goals exist)
     const hasStats = await bwRenderStats(bwMatchData);
+    if (!stillValid()) return;
 
     if (hasStats) {
-        await bwFlashTransition(700, function() { bwShowStats(); });
+        await bwFlashTransition(700, function() { if (stillValid()) bwShowStats(); });
+        if (!stillValid()) return;
         await bwDelay(10000);
+        if (!stillValid()) return;
 
         // Pre-render match thumb while stats are showing
         const thumbUrl = await bwCacheMatchThumb(bwMatchData, true);
+        if (!stillValid()) return;
         bwMatchThumbURL = thumbUrl;
         bwShowCachedImage(thumbUrl);
 
         // Swap: stats out, match thumb in
         await bwFlashTransition(700, function() {
+            if (!stillValid()) return;
             bwHideStats();
             bwShowCanvas();
         });
     } else {
         // No stats — go straight to match thumbnail
         const thumbUrl = await bwCacheMatchThumb(bwMatchData, true);
+        if (!stillValid()) return;
         bwMatchThumbURL = thumbUrl;
         bwShowCachedImage(thumbUrl);
-        await bwFlashTransition(700, function() { bwShowCanvas(); });
+        await bwFlashTransition(700, function() { if (stillValid()) bwShowCanvas(); });
     }
     // Canvas stays visible — bwHalfStart() will clear it instantly when next half begins
 }

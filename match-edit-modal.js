@@ -44,6 +44,19 @@
         </div>
 
         <div>
+          <label style="font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:6px;">⏱️ Количество таймов</label>
+          <div id="editHalvesToggle" style="display:flex; gap:8px;">
+            <button type="button" data-halves="1" onclick="editSelectHalvesCount(1)"
+                    style="flex:1; padding:10px; border:2px solid #e2e8f0; border-radius:10px; background:#fff; color:#64748b; font-size:14px; font-weight:700; cursor:pointer;">1</button>
+            <button type="button" data-halves="2" onclick="editSelectHalvesCount(2)"
+                    style="flex:1; padding:10px; border:2px solid #e2e8f0; border-radius:10px; background:#fff; color:#64748b; font-size:14px; font-weight:700; cursor:pointer;">2</button>
+            <button type="button" data-halves="3" onclick="editSelectHalvesCount(3)"
+                    style="flex:1; padding:10px; border:2px solid #e2e8f0; border-radius:10px; background:#fff; color:#64748b; font-size:14px; font-weight:700; cursor:pointer;">3</button>
+          </div>
+          <div style="font-size:12px; color:#94a3b8; margin-top:4px;">Сколько таймов будет в матче — 3-й тайм обычно только для товарищеских встреч</div>
+        </div>
+
+        <div>
           <label style="font-size:13px; font-weight:600; color:#374151; display:block; margin-bottom:6px;">🏆 Чемпионат</label>
           <select id="editChampionshipSelect"
                   style="width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:10px; font-size:14px; background:white; box-sizing:border-box;">
@@ -112,6 +125,25 @@
     // ── State ────────────────────────────────────────────────
     let _editingMatchId = null;
     let _teamsCache     = {};
+    let _editSelectedHalvesCount = 2; // default — matches the pre-existing 2-half behavior
+
+    // ── Halves-count toggle ────────────────────────────────────
+    window.editSelectHalvesCount = function (n) {
+        _editSelectedHalvesCount = n;
+        _renderHalvesToggle();
+    };
+
+    function _renderHalvesToggle() {
+        const container = document.getElementById('editHalvesToggle');
+        if (!container) return;
+        container.querySelectorAll('button').forEach(function (btn) {
+            const n = parseInt(btn.getAttribute('data-halves'), 10);
+            const active = n === _editSelectedHalvesCount;
+            btn.style.background  = active ? '#08399A' : '#fff';
+            btn.style.color       = active ? '#fff'    : '#64748b';
+            btn.style.borderColor = active ? '#08399A' : '#e2e8f0';
+        });
+    }
 
     // ── Open ─────────────────────────────────────────────────
     window.openMatchEditModal = function (matchId) {
@@ -130,6 +162,8 @@
             document.getElementById('editTeam' + n + 'Select').value      = '';
             document.getElementById('editTeam' + n + 'Preview').style.display = 'none';
         });
+        _editSelectedHalvesCount = 2;
+        _renderHalvesToggle();
 
         Promise.all([_loadTeamOptions(), _loadChampOptions()]).then(function() {
             if (!matchId) return;
@@ -147,6 +181,9 @@
                 }
                 if (m.championshipTitle)
                     document.getElementById('editChampionshipSelect').value = m.championshipTitle;
+
+                _editSelectedHalvesCount = m.halvesCount || 2;
+                _renderHalvesToggle();
 
                 // Prefer teamId for preselection; fall back to name matching for old records
                 if (m.team1Id && _teamsCache[m.team1Id]) {
@@ -263,7 +300,8 @@
             team2Name:  t2.name  || '',
             // team1Logo/team2Logo NOT stored — fetched from /teams at display time
             // team1Color/team2Color NOT stored — fetched from /teams at display time
-            championshipTitle: document.getElementById('editChampionshipSelect').value || ''
+            championshipTitle: document.getElementById('editChampionshipSelect').value || '',
+            halvesCount: _editSelectedHalvesCount || 2
         };
 
         const matchDateVal = document.getElementById('editMatchDate').value;

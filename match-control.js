@@ -53,21 +53,14 @@ function startHalf(half) {
         }
 
         database.ref('matches/' + matchId).update(updates).then(function() {
-            // Update buttons
-            document.getElementById('startHalf' + half + 'Btn').classList.add('hidden');
-            // stopHalf2Btn is removed from UI — endMatch() handles ending half 2
-            if (half === 1) {
-                document.getElementById('stopHalf1Btn').classList.remove('hidden');
-                // endMatchBtn stays hidden during half 1 — available in halftime popup
-            } else {
-                // Half 2: show only End Match button
-                document.getElementById('endMatchBtn').classList.remove('hidden');
-            }
-
             currentHalf = half;
-            
-            // Start timer sync (updates every 10 seconds)
             startTimerSync();
+
+            // Button visibility is fully derived from status/currentHalf/halvesCount —
+            // refresh immediately rather than waiting on the Firebase listener round-trip.
+            if (typeof updateButtonStates === 'function') {
+                updateButtonStates(Object.assign({}, matchData, updates));
+            }
         });
     });
 }
@@ -120,25 +113,18 @@ function stopTimerSync() {
     }
 }
 
+// Called only for a half that ISN'T the match's last configured half (see updateButtonStates) —
+// so there is always a real "next half" to offer in the break popup.
 function stopHalf(half) {
     if (!matchId) return;
 
-    const updates = {
-        status: 'half' + half + '_ended'
-    };
-
-    database.ref('matches/' + matchId).update(updates).then(function() {
-        // Stop timer sync
+    database.ref('matches/' + matchId).update({ status: 'half' + half + '_ended' }).then(function() {
         stopTimerSync();
-        
-        // Update buttons
-        if (half === 1) {
-            document.getElementById('stopHalf1Btn').classList.add('hidden');
-            document.getElementById('startHalf2Btn').classList.remove('hidden');
-            // Show halftime popup
-            showHalftimePopup();
+        showHalftimePopup(half);
+
+        if (typeof updateButtonStates === 'function' && _matchCache) {
+            updateButtonStates(Object.assign({}, _matchCache, { status: 'half' + half + '_ended' }));
         }
-        // half 2 stop is handled by endMatch() directly — no separate stopHalf2Btn
     });
 }
 
@@ -149,10 +135,26 @@ function stopHalf(half) {
 let halftimeTimerInterval = null;
 let halftimeSecondsRemaining = 300; // 5 minutes
 
-function showHalftimePopup() {
+// afterHalf: the half that just ended (always < match.halvesCount — see updateButtonStates,
+// which only shows a "stop half N" button when a next half exists). The popup always offers
+// "start next half"; the only variable is the label.
+function showHalftimePopup(afterHalf) {
     // Reset timer
     halftimeSecondsRemaining = 300; // 5 minutes
-    
+
+    const nextHalf = afterHalf + 1;
+    const title    = document.getElementById('halftimePopupTitle');
+    const startBtn = document.getElementById('halftimeStartBtn');
+
+    title.textContent = afterHalf === 1
+        ? '⏸️ Перерыв между таймами'
+        : '⏸️ Перерыв после ' + afterHalf + '-го тайма';
+    startBtn.innerHTML = '<i class="fas fa-play-circle"></i> Начать ' + nextHalf + ' тайм';
+    startBtn.onclick = function() {
+        closeHalftimePopup();
+        startHalf(nextHalf);
+    };
+
     // Show popup
     document.getElementById('halftimePopup').style.display = 'block';
     
@@ -192,11 +194,6 @@ function closeHalftimePopup() {
     }
 }
 
-function startSecondHalfFromPopup() {
-    closeHalftimePopup();
-    startHalf(2);
-}
-
 function endMatchFromPopup() {
     closeHalftimePopup();
     endMatch();
@@ -210,13 +207,11 @@ function endMatch() {
     };
 
     database.ref('matches/' + matchId).update(updates).then(function() {
-        // Stop timer sync
         stopTimerSync();
-        
-        // Hide all half buttons
-        document.getElementById('stopHalf1Btn').classList.add('hidden');
-        document.getElementById('startHalf2Btn').classList.add('hidden');
-        document.getElementById('endMatchBtn').classList.add('hidden');
+
+        if (typeof updateButtonStates === 'function' && _matchCache) {
+            updateButtonStates(Object.assign({}, _matchCache, updates));
+        }
     });
 }
 

@@ -2,16 +2,45 @@
 // SHARED ROSTER THUMBNAIL GENERATOR
 // ============================================
 
+// Session cache — persists for the lifetime of the browser tab.
+// Avoids re-downloading team/player/coach data from Firebase on
+// repeated thumbnail generations. Call rosterCacheClear(teamId)
+// after saving a player/coach change to force a fresh fetch.
+const _rosterCache = {};
+
+function rosterCacheClear(teamId) {
+    if (teamId) {
+        delete _rosterCache['team_' + teamId];
+        delete _rosterCache['players_' + teamId];
+        delete _rosterCache['coach_' + teamId];
+    } else {
+        // Clear everything if no teamId provided
+        Object.keys(_rosterCache).forEach(k => delete _rosterCache[k]);
+    }
+}
+
+function _cachedFetch(cacheKey, fetchFn) {
+    if (_rosterCache[cacheKey] !== undefined) {
+        return Promise.resolve(_rosterCache[cacheKey]);
+    }
+    return fetchFn().then(result => {
+        _rosterCache[cacheKey] = result;
+        return result;
+    });
+}
+
 function generateRosterThumbnailHelper(teamId, callback) {
     if (!teamId) { alert('Команда не выбрана'); return; }
 
-    firebase.database().ref('teams/' + teamId).once('value')
+    _cachedFetch('team_' + teamId,
+        () => firebase.database().ref('teams/' + teamId).once('value'))
         .then(teamSnapshot => {
             if (!teamSnapshot.exists()) { alert('Команда не найдена'); return; }
             const teamData = teamSnapshot.val();
 
-            firebase.database().ref('players')
-                .orderByChild('teamId').equalTo(teamId).once('value')
+            _cachedFetch('players_' + teamId,
+                () => firebase.database().ref('players')
+                          .orderByChild('teamId').equalTo(teamId).once('value'))
                 .then(playersSnapshot => {
                     const players = [];
                     playersSnapshot.forEach(childSnapshot => {
@@ -21,7 +50,8 @@ function generateRosterThumbnailHelper(teamId, callback) {
                     });
                     players.sort((a, b) => a.number - b.number);
 
-                    firebase.database().ref('coaches/' + teamId).once('value')
+                    _cachedFetch('coach_' + teamId,
+                        () => firebase.database().ref('coaches/' + teamId).once('value'))
                         .then(coachSnapshot => {
                             const coachData = coachSnapshot.exists() ? coachSnapshot.val() : null;
                             generateRosterImage(teamData, players, coachData, callback);
@@ -154,11 +184,18 @@ function drawRosterOnCanvas(canvas, ctx, teamData, coachData, hasCoach,
     const cardW = cardWFromWidth;
 
     // ── Radial gradient background — stadium spotlight effect ──
-    const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.65);
-    bgGrad.addColorStop(0, 'rgba(25, 71, 186, 0.8)');
-    bgGrad.addColorStop(1, 'rgba(0, 51, 160, 0.90)');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, W, H);
+const cx = W / 2;
+const cy = H * 0.55;
+// CSS's "farthest-corner" sizing: radius to the far corner from that center point
+const farthestCorner = Math.sqrt(Math.pow(W / 2, 2) + Math.pow(Math.max(cy, H - cy), 2));
+const outerRadius = farthestCorner * 0.75; // matches the CSS gradient's "75%" stop
+
+const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, outerRadius);
+bgGrad.addColorStop(0, 'rgba(25, 71, 186, 0.8)');
+bgGrad.addColorStop(1, 'rgba(0, 51, 160, 0.90)');
+ctx.fillStyle = bgGrad;
+ctx.fillRect(0, 0, W, H);
+
 
     // ════════════════════════════════════════════════════════
     // HEADER BAND — logo + "СОСТАВ КОМАНДЫ"

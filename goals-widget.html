@@ -712,9 +712,9 @@ Object.values(goalsData)
                 const statusLabels = {
                     'waiting':     'Матч ещё не начался',
                     'scheduled':   'Матч ещё не начался',
-                    'playing':     matchData.currentHalf === 1 ? '1-й тайм' : '2-й тайм',
+                    'playing':     matchData.currentHalf === 3 ? '3-й тайм' : (matchData.currentHalf === 2 ? '2-й тайм' : '1-й тайм'),
                     'half1_ended': 'Перерыв',
-                    'half2_ended': '2-й тайм окончен',
+                    'half2_ended': 'Перерыв',
                     'ended':       'Матч окончен'
                 };
                 const halfLabel = statusLabels[matchData.status] || '';

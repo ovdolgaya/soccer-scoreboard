@@ -48,14 +48,18 @@
         }
 
         .team.team1 {
-            background: linear-gradient(135deg, var(--team1-color, #08399A) 0%, var(--team1-color-light, #0a4ab3) 100%);
+            background:
+                linear-gradient(to right, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 70%),
+                var(--team1-color, #08399A);
             flex-direction: row;          /* name center, logo far left */
             justify-content: flex-start;
             min-width: 200px;
         }
 
         .team.team2 {
-            background: linear-gradient(135deg, var(--team2-color, #4A90E2) 0%, var(--team2-color-light, #5ea3f5) 100%);
+            background:
+                linear-gradient(to right, rgba(0,0,0,0) 30%, rgba(0,0,0,0.45) 100%),
+                var(--team2-color, #4A90E2);
             flex-direction: row-reverse;  /* name center, logo far right */
             justify-content: flex-start;
             min-width: 200px;
@@ -593,8 +597,9 @@
             if (status === 'ended')       return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
             if (status === 'half1_ended') return '<div class="status-message">1 ТАЙМ ОКОНЧЕН</div>';
             if (status === 'half2_ended') return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
+            // half3_ended can't occur — a match's last configured half always ends it directly.
             if (status === 'playing') {
-                const halfText = matchData.currentHalf === 1 ? '1 ТАЙМ' : '2 ТАЙМ';
+                const halfText = matchData.currentHalf === 3 ? '3 ТАЙМ' : (matchData.currentHalf === 2 ? '2 ТАЙМ' : '1 ТАЙМ');
                 // Compute initial display from startTime directly (avoids stale matchData.time)
                 const initElapsed = Math.max(0, Date.now() - matchData.startTime);
                 const initSec = Math.floor(initElapsed / 1000);
