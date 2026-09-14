@@ -58,6 +58,15 @@ function wsHandleGoal(goal, notifEl, timeouts, getMatchData, durationMs, onHide)
     const matchData = getMatchData();
     if (!matchData) return;
 
+    // Opponent goals are handled entirely by the score2-change listener below
+    // (wsInitGoalListener, section 2) — it has the team color/logo needed for
+    // the opponent-style card. If we don't bail here, this generic /goals
+    // listener fires first (since the opponent goal record itself lands in
+    // /goals too) and briefly renders it as a home-team card with no player
+    // (playerId is null for opponent goals) → "Гол! НЕИЗВЕСТНЫЙ" flashes
+    // before the correct opponent card replaces it a moment later.
+    if (goal.isOpponent) return;
+
     if (goal.isOwnGoal) {
         wsShowOwnGoalCard(matchData, notifEl, timeouts, goal, durationMs, onHide);
         return;

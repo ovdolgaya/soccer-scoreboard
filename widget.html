@@ -640,6 +640,15 @@
         // ========================================
 
         function handleNewGoal(goal) {
+            // Opponent goals are handled entirely by the score2-change listener
+            // (see the 'score2' branch above) — it has the team color/logo for
+            // the opponent-style card. Without this check, this generic /goals
+            // listener fires first too (the opponent goal record lands in /goals
+            // as well) and briefly renders it as a home-team card with no player
+            // (playerId is null for opponent goals) → "Гол! НЕИЗВЕСТНЫЙ" flashes
+            // before the correct opponent card replaces it a moment later.
+            if (goal.isOpponent) return;
+
             if (goal.isOwnGoal) {
                 showOwnGoalCard();
                 return;
