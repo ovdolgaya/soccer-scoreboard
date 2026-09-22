@@ -17,12 +17,43 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
-        width: 1440px; height: 2560px;
         overflow: hidden; background: transparent;
         font-family: 'Lexend', Calibri, sans-serif;
+    }
+
+    /* Portrait (default, Shorts) — unchanged from original behaviour */
+    body {
+        position: relative;
+        width: 1440px; height: 2560px;
+    }
+
+    /* Landscape (embedded overlay) — full 2K screen, transparent canvas.
+       #vw-root keeps its native 1440×2560 portrait layout and is scaled down
+       proportionally to fit the 1440px screen height, then pinned to the
+       left or right edge depending on ?position=. */
+    body.vw-landscape {
+        width: 2560px; height: 1440px;
+    }
+
+    #vw-root {
+        width: 1440px; height: 2560px;
         display: flex;
         flex-direction: column;
         align-items: center;
+        position: relative;
+    }
+
+    body.vw-landscape #vw-root {
+        position: absolute; top: 0;
+        transform: scale(var(--vw-scale, 0.5625)); /* 1440 / 2560 */
+    }
+    body.vw-landscape.vw-pos-right #vw-root {
+        right: 0;
+        transform-origin: top right;
+    }
+    body.vw-landscape.vw-pos-left #vw-root {
+        left: 0;
+        transform-origin: top left;
     }
 
     #vw-score-wrap {
@@ -96,15 +127,30 @@
     </style>
 </head>
 <body>
+<script>
+// Applied as early as possible (body already exists at this point in the
+// parse) to avoid a flash of the wrong canvas size/position.
+(function() {
+    var params   = new URLSearchParams(window.location.search);
+    var view     = (params.get('view') || 'portrait').toLowerCase();
+    var position = (params.get('position') || 'right').toLowerCase();
+    if (view === 'landscape') {
+        document.body.classList.add('vw-landscape');
+        document.body.classList.add(position === 'left' ? 'vw-pos-left' : 'vw-pos-right');
+    }
+})();
+</script>
 
-<div id="vw-loading"><div class="vw-loading-text">Загрузка...</div></div>
+<div id="vw-root">
+    <div id="vw-loading"><div class="vw-loading-text">Загрузка...</div></div>
 
-<div id="vw-score-wrap" style="display:none;">
-    <div id="vw-scoreboard"></div>
-    <div id="vw-timer" class="timer-container"></div>
+    <div id="vw-score-wrap" style="display:none;">
+        <div id="vw-scoreboard"></div>
+        <div id="vw-timer" class="timer-container"></div>
+    </div>
+
+    <div id="vw-goal-notif"></div>
 </div>
-
-<div id="vw-goal-notif"></div>
 
 <script src="widget-shared.js"></script>
 <script src="widget-goal-listener.js"></script>

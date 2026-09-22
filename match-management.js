@@ -749,6 +749,16 @@ function copyVerticalWidgetUrl() {
     _copyUrl(getBasePath() + '/vertical-widget.html?match=' + matchId + _envSuffix(), '📱 Ссылка на вертикальное табло 2К скопирована!');
 }
 
+// Landscape overlay version of the vertical widget: same scoreboard + goal
+// card, scaled down to fit a 2560×1440 screen and pinned to one side, for
+// embedding into a full 16:9 broadcast layout instead of a portrait Shorts export.
+function copyLandscapeScoreboardUrl(position) {
+    const pos = (position === 'left') ? 'left' : 'right';
+    const url = getBasePath() + '/vertical-widget.html?match=' + matchId + '&view=landscape&position=' + pos + _envSuffix();
+    const msg = (pos === 'left') ? '🖥️ Ссылка на табло (слева) скопирована!' : '🖥️ Ссылка на табло (справа) скопирована!';
+    _copyUrl(url, msg);
+}
+
 function fallbackCopyTextToClipboard(text) {
     const textArea = document.createElement('textarea');
     textArea.value = text;
