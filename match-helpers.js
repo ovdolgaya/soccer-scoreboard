@@ -5,14 +5,15 @@
 const UPCOMING_STATUSES = ['scheduled', 'waiting', 'playing', 'half1_ended', 'half2_ended'];
 const PLAYED_STATUSES   = ['ended'];
 
-// Returns a sortable key for a match.
-// Upcoming: uses scheduledTime / createdAt timestamp.
-// Played:   uses matchDate string (YYYY-MM-DD sorts correctly) or createdAt fallback.
+// Returns a numeric sort key (ms timestamp) for a match.
+// Upcoming: scheduledTime → matchDate → createdAt
+// Played:   matchDate → scheduledTime → createdAt
 function matchSortKey(m) {
+    const dateTs = m.matchDate ? new Date(m.matchDate + 'T00:00:00').getTime() : 0;
     if (UPCOMING_STATUSES.includes(m.status)) {
-        return m.scheduledTime || m.createdAt || 0;
+        return m.scheduledTime || dateTs || m.createdAt || 0;
     }
-    return m.matchDate || m.createdAt || 0;
+    return dateTs || m.scheduledTime || m.createdAt || 0;
 }
 
 // Sorts a match array in-place:
