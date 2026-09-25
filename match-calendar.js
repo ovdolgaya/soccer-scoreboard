@@ -243,11 +243,9 @@ function _calRenderPanel(title, list, dayKey) {
     panel.innerHTML =
         '<div class="cal-day-panel-head">'
       +   '<h3>' + title + count + '</h3>'
-      +   '<div class="cal-day-panel-actions">'
-      +     (dayKey ? '<button class="cal-add-btn" onclick="calCreateMatch(\'' + dayKey + '\')">'
-      +               '<i class="fas fa-plus"></i> Добавить матч</button>' : '')
-      +     '<button class="cal-close" onclick="calClosePanel()" title="Закрыть">✕</button>'
-      +   '</div>'
+      +   (dayKey ? '<button class="cal-add-btn" onclick="calCreateMatch(\'' + dayKey + '\')">'
+      +             '<i class="fas fa-plus"></i> Добавить матч</button>' : '')
+      +   '<button class="cal-close" onclick="calClosePanel()" title="Закрыть">✕</button>'
       + '</div>'
       + list.map(renderMatchCard).join('');
     panel.style.display = '';

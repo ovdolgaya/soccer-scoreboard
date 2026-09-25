@@ -869,25 +869,27 @@
             scroll-margin-top: 16px;
         }
 
+        /* Desktop: [title .......... + Добавить матч] [✕]
+           Mobile:  [title .......... ✕]
+                    [+ Добавить матч]                  */
         .cal-day-panel-head {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            grid-template-areas: "title add close";
             align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
             gap: 8px;
             margin-bottom: 12px;
         }
 
         .cal-day-panel-head h3 {
+            grid-area: title;
             font-size: 16px;
             color: #1e293b;
+            min-width: 0;
         }
 
-        .cal-day-panel-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .cal-add-btn { grid-area: add; }
+        .cal-close   { grid-area: close; }
 
         .cal-add-btn {
             border: 2px solid #bfdbfe;
@@ -1082,6 +1084,14 @@
         @media (max-width: 600px) {
             .view-switch { margin-left: 0; width: 100%; }
             .view-switch button { flex: 1; justify-content: center; }
+
+            .cal-day-panel-head {
+                grid-template-columns: 1fr auto;
+                grid-template-areas:
+                    "title close"
+                    "add   add";
+            }
+            .cal-add-btn { justify-self: start; }
 
             .cal-grid { gap: 2px; }
             .cal-cell { min-height: 64px; padding: 2px; border-radius: 6px; }
