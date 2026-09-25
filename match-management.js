@@ -110,6 +110,13 @@ function displayMatches() {
     const loadMoreBtn = document.getElementById('loadMoreBtn');
     const hidePast = document.getElementById('hidePastMatches') ? document.getElementById('hidePastMatches').checked : false;
 
+    // Calendar view active — render the month grid instead of cards (match-calendar.js)
+    if (typeof isCalendarView === 'function' && isCalendarView()) {
+        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+        renderMatchCalendar();
+        return;
+    }
+
     if (allMatchesCache.length === 0) {
         matchListDiv.innerHTML = `
             <div class="empty-state">

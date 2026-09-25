@@ -31,6 +31,7 @@
     <script src="auth.js"></script>
     <script src="match-helpers.js"></script>
     <script src="match-management.js"></script>
+    <script src="match-calendar.js"></script>
     <script src="match-control.js"></script>
     <script src="match-edit-modal.js"></script>
     
@@ -96,6 +97,15 @@
                                flex:1; min-width:160px; max-width:320px;">
                     <option value="">Все чемпионаты</option>
                 </select>
+                <!-- List / calendar switch — see match-calendar.js -->
+                <div class="view-switch">
+                    <button type="button" id="viewListBtn" class="active" onclick="setMatchView('list')">
+                        <i class="fas fa-list"></i> Список
+                    </button>
+                    <button type="button" id="viewCalendarBtn" onclick="setMatchView('calendar')">
+                        <i class="fas fa-calendar-alt"></i> Календарь
+                    </button>
+                </div>
             </div>
 
             <div id="matchList" style="margin-top: 20px;">
@@ -109,6 +119,28 @@
                 <button class="button secondary" onclick="loadMoreMatches()">
                     <i class="fas fa-chevron-down"></i> <span>Показать ещё</span>
                 </button>
+            </div>
+
+            <!-- Calendar view — rendered by match-calendar.js -->
+            <div id="calendarView" style="display:none; margin-top:20px;">
+                <!-- Match cards for the selected day -->
+                <div id="calDayPanel" class="cal-day-panel" style="display:none;"></div>
+                <div class="cal-head">
+                    <button type="button" class="cal-nav" onclick="calPrevMonth()" title="Предыдущий месяц">‹</button>
+                    <h2 id="calMonthTitle"></h2>
+                    <button type="button" class="cal-today-btn" onclick="calGoToday()">Сегодня</button>
+                    <button type="button" class="cal-nav" onclick="calNextMonth()" title="Следующий месяц">›</button>
+                </div>
+                <div class="cal-grid" id="calGrid"></div>
+                <div class="cal-footer">
+                    <div class="cal-legend">
+                        <span><i class="scheduled"></i>Ожидается</span>
+                        <span><i class="waiting"></i>Готов к началу</span>
+                        <span><i class="active"></i>Идёт</span>
+                        <span><i class="ended"></i>Закончен</span>
+                    </div>
+                    <button type="button" class="cal-nodate" id="calNoDateBtn" onclick="calOpenNoDate()" style="display:none;"></button>
+                </div>
             </div>
         </div>
 

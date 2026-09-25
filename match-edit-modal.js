@@ -146,7 +146,9 @@
     }
 
     // ── Open ─────────────────────────────────────────────────
-    window.openMatchEditModal = function (matchId) {
+    // prefillDate (optional, 'YYYY-MM-DD') — used for new matches created
+    // from an empty day in the calendar view (match-calendar.js)
+    window.openMatchEditModal = function (matchId, prefillDate) {
         _editingMatchId = matchId;
         const isNew = !matchId;
 
@@ -156,7 +158,7 @@
             ? '<i class="fas fa-plus-circle"></i> Создать матч'
             : '<i class="fas fa-save"></i> Сохранить изменения';
 
-        document.getElementById('editMatchDate').value     = '';
+        document.getElementById('editMatchDate').value     = (isNew && prefillDate) ? prefillDate : '';
         document.getElementById('editScheduledTime').value = '';
         ['1','2'].forEach(function(n) {
             document.getElementById('editTeam' + n + 'Select').value      = '';

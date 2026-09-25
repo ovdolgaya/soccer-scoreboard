@@ -825,3 +825,268 @@
                 padding: 30px 25px;
             }
         }
+
+        /* ============================================
+           List / calendar view switch + calendar view
+           (see match-calendar.js)
+           ============================================ */
+        .view-switch {
+            display: inline-flex;
+            background: #f1f5f9;
+            border-radius: 10px;
+            padding: 3px;
+            margin-left: auto;
+        }
+
+        .view-switch button {
+            border: none;
+            background: transparent;
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .view-switch button.active {
+            background: white;
+            color: #1e40af;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+        }
+
+        /* Day panel — existing match cards for the selected day */
+        .cal-day-panel {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 16px 2px;
+            margin-bottom: 16px;
+            scroll-margin-top: 16px;
+        }
+
+        .cal-day-panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .cal-day-panel-head h3 {
+            font-size: 16px;
+            color: #1e293b;
+        }
+
+        .cal-day-panel-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cal-add-btn {
+            border: 2px solid #bfdbfe;
+            background: white;
+            color: #1e40af;
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .cal-add-btn:hover { border-color: #3b82f6; }
+
+        .cal-close {
+            border: none;
+            background: #e2e8f0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            color: #475569;
+            flex-shrink: 0;
+        }
+
+        /* Month header */
+        .cal-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .cal-head h2 {
+            font-size: 20px;
+            color: #1e293b;
+            flex: 1;
+            text-align: center;
+            text-transform: capitalize;
+        }
+
+        .cal-nav,
+        .cal-today-btn {
+            border: 2px solid #e2e8f0;
+            background: white;
+            height: 38px;
+            border-radius: 10px;
+            cursor: pointer;
+            color: #1e40af;
+        }
+
+        .cal-nav { width: 38px; font-size: 18px; }
+        .cal-today-btn { padding: 0 12px; font-size: 13px; font-weight: 600; }
+        .cal-nav:hover, .cal-today-btn:hover { border-color: #3b82f6; }
+
+        /* Grid */
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 4px;
+        }
+
+        .cal-wd {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            padding: 4px 0;
+        }
+
+        .cal-wd.weekend { color: #cbd5e1; }
+
+        .cal-cell {
+            min-height: 92px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            background: white;
+            min-width: 0;
+        }
+
+        .cal-cell.out { background: #f8fafc; }
+        .cal-cell.out .cal-num { color: #cbd5e1; }
+        .cal-cell.has { cursor: pointer; }
+        .cal-cell.has:hover { border-color: #3b82f6; }
+
+        /* Empty day → click creates a match; «+» hint on hover (desktop) */
+        .cal-cell.empty { cursor: pointer; position: relative; }
+        .cal-cell.empty::after {
+            content: '+';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: 300;
+            color: #3b82f6;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            pointer-events: none;
+        }
+        .cal-cell.empty:hover { border-color: #93c5fd; background: #f8fbff; }
+        .cal-cell.empty:hover::after { opacity: 1; }
+        @media (hover: none) { .cal-cell.empty::after { display: none; } }
+        .cal-cell.today { border: 2px solid #FCDC00; background: #fffbe6; }
+        .cal-cell.selected { box-shadow: 0 0 0 2px #3b82f6 inset; }
+
+        .cal-num {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .cal-cell.today .cal-num { background: #08399A; color: white; }
+
+        /* Match chip inside a day */
+        .cal-chip {
+            font-size: 11px;
+            line-height: 1.25;
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 3px 5px;
+            color: white;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            word-break: break-word;
+        }
+
+        .cal-chip-time { opacity: 0.85; font-weight: 500; }
+        .cal-chip.scheduled { background: #3b82f6; }
+        .cal-chip.waiting   { background: #f59e0b; }
+        .cal-chip.active    { background: #10b981; }
+        .cal-chip.ended     { background: #e2e8f0; color: #475569; }
+        .cal-chip.multi     { background: #08399A; }
+
+        /* Footer: legend + «Без даты» */
+        .cal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .cal-legend { display: flex; gap: 12px; flex-wrap: wrap; }
+
+        .cal-legend i {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            margin-right: 4px;
+            vertical-align: -1px;
+        }
+
+        .cal-legend i.scheduled { background: #3b82f6; }
+        .cal-legend i.waiting   { background: #f59e0b; }
+        .cal-legend i.active    { background: #10b981; }
+        .cal-legend i.ended     { background: #e2e8f0; }
+
+        .cal-nodate {
+            border: none;
+            background: none;
+            color: #1e40af;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            .view-switch { margin-left: 0; width: 100%; }
+            .view-switch button { flex: 1; justify-content: center; }
+
+            .cal-grid { gap: 2px; }
+            .cal-cell { min-height: 64px; padding: 2px; border-radius: 6px; }
+            .cal-num { font-size: 12px; width: 20px; height: 20px; }
+            .cal-chip { font-size: 9px; padding: 2px 3px; border-radius: 4px; }
+            .cal-chip-time { display: none; }
+            .cal-head h2 { font-size: 17px; }
+        }

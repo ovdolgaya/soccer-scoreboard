@@ -11,6 +11,7 @@ const STATIC_SHELL = [
   './app-layout.css',
   './match-helpers.js',
   './match-management.js',
+  './match-calendar.js',
   './match-control.js',
   './match-edit-modal.js',
   './goal-tracking.js',

@@ -6,6 +6,7 @@ const UPCOMING_STATUSES = ['scheduled', 'waiting', 'playing', 'half1_ended', 'ha
 const PLAYED_STATUSES   = ['ended'];
 
 // Returns a numeric sort key (ms timestamp) for a match.
+// Always a number — mixing number and string keys breaks < / > comparison.
 // Upcoming: scheduledTime → matchDate → createdAt
 // Played:   matchDate → scheduledTime → createdAt
 function matchSortKey(m) {
