@@ -171,6 +171,19 @@ let vwMatchData  = null;
 const vwTimerRef = { id: null };
 const vwTimeouts = { show: null, hide: null };
 
+// Live-подписки — отключаются при status 'ended' (экономия трафика Firebase)
+const vwMatchRef    = VW_MATCH_ID ? database.ref('matches/' + VW_MATCH_ID) : null;
+let   vwStopGoals   = null;   // stop() из wsInitGoalListener
+let   vwLiveStopped = false;
+
+function vwStopLiveListeners() {
+    if (vwLiveStopped) return;
+    vwLiveStopped = true;
+    vwMatchRef.off('value', vwOnMatchValue);
+    if (vwStopGoals) vwStopGoals();
+    console.log('[vertical-widget] match ended — live listeners detached');
+}
+
 function vwInit() {
     if (!VW_MATCH_ID) {
         vwLoading.querySelector('.vw-loading-text').textContent = 'Укажите ?match=ID';
@@ -183,30 +196,36 @@ function vwInit() {
         if (initialData) wsPrefillPlayersCache(initialData.team1Id);
     });
 
-    // Слушатель обновлений матча — только UI, без загрузки игроков
-    database.ref('matches/' + VW_MATCH_ID).on('value', function(snap) {
-        const matchData = snap.val();
-        if (!matchData) return;
-        // Сохраняем кэшированные _t* поля — они устанавливаются асинхронно в wsRenderScoreboard
-        matchData._t1Logo  = matchData._t1Logo  || (vwMatchData && vwMatchData._t1Logo)  || '';
-        matchData._t2Logo  = matchData._t2Logo  || (vwMatchData && vwMatchData._t2Logo)  || '';
-        matchData._t1Color = matchData._t1Color || (vwMatchData && vwMatchData._t1Color) || '#08399A';
-        matchData._t2Color = matchData._t2Color || (vwMatchData && vwMatchData._t2Color) || '#4A90E2';
-        vwMatchData = matchData;
-
-        wsRenderScoreboard(matchData, vwScoreboard, vwTimerEl);
-        wsStartTimer(matchData, vwTimerRef);
-
-        vwScoreWrap.style.display = 'flex';
-        vwLoading.classList.add('vw-hidden');
-    });
-
-    wsInitGoalListener({
+    // Слушатель голов — подключаем до слушателя матча, чтобы stop() уже был доступен
+    vwStopGoals = wsInitGoalListener({
         matchId:      VW_MATCH_ID,
         notifEl:      vwGoalNotif,
         timeouts:     vwTimeouts,
         getMatchData: function() { return vwMatchData; }
     });
+
+    // Слушатель обновлений матча — только UI, без загрузки игроков
+    vwMatchRef.on('value', vwOnMatchValue);
+}
+
+function vwOnMatchValue(snap) {
+    const matchData = snap.val();
+    if (!matchData) return;
+    // Сохраняем кэшированные _t* поля — они устанавливаются асинхронно в wsRenderScoreboard
+    matchData._t1Logo  = matchData._t1Logo  || (vwMatchData && vwMatchData._t1Logo)  || '';
+    matchData._t2Logo  = matchData._t2Logo  || (vwMatchData && vwMatchData._t2Logo)  || '';
+    matchData._t1Color = matchData._t1Color || (vwMatchData && vwMatchData._t1Color) || '#08399A';
+    matchData._t2Color = matchData._t2Color || (vwMatchData && vwMatchData._t2Color) || '#4A90E2';
+    vwMatchData = matchData;
+
+    wsRenderScoreboard(matchData, vwScoreboard, vwTimerEl);
+    wsStartTimer(matchData, vwTimerRef);
+
+    vwScoreWrap.style.display = 'flex';
+    vwLoading.classList.add('vw-hidden');
+
+    // Матч окончен — финальное табло отрисовано, дальше обновления не нужны
+    if (matchData.status === 'ended') vwStopLiveListeners();
 }
 
 vwInit();

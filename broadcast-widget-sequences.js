@@ -342,17 +342,32 @@ function bwOnStatusChange(newStatus, matchData) {
 }
 
 // ── GOALS LISTENER ──
+let bwGoalsQuery  = null;
+let bwOnGoalAdded = null;
+
 function bwInitGoalsListener() {
     if (bwGoalsInitialized) return;
     bwGoalsInitialized = true;
 
     let initialLoad = true;
-    database.ref('goals').orderByChild('matchId').equalTo(BW_MATCH_ID)
-    .on('child_added', function(snap) {
+    bwGoalsQuery = database.ref('goals').orderByChild('matchId').equalTo(BW_MATCH_ID);
+    bwOnGoalAdded = function(snap) {
         if (initialLoad) return;
         const goal = snap.val();
         if (!goal) return;
+        // No cards after the final whistle or for retroactive goals
+        if (!wsGoalCardAllowed(bwMatchData, goal)) return;
         bwHandleNewGoal(goal);
-    });
+    };
+    bwGoalsQuery.on('child_added', bwOnGoalAdded);
     setTimeout(function() { initialLoad = false; }, 1500);
+}
+
+// Detach the goals listener — called when the match ends (saves Firebase traffic)
+function bwStopGoalsListener() {
+    if (bwGoalsQuery && bwOnGoalAdded) {
+        bwGoalsQuery.off('child_added', bwOnGoalAdded);
+    }
+    bwGoalsQuery  = null;
+    bwOnGoalAdded = null;
 }

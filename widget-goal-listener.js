@@ -15,33 +15,50 @@
 //      getMatchData,   — функция () → matchData (актуальные данные)
 //      onOppGoal,      — опционально, callback при голе соперника
 //    });
+//    → возвращает stop() — отписывает оба слушателя (вызывать при status 'ended')
 // ════════════════════════════════════════════════════════════════
 
+// ── Можно ли показывать карточку гола ──
+// Никаких карточек после окончания матча и для голов, добавленных задним числом
+// (retroactive: true — saveRetroGoal в goal-tracking.js). Иначе ретро-гол
+// выводит карточку поверх статистики / заставки «Матч окончен».
+function wsGoalCardAllowed(matchData, goal) {
+    if (!matchData) return false;
+    if (matchData.status === 'ended') return false;
+    if (goal && goal.retroactive) return false;
+    return true;
+}
+
 function wsInitGoalListener({ matchId, notifEl, timeouts, getMatchData, onOppGoal }) {
-    if (!matchId || !notifEl) return;
+    if (!matchId || !notifEl) return function() {};
+
+    let stopped = false;
+    const goalsQuery = database.ref('goals').orderByChild('matchId').equalTo(matchId);
+    const score2Ref  = database.ref('matches/' + matchId + '/score2');
+    let onGoalAdded  = null;
 
     // ── 1. Home/own goals через /goals ──
-    database.ref('goals').orderByChild('matchId').equalTo(matchId)
-    .once('value', function(snap) {
+    goalsQuery.once('value', function(snap) {
+        if (stopped) return;  // stop() вызван до завершения начальной загрузки
         const existingKeys = {};
         snap.forEach(function(c) { existingKeys[c.key] = true; });
 
-        database.ref('goals').orderByChild('matchId').equalTo(matchId)
-        .on('child_added', function(snap) {
+        onGoalAdded = function(snap) {
             if (existingKeys[snap.key]) return;  // пропускаем существующие при загрузке
             const goal = snap.val();
             if (!goal) return;
             wsHandleGoal(goal, notifEl, timeouts, getMatchData);
-        });
+        };
+        goalsQuery.on('child_added', onGoalAdded);
     });
 
     // ── 2. Opponent goals через score2 ──
     let prevScore2 = null;
-    database.ref('matches/' + matchId + '/score2').on('value', function(snap) {
+    function onScore2(snap) {
         const newScore = snap.val() || 0;
         if (prevScore2 !== null && newScore > prevScore2) {
             const matchData = getMatchData();
-            if (matchData) {
+            if (wsGoalCardAllowed(matchData)) {
                 if (onOppGoal) {
                     onOppGoal(matchData);
                 } else {
@@ -50,13 +67,23 @@ function wsInitGoalListener({ matchId, notifEl, timeouts, getMatchData, onOppGoa
             }
         }
         prevScore2 = newScore;
-    });
+    }
+    score2Ref.on('value', onScore2);
+
+    // ── stop(): отписка от Firebase — экономия трафика после окончания матча ──
+    return function stop() {
+        if (stopped) return;
+        stopped = true;
+        if (onGoalAdded) goalsQuery.off('child_added', onGoalAdded);
+        score2Ref.off('value', onScore2);
+        console.log('[wsGoalListener] stopped — match ended, listeners detached');
+    };
 }
 
 // ── Обрабатывает гол из /goals ──
 function wsHandleGoal(goal, notifEl, timeouts, getMatchData, durationMs, onHide) {
     const matchData = getMatchData();
-    if (!matchData) return;
+    if (!wsGoalCardAllowed(matchData, goal)) return;
 
     // Opponent goals are handled entirely by the score2-change listener below
     // (wsInitGoalListener, section 2) — it has the team color/logo needed for
@@ -91,6 +118,8 @@ function wsHandleGoal(goal, notifEl, timeouts, getMatchData, durationMs, onHide)
 
 // ── Показывает карточку гола основной команды ──
 function wsShowHomeGoalCard(goal, matchData, notifEl, timeouts, durationMs, onHide) {
+    // Повторная проверка: игроки подгружаются асинхронно — матч мог закончиться за это время
+    if (!wsGoalCardAllowed(matchData, goal)) return;
     const player    = goal.playerId ? (wsPlayersCache[goal.playerId] || null) : null;
     const photoSrc  = player ? (player.photo || '') : '';
     const number    = player ? (player.number || goal.playerNumber || '?') : (goal.playerNumber || '?');
@@ -121,6 +150,7 @@ function wsShowHomeGoalCard(goal, matchData, notifEl, timeouts, durationMs, onHi
 
 // ── Показывает карточку автогола ──
 function wsShowOwnGoalCard(matchData, notifEl, timeouts, goal, durationMs, onHide) {
+    if (!wsGoalCardAllowed(matchData, goal)) return;
     const html = wsBuildOwnGoalCard({
         logoSrc:     matchData._t1Logo   || '',
         oppTeamName: matchData.team2Name || 'Соперник',
@@ -131,6 +161,7 @@ function wsShowOwnGoalCard(matchData, notifEl, timeouts, goal, durationMs, onHid
 
 // ── Показывает карточку гола соперника ──
 function wsShowOppGoalCard(matchData, notifEl, timeouts, useDefaultColor, durationMs, onHide) {
+    if (!wsGoalCardAllowed(matchData)) return;
     const html = wsBuildOppGoalCard({
         logoSrc:         matchData._t2Logo   || '',
         teamName:        matchData.team2Name || 'Соперник',

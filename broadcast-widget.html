@@ -185,6 +185,47 @@ function bwFlashTransition(durationMs, midFn) {
 //  MAIN FIREBASE LISTENER
 // ════════════════════════════════════════════════════════════════
 
+// Live listeners are detached once the match is 'ended' — no more updates needed,
+// and a live /goals listener would pop goal cards (e.g. retroactive goals)
+// over the stats / final thumbnail and keep burning Firebase traffic.
+const bwMatchRef    = BW_MATCH_ID ? database.ref('matches/' + BW_MATCH_ID) : null;
+let   bwLiveStopped = false;
+
+function bwStopLiveListeners() {
+    if (bwLiveStopped) return;
+    bwLiveStopped = true;
+    bwMatchRef.off('value', bwOnMatchValue);
+    bwStopGoalsListener();
+    console.log('[broadcast-widget] match ended — live listeners detached');
+}
+
+function bwOnMatchValue(snap2) {
+    const updated = snap2.val();
+    if (!updated) return;
+
+    const prevScore2 = bwMatchData ? (bwMatchData.score2 || 0) : 0;
+    // Сохраняем кэшированные поля — они добавляются асинхронно и отсутствуют в Firebase объекте
+    updated._t1Logo  = updated._t1Logo  || (bwMatchData && bwMatchData._t1Logo)  || '';
+    updated._t2Logo  = updated._t2Logo  || (bwMatchData && bwMatchData._t2Logo)  || '';
+    updated._t1Color = updated._t1Color || (bwMatchData && bwMatchData._t1Color) || '#08399A';
+    updated._t2Color = updated._t2Color || (bwMatchData && bwMatchData._t2Color) || '#4A90E2';
+    bwMatchData = updated;
+
+    // Opponent goal detection — never after the match has ended
+    if ((updated.score2 || 0) > prevScore2 && bwGoalsInitialized && updated.status !== 'ended') {
+        bwHandleOppGoal();
+    }
+
+    // Update scoreboard
+    bwRenderScoreboard(updated);
+
+    // Delegate status handling — bwOnStatusChange deduplicates internally
+    bwOnStatusChange(updated.status, updated);
+
+    // Match ended — half-end sequence already has everything it needs; stop listening
+    if (updated.status === 'ended') bwStopLiveListeners();
+}
+
 if (!BW_MATCH_ID) {
     bwLoading.querySelector('.bw-loading-text').textContent = 'Ошибка: не указан ?match=ID';
 } else {
@@ -260,33 +301,19 @@ if (!BW_MATCH_ID) {
 
         bwLastStatus = s;
 
+        // Page opened after the match ended — stats/thumbnail already shown,
+        // no live listeners at all (nothing left to update)
+        if (s === 'ended') {
+            bwLiveStopped = true;
+            console.log('[broadcast-widget] match already ended — live listeners not attached');
+            return;
+        }
+
         // Start goals listener
         bwInitGoalsListener();
 
         // Watch for status changes
-        database.ref('matches/' + BW_MATCH_ID).on('value', function(snap2) {
-            const updated = snap2.val();
-            if (!updated) return;
-
-            const prevScore2 = bwMatchData ? (bwMatchData.score2 || 0) : 0;
-            // Сохраняем кэшированные поля — они добавляются асинхронно и отсутствуют в Firebase объекте
-            updated._t1Logo  = updated._t1Logo  || (bwMatchData && bwMatchData._t1Logo)  || '';
-            updated._t2Logo  = updated._t2Logo  || (bwMatchData && bwMatchData._t2Logo)  || '';
-            updated._t1Color = updated._t1Color || (bwMatchData && bwMatchData._t1Color) || '#08399A';
-            updated._t2Color = updated._t2Color || (bwMatchData && bwMatchData._t2Color) || '#4A90E2';
-            bwMatchData = updated;
-
-            // Opponent goal detection
-            if ((updated.score2 || 0) > prevScore2 && bwGoalsInitialized) {
-                bwHandleOppGoal();
-            }
-
-            // Update scoreboard
-            bwRenderScoreboard(updated);
-
-            // Delegate status handling — bwOnStatusChange deduplicates internally
-            bwOnStatusChange(updated.status, updated);
-        });
+        bwMatchRef.on('value', bwOnMatchValue);
 
     });
 }
