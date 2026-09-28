@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: September 25, 2026 (Session 18)
+## Last Updated: September 28, 2026 (Session 19)
 
 ---
 
@@ -39,7 +39,9 @@
 | `match-edit-modal.js` | Unified create/edit match modal — includes 1/2/3 halves-count toggle. `openMatchEditModal(matchId, prefillDate)` — optional `'YYYY-MM-DD'` prefills the date for new matches |
 | `auth.js` | Firebase auth, login/logout, view switching |
 | `nav.js` | Shared navigation bar + environment switcher |
-| `goal-tracking.js` | Goal recording, player picker, assist picker |
+| `goal-tracking.js` | Goal recording, player picker, assist picker. `openRetroGoalModal(mode)` — `'penalty'` mode reuses the retro picker as the shootout scorer picker |
+| `penalty-helpers.js` | **Shared** pure penalty logic (no DOM/writes): `penBuildSets`, `penIsDecided`, `penCountGoals`, `penFlatRow`, `penResultScores`. Loaded by the cockpit, `championships.html`, vertical and broadcast widgets |
+| `penalty-shootout.js` | Cockpit penalty section — format picker, attempt dots, sudden death, atomic writes, `penRequestEnd()` |
 | `roster-thumbnail-helper.js` | Roster thumbnail generator (2560×1440) with session cache |
 | `roster.js` | Roster management logic |
 | `firebase-config-loader.js` | Dynamic Firebase config selector (reads `localStorage.fcEnv`) |
@@ -94,6 +96,24 @@
 - Streaming widgets show **"ПЕРЕРЫВ"** during any of these breaks (not "МАТЧ ОКОНЧЕН"), since the match isn't formally over until the ref actually ends it
 - Goals scored in a 3rd half are grouped under their own "3-й тайм" section automatically in all goal tables (cockpit, `goals-widget.html`, `championships.html`, broadcast stats) — no special-casing needed, they already group goals by half number generically
 
+### Penalty Shootout
+- **Trigger** — `endMatch()` (every «Закончить матч» button/popup) on a level score shows **«Нужна серия пенальти?»**
+  - **Нет** → `ended` as before, no shootout recorded
+  - **Да** → status `'penalties'` (match not ended yet); score controls (+/−) are replaced by the penalty section. `score1`/`score2` stay at the tied value
+- **Format picker** — 3 or 5 attempts per set, chosen once (can be changed while nothing is recorded)
+- **Dots** — one per attempt, per team, per set; click cycles **empty → miss → goal → empty**; no turn order. Miss first = a missed penalty is a single click
+  - Home (default) team goal (2nd click) opens the player picker (players only — no own goal, no assists); closing it leaves the dot as miss
+  - Opponent goal needs no picker
+  - Sudden death — a finished tied set appends a new set of the same size automatically
+- **«⏹ Закончить матч» stays in the time-controls section** (not under the dots) for the whole shootout — harder to hit by accident. Second `endMatch()` call → no tie popup again:
+  - No attempts recorded → confirm → ends as a normal **draw**, penalty fields and `/penaltyAttempts` cleared (undo for an accidental «Да»)
+  - Series not decided yet → confirm with the current penalty score
+  - Decided → ends straight away
+- **Writes** — one atomic multi-path update per click: `/penaltyAttempts/{matchId}/{s#_t#_a#}` + `/goals/{key}` (`isPenalty: true`) + `penaltyScore1/2`
+- **Stats** — penalty goals roll into player totals automatically; shown in a separate **«Пенальти»** section (no match time) in the cockpit, broadcast stats and championships modal. Excluded from the «−» removal lists
+- **Championships W/D/L** — a shootout-decided match compares `penaltyScore1/2`, so it isn't a draw. Goals for/against stay regulation-only
+- `goals-widget.html` is **not** updated yet (analytics-only, rarely used) — penalty goals appear there without a section header
+
 ### Landscape Corner Overlay (`vertical-widget.html?view=landscape`)
 - Reuses the vertical widget's existing scoreboard + goal-card markup unchanged — no new widget file
 - `?view=landscape` switches the page canvas from portrait 1440×2560 to a full-screen transparent 2560×1440 layer
@@ -137,6 +157,7 @@
 - Championship Stats Modal: W/D/L, goals for/against, ⚽/👟 toggle, medals (dense rank — tied players share rank and medal)
 - Championship thumbnail (2560×1440)
 - `isPassed` toggle hides from match form
+- Both tabs (Чемпионаты / Управление): active championships first (by name), then a «Прошедшие чемпионаты · N» header with passed ones (by name). Championships that exist only as a match title (no `/championships` record) count as active
 - Match stats always use table view (no card-grid switch)
 
 ### Roster Management
@@ -155,7 +176,7 @@
 ## 📺 STREAMING WIDGETS
 
 ### `widget.html` — Live Scoreboard
-Real-time score + timer for OBS. Goal notification card (5s).
+Real-time score + timer for OBS. Goal notification card (5s). During a shootout the timer bar shows «ПЕНАЛЬТИ 3:2» (no dots); after it — «МАТЧ ОКОНЧЕН · ПЕН. 4:3».
 
 ### `goals-widget.html` — Goal Statistics
 Table (≤10 goals) or card grid (>10). Assist chips in table.
@@ -168,6 +189,8 @@ Full-screen widget for Larix/OBS. Supports **HD (1920×1080)** and **2K (2560×1
 3. **Playing** — score widget top-left with live timer
 4. **Goal** — goal card bottom-center (5s) → score bottom-center (3s) → top-left
 5. **Half ends** — score bottom-center (3s) → YouTube subscribe reminder (4s) → stats full-screen (10s) → match thumbnail with score
+6. **Penalties start** — match thumbnail with the tied score (5s) → subscribe reminder (4s) → penalty view: top-left scoreboard hidden, score card stays **bottom-center** for the whole shootout with the dots panel under it (`bwPenaltyStartSequence()`, same `bwSeqToken` guard)
+7. **Match ends after penalties** — normal half-end sequence; stats have a «Пенальти» section and a penalty line under the score; final thumbnail shows «ПЕНАЛЬТИ X : Y» under the regulation score
 
 **State machine design:** `playing` always wins — `bwHalfStart()` runs synchronously and instantly clears whatever is on screen. A shared generation token (`bwSeqToken`) is bumped by `bwHalfStart()` and `bwHalfEndSequence()`, and checked by both of those plus `bwPostGoalAnnouncement()` after every `await` — so if the ref fires off a new transition (start/stop a half) while an older fire-and-forget sequence is still mid-flight, the stale one bails out immediately instead of re-showing the scoreboard or thumbnail over a state that's already moved on. (Fixes a real production bug where quickly starting/stopping halves left the thumbnail and live scoreboard overlapping.)
 
@@ -188,25 +211,14 @@ Also supports a **landscape mode** for embedding into a 16:9 broadcast as a corn
 - `?view=landscape` — canvas becomes a full 2560×1440 transparent layer; the portrait content is scaled ×0.5625 (1440/2560) to fit the 1440px screen height
 - `?position=right` (default) / `?position=left` — pins the scaled content to that edge of the 2560px-wide canvas
 - No animation/state machine, unlike `broadcast-widget.html` — just the live scoreboard and goal notification card
+- **Penalty shootout** — timer bar hidden, dots panel (one row per team + penalty score) directly under the score row. Switches straight into this view (no thumbnail/subscribe transition — this widget has no canvas layers)
 - Example: `vertical-widget.html?match=match_123&view=landscape&position=right`
 
 ---
 
 ## 🔐 FIREBASE RULES
 
-```json
-{
-  "rules": {
-    "matches":       { ".read": true, ".write": "auth != null" },
-    "goals":         { ".read": true, ".write": "auth != null" },
-    "players":       { ".read": true, ".write": "auth != null" },
-    "teams":         { "$teamId": { ".read": true }, ".read": "auth != null", ".write": "auth != null" },
-    "coaches":       { ".read": true, ".write": "auth != null" },
-    "championships": { ".read": true, ".write": "auth != null" },
-    "clips":         { ".read": "auth != null", ".write": "auth != null" }
-  }
-}
-```
+Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Session 19 added `/penaltyAttempts` (write: auth; read: public per match, like `/matches/$matchId`, so widgets can draw the dots).
 
 ---
 
@@ -260,14 +272,37 @@ Also supports a **landscape mode** for embedding into a 16:9 broadcast as a corn
 - [ ] Existing matches with no `halvesCount` field behave exactly as 2-half matches
 - [ ] Championships match stats: table always shown (no card switch), opponent goals display correctly
 - [ ] Roster thumbnail: dark header band, cards correct
-- [ ] PWA cache cleared after deployment
+- [ ] Penalties: stop the last half on a draw → «Нужна серия пенальти?»; **Нет** → ended as before
+- [ ] Penalties: decisive score → no popup, ends as before
+- [ ] Penalties: halftime-popup «Закончить матч» on a draw also shows the popup
+- [ ] Penalties: **Да** → status «Серия пенальти» (cockpit header, list card, calendar chip green); +/− replaced by the penalty section; «Закончить матч» still in time controls
+- [ ] Format 3 / 5 → correct number of dots; «изменить» only while nothing recorded
+- [ ] Home dot: 1st click → red (miss), no picker; 2nd click → player picker (no own-goal button); pick → green dot with #number; close picker → stays red
+- [ ] Opponent dot: miss → goal without picker; 3rd click → empty for both teams; `/goals` record removed on goal → empty
+- [ ] Penalty section uses the light cockpit card style (same as «Управление временем»)
+- [ ] Tied finished set → «Доп. серия 1» appended; winning sudden-death set → «✅ Победа…»
+- [ ] «Закончить матч» with 0 attempts → confirm → ended as draw, no «Пенальти» anywhere
+- [ ] «Закончить матч» mid-series → confirm with current penalty score
+- [ ] After ending: stats table appears live (no reopen), «Пенальти · X : Y» section below the halves; «Добавить гол» still works; «−» list has no penalty goals
+- [ ] Editing a match during the shootout doesn't reset its status
+- [ ] broadcast: tied thumbnail (5s) → subscribe → bottom-center score + dots; no «Гол!» cards during the shootout; dots update live
+- [ ] broadcast: reload mid-shootout → straight into penalty view
+- [ ] broadcast: end → stats with «Пенальти» section + penalty line; 8+ home goals incl. penalties → cards; final thumbnail «ПЕНАЛЬТИ X : Y»
+- [ ] broadcast `?res=2k`: dots panel and penalty line scale correctly
+- [ ] vertical widget (portrait + landscape): timer hidden, dots under the score; after end «МАТЧ ОКОНЧЕН · ПЕН. X:Y»
+- [ ] widget.html: «ПЕНАЛЬТИ X:Y» in timer bar, no goal cards
+- [ ] championships: card score «2 : 2 (пен. 4:3)», stats modal «Пенальти» section, W/D/L counts shootout win/loss
+- [ ] Championships: active championships at the top (А→Я), «Прошедшие чемпионаты» section below (А→Я), in both tabs; toggling «завершён» moves the championship after saving
+- [ ] Firebase rules updated with `/penaltyAttempts` (TEST and PROD)
+- [ ] PWA cache cleared after deployment (`scoreboard-v10`)
 
 ---
 
 ## 🔮 FUTURE FEATURES
 
-1. Penalty shootout — prototyped (attempt-tracking dots, widget previews, sudden-death sets) but not yet built into production code
-2. Assist tracking in retroactive goal modal
+1. `goals-widget.html` — «Пенальти» section + 7-goal table threshold (deferred; analytics-only widget)
+2. Dynamic stats-table row sizing for 3 halves + penalties (deferred until it's a real problem)
+3. Assist tracking in retroactive goal modal
 3. Substitutions — player in/out with time
 4. Yellow/red cards
 5. Championship standings table (auto W/D/L/pts) — will need to account for penalty-shootout results once that feature ships, since a shootout win doesn't change the regulation score

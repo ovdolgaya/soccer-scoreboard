@@ -2,7 +2,8 @@
 // MATCH HELPERS — shared across all pages
 // ============================================
 
-const UPCOMING_STATUSES = ['scheduled', 'waiting', 'playing', 'half1_ended', 'half2_ended'];
+// 'penalties' — shootout in progress: the match isn't formally over yet, so it's active, not played
+const UPCOMING_STATUSES = ['scheduled', 'waiting', 'playing', 'half1_ended', 'half2_ended', 'penalties'];
 const PLAYED_STATUSES   = ['ended'];
 
 // Returns a numeric sort key (ms timestamp) for a match.
@@ -18,13 +19,14 @@ function matchSortKey(m) {
 }
 
 // Sorts a match array in-place:
-//   1. Active (playing / half1_ended / half2_ended — all mid-match, awaiting a decision) — first
+//   1. Active (playing / half1_ended / half2_ended / penalties — all mid-match) — first
 //   2. Scheduled (status === 'scheduled') — soonest first
 //   3. Waiting (status === 'waiting') — after scheduled, order by matchDate or createdAt
 //   4. Played (ended) — newest first
 function _upcomingSubGroup(m) {
     // playing, and any mid-match break awaiting a decision (half1/2_ended) — all equally "active"
-    if (m.status === 'playing' || m.status === 'half1_ended' || m.status === 'half2_ended') return 0;
+    if (m.status === 'playing' || m.status === 'half1_ended' || m.status === 'half2_ended' ||
+        m.status === 'penalties') return 0;
     if (m.status === 'scheduled') return 1;
     return 2; // waiting or anything else not played
 }

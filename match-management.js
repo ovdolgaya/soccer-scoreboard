@@ -63,7 +63,8 @@ function _attachFieldListeners(activeMatches) {
     activeMatches.forEach(function(match) {
         if (_matchFieldListeners[match.id]) return; // already listening
 
-        const fields = ['score1', 'score2', 'status', 'time', 'currentHalf', 'startTime'];
+        const fields = ['score1', 'score2', 'status', 'time', 'currentHalf', 'startTime',
+                        'penaltyFormat', 'penaltyScore1', 'penaltyScore2'];
         fields.forEach(function(field) {
             const ref = database.ref('matches/' + match.id + '/' + field);
             const listener = ref.on('value', function(snap) {
@@ -182,6 +183,7 @@ function getStatusText(status) {
         'waiting': 'Готов к началу',
         'half1_ended': '1 тайм окончен',
         'half2_ended': '2 тайм окончен',
+        'penalties': 'Серия пенальти',
         'ended': 'Закончен'
     };
     return statusTexts[status] || 'Неизвестен';
@@ -195,7 +197,7 @@ function renderMatchCard(match) {
     const cardClass = status === 'playing' ? 'active' : 
                      status === 'ended' ? 'ended' :
                      status === 'scheduled' ? 'scheduled' : 
-                     status === 'half1_ended' || status === 'half2_ended' ? 'active' : '';
+                     status === 'half1_ended' || status === 'half2_ended' || status === 'penalties' ? 'active' : '';
 
     // Show scheduled time for scheduled matches, matchDate for others, or creation date as fallback
     let dateInfo = '';
@@ -225,6 +227,7 @@ function renderMatchCard(match) {
             </div>
             ${dateInfo}
             ${status === 'playing' ? '<div class="match-info"><span>⏱️</span> <span>' + (match.time || '00:00:00') + '</span></div>' : ''}
+            ${match.penaltyFormat && (status === 'penalties' || status === 'ended') ? '<div class="match-info"><span>🥅</span> <span>Пенальти ' + (match.penaltyScore1 || 0) + ' : ' + (match.penaltyScore2 || 0) + '</span></div>' : ''}
             <div class="match-actions">
                 <button class="button" onclick="event.stopPropagation(); openMatch('${match.id}')">Открыть</button>
                 <button class="button secondary" onclick="event.stopPropagation(); openMatchEditModal('${match.id}')"><i class="fas fa-edit"></i> Изменить</button>
@@ -321,28 +324,10 @@ function _applyMatchToView(match) {
 
             updateMatchMetadata(match);
 
-            const isEnded = match.status === 'ended';
-
-            const timeControlsSection = document.getElementById('timeControlsSection');
-            if (timeControlsSection) {
-                timeControlsSection.style.display = isEnded ? 'none' : 'block';
-            }
-
-            const goalsStatsSection = document.getElementById('goalsStatsSection');
-            if (goalsStatsSection) {
-                if (isEnded) {
-                    goalsStatsSection.style.display = 'block';
-                    loadGoalsStats(matchId);
-                } else {
-                    goalsStatsSection.style.display = 'none';
-                }
-            }
-
-            // Show clips for ended matches (read-only review)
-            if (isEnded && typeof loadClips === 'function') {
-                loadClips();
-            }
-
+            // Section visibility (time controls / score controls / penalties / stats)
+            // is applied by updateButtonStates → _applyStatusSections, both on open
+            // and live on every status change. Reset so the stats load on open.
+            _sectionsAppliedKey = null;
             updateButtonStates(match);
 
             hideAllViews();
@@ -390,6 +375,10 @@ function updateButtonStates(match) {
     if (actualStatus === 'scheduled' || actualStatus === 'waiting') {
         // Can start even if scheduled for future
         document.getElementById('startHalf1Btn').classList.remove('hidden');
+    } else if (actualStatus === 'penalties') {
+        // Shootout in progress — only «Закончить матч» (second endMatch() call).
+        // Kept here, away from the penalty dots, so it's hard to hit by accident.
+        document.getElementById('endMatchBtn').classList.remove('hidden');
     } else if (actualStatus === 'playing') {
         const half = match.currentHalf || 1;
         if (half >= halvesCount) {
@@ -419,6 +408,47 @@ function updateButtonStates(match) {
     if (typeof updateClipMarkerVisibility === 'function') {
         updateClipMarkerVisibility(actualStatus);
     }
+
+    _applyStatusSections(match);
+}
+
+// Which cockpit sections are visible for the current status. Runs on open and
+// live on every status change, so e.g. 'penalties' → 'ended' swaps the penalty
+// section out for the post-match stats table without reopening the match.
+//   ended     → stats table (+ retroactive goals), no time/score controls
+//   penalties → penalty section replaces the score (+/−) controls; time
+//               controls stay (they hold «Закончить матч»)
+let _sectionsAppliedKey = null;   // matchId|status last applied — avoids reloading stats
+
+function _applyStatusSections(match) {
+    if (!match) return;
+    const st      = match.status;
+    const key     = matchId + '|' + st;
+    const changed = key !== _sectionsAppliedKey;
+    _sectionsAppliedKey = key;
+
+    const isEnded = st === 'ended';
+    const isPen   = st === 'penalties';
+
+    const timeControls = document.getElementById('timeControlsSection');
+    if (timeControls) timeControls.style.display = isEnded ? 'none' : 'block';
+
+    const scoreControls = document.getElementById('scoreControlsSection');
+    if (scoreControls) scoreControls.style.display = isPen ? 'none' : '';
+
+    const statsSection = document.getElementById('goalsStatsSection');
+    if (statsSection) {
+        statsSection.style.display = isEnded ? 'block' : 'none';
+        if (isEnded && changed) loadGoalsStats(matchId);
+    }
+
+    // Show clips for ended matches (read-only review)
+    if (isEnded && changed && typeof loadClips === 'function') loadClips();
+
+    const cockpitSt = document.getElementById('cockpitStatus');
+    if (cockpitSt) cockpitSt.textContent = getStatusText(st || 'waiting');
+
+    if (typeof penApplyStatus === 'function') penApplyStatus(match);
 }
 
 // ========================================
@@ -503,7 +533,7 @@ function loadGoalsStats(forMatchId) {
                 res[0].forEach(function(r) { if (r.data) players[r.id] = r.data; });
                 const team2Color = res[1];
                 const team2Name  = match.team2Name || 'Соперник';
-                renderGoalsStats(goals, players, body, team2Color, team2Name);
+                renderGoalsStats(goals, players, body, team2Color, team2Name, match);
             });
         })
         .catch(function(err) {
@@ -512,9 +542,14 @@ function loadGoalsStats(forMatchId) {
         });
 }
 
-function renderGoalsStats(goals, players, container, team2Color, team2Name) {
+function renderGoalsStats(allGoals, players, container, team2Color, team2Name, match) {
     let currentHalf = null;
     let html = '';
+
+    // Shootout goals get their own «Пенальти» section below the by-half rows
+    const goals        = allGoals.filter(function(g) { return !g.isPenalty; });
+    const penaltyGoals = allGoals.filter(function(g) { return g.isPenalty; })
+                                 .sort(function(a, b) { return (a.timestamp || 0) - (b.timestamp || 0); });
 
     // Add goal button at the top
     html += '<div style="padding:12px 20px 8px; border-bottom:1px solid #f1f5f9;">' +
@@ -526,7 +561,7 @@ function renderGoalsStats(goals, players, container, team2Color, team2Name) {
             '</button>' +
             '</div>';
 
-    if (goals.length === 0) {
+    if (goals.length === 0 && penaltyGoals.length === 0) {
         html += '<div style="padding:16px 20px; color:#94a3b8; font-size:14px; font-style:italic;">Голов не зафиксировано</div>';
         container.innerHTML = html;
         return;
@@ -608,7 +643,44 @@ function renderGoalsStats(goals, players, container, team2Color, team2Name) {
                 '</div>';
     });
 
+    html += _renderPenaltyStatsRows(penaltyGoals, players, team2Color, team2Name, match);
+
     container.innerHTML = html;
+}
+
+// «Пенальти» section — scored shootout attempts only, no match-time, no assists
+function _renderPenaltyStatsRows(penaltyGoals, players, team2Color, team2Name, match) {
+    if (!match || !match.penaltyFormat) return '';
+    const p1 = match.penaltyScore1 || 0, p2 = match.penaltyScore2 || 0;
+    let html = '<div style="padding:8px 20px 4px; font-size:11px; font-weight:700; color:#94a3b8; ' +
+               'text-transform:uppercase; letter-spacing:0.08em; background:#fefce8; ' +
+               'border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">' +
+               '🥅 Пенальти · ' + p1 + ' : ' + p2 + '</div>';
+
+    if (penaltyGoals.length === 0) {
+        return html + '<div style="padding:10px 20px; color:#94a3b8; font-size:13px; font-style:italic;">Забитых пенальти нет</div>';
+    }
+
+    penaltyGoals.forEach(function(g) {
+        let badge, name;
+        if (g.isOpponent) {
+            badge = '<div style="flex-shrink:0; background:' + (team2Color || '#4A90E2') + '; border-radius:6px; width:34px; height:24px; margin-right:10px;"></div>';
+            name  = team2Name || 'Соперник';
+        } else {
+            const p = g.playerId ? players[g.playerId] : null;
+            const num = p ? (p.number || '?') : (g.playerNumber || '?');
+            badge = '<div style="flex-shrink:0; background:#08399A; color:#fff; border-radius:6px; padding:3px 8px; font-size:12px; font-weight:800; margin-right:10px; min-width:34px; text-align:center;">#' + num + '</div>';
+            name  = p ? ((p.firstName ? p.firstName + ' ' : '') + (p.lastName || '').toUpperCase()) : 'Неизвестный игрок';
+        }
+        html += '<div style="display:flex; align-items:center; padding:10px 20px; border-bottom:1px solid #f1f5f9;">' +
+                '<div style="width:48px; flex-shrink:0;"></div>' +
+                '<div style="width:1px; height:28px; background:#e2e8f0; margin-right:12px; flex-shrink:0;"></div>' +
+                badge +
+                '<div style="flex:1; font-size:14px; font-weight:600; color:#1e293b; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + name + '</div>' +
+                '<div style="font-size:15px; flex-shrink:0; margin-left:8px;">⚽</div>' +
+                '</div>';
+    });
+    return html;
 }
 
 function deleteMatch(matchIdToDelete) {
@@ -623,6 +695,10 @@ function deleteMatch(matchIdToDelete) {
     }
 }
 
+// Fields the cockpit listens to live (primitives only — no logos re-downloaded)
+const _COCKPIT_FIELDS = ['score1', 'score2', 'status', 'currentHalf', 'startTime',
+                         'penaltyFormat', 'penaltyScore1', 'penaltyScore2'];
+
 // Cockpit match listener reference — for cleanup on navigate away
 let _cockpitMatchListener = null;
 let _cockpitMatchRef = null;
@@ -635,7 +711,7 @@ function listenToMatchChanges() {
 
     // Listen to individual score fields only — no logos re-downloaded
     // score1 and score2 are the only fields that need live display in the cockpit
-    const fields = ['score1', 'score2', 'status', 'currentHalf', 'startTime'];
+    const fields = _COCKPIT_FIELDS;
     fields.forEach(function(field) {
         database.ref('matches/' + matchId + '/' + field).on('value', function(snap) {
             if (!_matchDataCache[matchId]) return;
@@ -648,6 +724,8 @@ function listenToMatchChanges() {
             if (field === 'status' || field === 'currentHalf') {
                 updateButtonStates(_matchDataCache[matchId]);
             }
+            // Penalty format picked / scores written — refresh the penalty section
+            if (field.indexOf('penalty') === 0 && typeof penRender === 'function') penRender();
         });
     });
 
@@ -658,7 +736,8 @@ function listenToMatchChanges() {
 
 function _detachCockpitListeners() {
     if (!matchId) return;
-    const fields = ['score1', 'score2', 'status', 'currentHalf', 'startTime'];
+    if (typeof penDetach === 'function') penDetach();
+    const fields = _COCKPIT_FIELDS;
     fields.forEach(function(field) {
         database.ref('matches/' + matchId + '/' + field).off();
     });

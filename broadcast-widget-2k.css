@@ -54,6 +54,8 @@ html, body {
 .bw-stats-score-num { font-size: 96px; }
 .bw-stats-score-sep { font-size: 64px; }
 .bw-stats-score-opp { font-size: 96px; }
+.bw-stats-score-wrap { gap: 13px; }
+.bw-stats-pen-line   { font-size: 35px; }
 
 /* ── Stats content / table ── */
 .bw-stats-content {
@@ -157,12 +159,12 @@ html, body {
 
 /* ── Score widget — scale ×1.0 в top-left (такие же пропорции как HD) ── */
 #bw-score-layer.bw-pos-topleft {
-    transform: scale(1.2);
+    transform: scale(1.15);
     transform-origin: top left;
 }
 
 #bw-score-layer.bw-pos-bottom {
-    transform: translateX(-50%) scale(2.0);
+    transform: translateX(-50%) scale(1.5);
 }
 
 /* ── Score positions ── */

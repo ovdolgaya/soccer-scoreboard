@@ -122,7 +122,7 @@ function _calHHMM(ts) {
 // Chip colour class — same status logic as the cards (getMatchStatus)
 function _calChipClass(m) {
     const s = getMatchStatus(m);
-    if (s === 'playing' || s === 'half1_ended' || s === 'half2_ended') return 'active';
+    if (s === 'playing' || s === 'half1_ended' || s === 'half2_ended' || s === 'penalties') return 'active';
     if (s === 'ended') return 'ended';
     if (s === 'scheduled') return 'scheduled';
     return 'waiting';

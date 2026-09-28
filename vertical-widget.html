@@ -86,6 +86,14 @@
     #vw-score-wrap .timer            { font-size: 39px; }
     #vw-score-wrap .status-message   { font-size: 20px; }
 
+    /* Penalty shootout panel ×1.5 — replaces the timer bar while status === 'penalties' */
+    #vw-pen { align-self: stretch; gap: 24px; padding: 14px 24px; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; }
+    #vw-pen .ws-pen-side  { gap: 10px; }
+    #vw-pen .ws-pen-dot   { width: 30px; height: 30px; border-width: 3px; }
+    #vw-pen .ws-pen-label { font-size: 18px; }
+    #vw-pen .ws-pen-nums  { font-size: 40px; }
+    #vw-pen .ws-pen-sep   { margin: 0 6px; }
+
     /* Goal notification */
     #vw-goal-notif {
         position: fixed; left: 50%; bottom: 100px;
@@ -147,11 +155,13 @@
     <div id="vw-score-wrap" style="display:none;">
         <div id="vw-scoreboard"></div>
         <div id="vw-timer" class="timer-container"></div>
+        <div id="vw-pen" class="ws-pen-panel" style="display:none;"></div>
     </div>
 
     <div id="vw-goal-notif"></div>
 </div>
 
+<script src="penalty-helpers.js"></script>
 <script src="widget-shared.js"></script>
 <script src="widget-goal-listener.js"></script>
 
@@ -166,6 +176,7 @@ const vwScoreWrap  = document.getElementById('vw-score-wrap');
 const vwScoreboard = document.getElementById('vw-scoreboard');
 const vwTimerEl    = document.getElementById('vw-timer');
 const vwGoalNotif  = document.getElementById('vw-goal-notif');
+const vwPenEl      = document.getElementById('vw-pen');
 
 let vwMatchData  = null;
 const vwTimerRef = { id: null };
@@ -176,10 +187,27 @@ const vwMatchRef    = VW_MATCH_ID ? database.ref('matches/' + VW_MATCH_ID) : nul
 let   vwStopGoals   = null;   // stop() из wsInitGoalListener
 let   vwLiveStopped = false;
 
+// Penalty shootout — /penaltyAttempts listener, only while status === 'penalties'
+let vwPenAttempts = {};
+let vwStopPen     = null;
+
+function vwStartPenListener() {
+    if (vwStopPen) return;
+    vwStopPen = wsInitPenaltyListener(VW_MATCH_ID, function(attempts) {
+        vwPenAttempts = attempts;
+        wsRenderPenaltyPanel(vwPenEl, vwMatchData, vwPenAttempts);
+    });
+}
+
+function vwStopPenListener() {
+    if (vwStopPen) { vwStopPen(); vwStopPen = null; }
+}
+
 function vwStopLiveListeners() {
     if (vwLiveStopped) return;
     vwLiveStopped = true;
     vwMatchRef.off('value', vwOnMatchValue);
+    vwStopPenListener();
     if (vwStopGoals) vwStopGoals();
     console.log('[vertical-widget] match ended — live listeners detached');
 }
@@ -220,6 +248,19 @@ function vwOnMatchValue(snap) {
 
     wsRenderScoreboard(matchData, vwScoreboard, vwTimerEl);
     wsStartTimer(matchData, vwTimerRef);
+
+    // Серия пенальти: таймер скрыт полностью, под счётом — панель с точками.
+    // (No thumbnail/subscribe transition here — this widget has no canvas layers;
+    // it switches straight into the penalty view.)
+    const isPen = matchData.status === 'penalties';
+    vwTimerEl.style.display = isPen ? 'none' : '';
+    vwPenEl.style.display   = isPen ? 'flex' : 'none';
+    if (isPen) {
+        vwStartPenListener();
+        wsRenderPenaltyPanel(vwPenEl, matchData, vwPenAttempts);
+    } else {
+        vwStopPenListener();
+    }
 
     vwScoreWrap.style.display = 'flex';
     vwLoading.classList.add('vw-hidden');

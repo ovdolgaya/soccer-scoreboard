@@ -198,3 +198,38 @@
     margin-top: 6px;
     text-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.6);
 }
+
+/* ══════════════════════════════════════════════════
+   PENALTY SHOOTOUT PANEL (.ws-pen-*)
+   Sits directly under .score-container in place of the
+   timer bar — vertical widget and broadcast widget.
+   One dot row per team, penalty score in the middle.
+══════════════════════════════════════════════════ */
+.ws-pen-panel {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: rgba(255,255,255,0.92);
+    border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
+    padding: 8px 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-sizing: border-box;
+}
+.ws-pen-side { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.ws-pen-t1   { justify-content: flex-start; }
+.ws-pen-t2   { justify-content: flex-end; }
+.ws-pen-dot {
+    width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+    background: #e2e8f0; border: 2px solid #cbd5e1; box-sizing: border-box;
+    transition: background 0.25s ease, border-color 0.25s ease;
+}
+.ws-pen-dot.goal { background: #22a04b; border-color: #22a04b; }
+.ws-pen-dot.miss { background: #d63b2f; border-color: #d63b2f; }
+.ws-pen-score {
+    display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+    font-family: Arial, sans-serif;
+}
+.ws-pen-label {
+    font-size: 11px; font-weight: 800; color: #667eea;
+    text-transform: uppercase; letter-spacing: 0.08em;
+}
+.ws-pen-nums { font-size: 24px; font-weight: 900; color: #1e293b; line-height: 1.1; }
+.ws-pen-sep  { color: #94a3b8; margin: 0 4px; }

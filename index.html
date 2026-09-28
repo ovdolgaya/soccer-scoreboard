@@ -34,6 +34,8 @@
     <script src="match-calendar.js"></script>
     <script src="match-control.js"></script>
     <script src="match-edit-modal.js"></script>
+    <script src="penalty-helpers.js"></script>
+    <script src="penalty-shootout.js"></script>
     
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -44,6 +46,38 @@
 
     <!-- Shared Navigation -->
     <script src="nav.js"></script>
+
+    <!-- Penalty shootout section (penalty-shootout.js) -->
+    <style>
+        .match-status.penalties { background: #FCDC00; color: #0b1e4d; }
+        #penaltySection { background:#f8fafc; border:2px solid #e2e8f0; border-radius:12px; padding:20px; margin-bottom:20px; }
+        #penaltySection h3 { margin:0 0 14px; font-size:17px; color:#1e293b; }
+        .pen-intro { text-align:center; font-size:15px; margin:4px 0 14px; color:#64748b; }
+        .pen-format-btns { display:flex; gap:10px; justify-content:center; }
+        .pen-format-btn { background:linear-gradient(135deg,#1e5fd4,#08399A); color:#fff; border:none; border-radius:10px;
+                          padding:12px 22px; font-size:15px; font-weight:700; cursor:pointer;
+                          box-shadow:0 4px 12px rgba(8,57,154,0.25); }
+        .pen-head { display:flex; align-items:center; gap:10px; margin-bottom:10px; font-weight:700; color:#1e293b; }
+        .pen-head-team { flex:1; min-width:0; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .pen-head-team.right { text-align:right; }
+        .pen-head-score { font-size:28px; font-weight:900; color:#08399A; flex-shrink:0; }
+        .pen-set { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; margin-top:8px; }
+        .pen-set-title { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+        .pen-row { display:flex; align-items:center; gap:10px; margin-top:6px; }
+        .pen-row-team { width:110px; flex-shrink:0; font-size:13px; font-weight:600; color:#334155;
+                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .pen-dots { display:flex; gap:8px; flex-wrap:wrap; }
+        .pen-dot { width:40px; height:40px; border-radius:50%; border:2px solid #cbd5e1; background:#fff;
+                   color:#94a3b8; font-size:12px; font-weight:800; cursor:pointer; padding:0;
+                   display:flex; align-items:center; justify-content:center; transition:transform .1s; }
+        .pen-dot:active { transform:scale(.92); }
+        .pen-dot.goal { background:#22a04b; border-color:#22a04b; color:#fff; }
+        .pen-dot.miss { background:#ef4444; border-color:#ef4444; color:#fff; font-size:16px; }
+        .pen-status { margin-top:12px; font-size:13px; color:#64748b; text-align:center; }
+        .pen-status.done { color:#15803d; font-weight:700; }
+        .pen-format-change { margin-top:8px; font-size:12px; color:#94a3b8; text-align:center; }
+        .pen-format-change a { color:#1e5fd4; }
+    </style>
 </head>
 <body>
     <div class="page-wrap">
@@ -234,7 +268,7 @@
             </div>
 
 
-            <div class="score-controls">
+            <div class="score-controls" id="scoreControlsSection">
                 <div class="team-control">
                     <h3 id="team1NameDisplay"></h3>
                     <div class="score-buttons">
@@ -252,6 +286,13 @@
                         <button class="button" onclick="addOpponentGoal()">+</button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Penalty shootout — replaces the score controls while status === 'penalties'.
+                 «Закончить матч» stays in the time controls above. See penalty-shootout.js -->
+            <div id="penaltySection" style="display:none;">
+                <h3>🥅 Серия пенальти</h3>
+                <div id="penaltyBody"></div>
             </div>
 
              <!-- Clip marker — only shown when a half is playing -->
@@ -318,6 +359,26 @@
             </div>
         </div>
     </div>
+    <!-- ===== PENALTY PROMPT — shown by endMatch() on a level score ===== -->
+    <div id="penaltyPromptModal" style="display:none; position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); overflow-y:auto;">
+        <div style="min-height:100%; display:flex; align-items:center; justify-content:center; padding:20px;">
+            <div style="background:#fff; border-radius:20px; width:100%; max-width:380px; overflow:hidden; box-shadow:0 25px 60px rgba(0,0,0,0.3);">
+                <div style="background:linear-gradient(135deg,#08399A,#1e5fd4); padding:18px 20px; color:#fff; text-align:center;">
+                    <div style="font-size:12px; opacity:.8; text-transform:uppercase; letter-spacing:.08em;">Ничья</div>
+                    <div id="penaltyPromptScore" style="font-size:34px; font-weight:900; margin-top:4px;">0 : 0</div>
+                </div>
+                <div style="padding:20px;">
+                    <div style="text-align:center; font-size:18px; font-weight:700; color:#1e293b; margin-bottom:18px;">Нужна серия пенальти?</div>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="penaltyPromptNo()" style="flex:1; padding:12px; background:#f1f5f9; color:#1e293b; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer;">Нет</button>
+                        <button onclick="penaltyPromptYes()" style="flex:1; padding:12px; background:#FCDC00; color:#0b1e4d; border:none; border-radius:10px; font-size:15px; font-weight:800; cursor:pointer;">🥅 Да</button>
+                    </div>
+                    <button onclick="closePenaltyPrompt()" style="width:100%; margin-top:10px; padding:10px; background:none; color:#64748b; border:none; font-size:13px; cursor:pointer;">Отмена — не заканчивать матч</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden canvas for thumbnail generation -->
     <canvas id="thumbnailCanvas" style="display: none;"></canvas>
 
@@ -425,8 +486,8 @@
       <div style="background:linear-gradient(135deg,#08399A,#1e5fd4); padding:18px 20px; color:#fff;
                   display:flex; justify-content:space-between; align-items:center;">
         <div>
-          <div style="font-size:12px; opacity:.8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:2px;">Завершённый матч</div>
-          <div style="font-size:16px; font-weight:700;">⚽ Добавить гол</div>
+          <div id="retroGoalKicker" style="font-size:12px; opacity:.8; text-transform:uppercase; letter-spacing:.08em; margin-bottom:2px;">Завершённый матч</div>
+          <div id="retroGoalTitle" style="font-size:16px; font-weight:700;">⚽ Добавить гол</div>
         </div>
         <button onclick="closeRetroGoalModal()"
                 style="background:rgba(255,255,255,0.2); border:none; color:#fff; width:34px; height:34px;
@@ -434,7 +495,7 @@
       </div>
  
       <!-- Note -->
-      <div style="padding:12px 20px 0; font-size:12px; color:#94a3b8; background:#f8fafc;
+      <div id="retroGoalNote" style="padding:12px 20px 0; font-size:12px; color:#94a3b8; background:#f8fafc;
                   border-bottom:1px solid #e2e8f0;">
         Гол будет добавлен без привязки к времени матча и отобразится в разделе «Добавлено вручную».
       </div>
@@ -445,7 +506,7 @@
       </div>
  
       <!-- Own goal button -->
-      <div style="padding:0 20px 16px; border-top:1px solid #f1f5f9; padding-top:12px;">
+      <div id="retroOwnGoalWrap" style="padding:0 20px 16px; border-top:1px solid #f1f5f9; padding-top:12px;">
         <button onclick="confirmRetroGoal(null, true)"
                 style="width:100%; padding:11px; background:#f1f5f9; color:#64748b; border:none;
                        border-radius:10px; font-size:14px; font-weight:600; cursor:pointer;">

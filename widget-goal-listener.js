@@ -22,10 +22,14 @@
 // Никаких карточек после окончания матча и для голов, добавленных задним числом
 // (retroactive: true — saveRetroGoal в goal-tracking.js). Иначе ретро-гол
 // выводит карточку поверх статистики / заставки «Матч окончен».
+// Серия пенальти: никаких карточек «Гол!» — ни для isPenalty-голов, ни вообще
+// пока status === 'penalties' (счёт серии показывает панель с точками).
 function wsGoalCardAllowed(matchData, goal) {
     if (!matchData) return false;
     if (matchData.status === 'ended') return false;
+    if (matchData.status === 'penalties') return false;
     if (goal && goal.retroactive) return false;
+    if (goal && goal.isPenalty) return false;
     return true;
 }
 

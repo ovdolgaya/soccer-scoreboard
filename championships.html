@@ -14,6 +14,7 @@
 
     <!-- Shared nav -->
     <script src="match-helpers.js"></script>
+    <script src="penalty-helpers.js"></script>
     <script src="nav.js"></script>
 
     <!-- Icons -->
@@ -460,7 +461,7 @@ function loadData() {
                 if (t) {
                     // Keep the node with a logo if duplicates exist, otherwise last wins
                     if (!champMetaByTitle[t] || val.logo) {
-                        champMetaByTitle[t] = { firebaseKey: child.key, logo: val.logo || null };
+                        champMetaByTitle[t] = { firebaseKey: child.key, logo: val.logo || null, isPassed: val.isPassed === true };
                     }
                 }
             });
@@ -487,12 +488,13 @@ function loadData() {
                     scheduledCount: 0,
                     activeCount: 0,
                     logo:        meta.logo || null,
-                    firebaseKey: meta.firebaseKey || null  // existing champ_ node key
+                    firebaseKey: meta.firebaseKey || null, // existing champ_ node key
+                    isPassed:    meta.isPassed === true    // no /championships record → active
                 };
             }
             champGroups[title].matches.push(m);
             if (m.status === 'ended')                                           champGroups[title].endedCount++;
-            else if (m.status === 'playing')                                    champGroups[title].activeCount++;
+            else if (m.status === 'playing' || m.status === 'penalties')        champGroups[title].activeCount++;
             else if (m.status === 'scheduled' || m.status === 'waiting')        champGroups[title].scheduledCount++;
         });
 
@@ -506,11 +508,27 @@ function loadData() {
 // ============================================
 // RENDER LIST
 // ============================================
+// Active championships first (by name), then «Прошедшие чемпионаты» (by name).
+// Used by both tabs — Чемпионаты and Управление.
+function _splitActivePassed(items) {
+    function byTitle(a, b) { return (a.title || '').localeCompare(b.title || '', 'ru'); }
+    return {
+        active: items.filter(function(c) { return c.isPassed !== true; }).sort(byTitle),
+        passed: items.filter(function(c) { return c.isPassed === true; }).sort(byTitle)
+    };
+}
+
+function _passedSectionHeader(count) {
+    return '<div style="display:flex;align-items:center;gap:10px;margin:22px 4px 10px;' +
+           'font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;">' +
+           '<span>Прошедшие чемпионаты · ' + count + '</span>' +
+           '<span style="flex:1;height:1px;background:#e2e8f0;"></span></div>';
+}
+
 function renderList() {
     const wrap  = document.getElementById('champListWrap');
-    const groups = Object.values(champGroups).sort(function(a,b) {
-        return a.title.localeCompare(b.title, 'ru');
-    });
+    const split  = _splitActivePassed(Object.values(champGroups));
+    const groups = split.active.concat(split.passed);
 
     if (!groups.length) {
         wrap.innerHTML = `
@@ -522,9 +540,13 @@ function renderList() {
         return;
     }
 
-    wrap.innerHTML = groups.map(function(g, i) {
-        return renderChampCard(g, i);
-    }).join('');
+    // Card index runs across both sections — it's used for unique element ids
+    let html = split.active.map(function(g, i) { return renderChampCard(g, i); }).join('');
+    if (split.passed.length) {
+        html += _passedSectionHeader(split.passed.length);
+        html += split.passed.map(function(g, i) { return renderChampCard(g, split.active.length + i); }).join('');
+    }
+    wrap.innerHTML = html;
 }
 
 function renderChampCard(g, idx) {
@@ -657,8 +679,14 @@ function toggleMatches(id) {
 // PLAYED_STATUSES, matchSortKey, formatDate, formatDateTime, sanitizeChampKey — see match-helpers.js
 
 function buildScoreHtml(m) {
-    if (m.status === 'ended' || m.status === 'playing' || m.status === 'half1_ended' || m.status === 'half2_ended') {
-        return (m.score1 || 0) + ' : ' + (m.score2 || 0);
+    if (m.status === 'ended' || m.status === 'playing' || m.status === 'half1_ended' ||
+        m.status === 'half2_ended' || m.status === 'penalties') {
+        const base = (m.score1 || 0) + ' : ' + (m.score2 || 0);
+        // Went to penalties — small secondary score
+        return m.penaltyFormat
+            ? base + ' <span style="font-size:.6em;opacity:.7;white-space:nowrap;">(пен. ' +
+              (m.penaltyScore1 || 0) + ':' + (m.penaltyScore2 || 0) + ')</span>'
+            : base;
     }
     return '— : —';
 }
@@ -670,6 +698,7 @@ function buildStatusBadge(m) {
         playing:     ['status-playing',   '● Идёт'],
         half1_ended: ['status-playing',   'Перерыв'],
         half2_ended: ['status-playing',   '2 тайм окончен'],
+        penalties:   ['status-playing',   'Пенальти'],
         scheduled:   ['status-scheduled', 'Запланирован'],
         waiting:     ['status-waiting',   'Ожидание'],
     };
@@ -1274,12 +1303,12 @@ function loadChampManageList() {
     database.ref('championships').once('value').then(function(snap) {
         const items = [];
         snap.forEach(function(child) { const v = child.val(); v.id = child.key; items.push(v); });
-        items.sort(function(a,b) { return (a.title||'').localeCompare(b.title||'','ru'); });
+        const split = _splitActivePassed(items);
         if (!items.length) {
             wrap.innerHTML = '<div style="background:white;border-radius:14px;padding:40px;text-align:center;color:#94a3b8;"><div style="font-size:40px;margin-bottom:12px;">🏆</div><p>Чемпионатов пока нет. Нажмите «Создать».</p></div>';
             return;
         }
-        wrap.innerHTML = items.map(function(c) {
+        function renderManageRow(c) {
             const isPassed = c.isPassed === true;
             const cardBg = isPassed ? '#f1f5f9' : 'white';
             const logo = c.logo
@@ -1297,7 +1326,12 @@ function loadChampManageList() {
                 '<button onclick="openChampModal(\'' + escAttr(c.id) + '\')" style="background:#eff6ff;color:#3b82f6;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:14px;" title="Редактировать"><i class="fas fa-edit"></i></button>' +
                 '<button onclick="deleteChamp(\'' + escAttr(c.id) + '\',\'' + escAttr(c.title||'') + '\')" style="background:#fef2f2;color:#ef4444;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:14px;" title="Удалить"><i class="fas fa-trash"></i></button>' +
                 '</div>';
-        }).join('');
+        }
+        let html = split.active.map(renderManageRow).join('');
+        if (split.passed.length) {
+            html += _passedSectionHeader(split.passed.length) + split.passed.map(renderManageRow).join('');
+        }
+        wrap.innerHTML = html;
     });
 }
 
@@ -1421,13 +1455,14 @@ function openStatsModal(matchId) {
     document.getElementById('statsMatchTitle').textContent =
         (match.team1Name || '?') + '  vs  ' + (match.team2Name || '?');
 
-    const statusMap = { ended:'Завершён', playing:'Идёт', half1_ended:'Перерыв', waiting:'Ожидание', scheduled:'Запланирован' };
+    const statusMap = { ended:'Завершён', playing:'Идёт', half1_ended:'Перерыв', penalties:'Серия пенальти', waiting:'Ожидание', scheduled:'Запланирован' };
     const champInfo = match.championshipTitle ? match.championshipTitle + '  ·  ' : '';
     document.getElementById('statsMatchMeta').textContent =
         champInfo + (statusMap[match.status] || match.status || '');
 
     document.getElementById('statsScoreBadge').textContent =
-        (match.score1 || 0) + ' : ' + (match.score2 || 0);
+        (match.score1 || 0) + ' : ' + (match.score2 || 0) +
+        (match.penaltyFormat ? '  (пен. ' + (match.penaltyScore1 || 0) + ':' + (match.penaltyScore2 || 0) + ')' : '');
 
     const color = match.team1Color || '#08399A';
     document.getElementById('statsModal').style.setProperty('--team1-color', color);
@@ -1501,21 +1536,35 @@ function renderStatsBody(match, goalsData) {
     body.innerHTML = buildStatsTable(goals, team2Color, team2Name);
 }
 
-function buildStatsTable(goals, team2Color, team2Name) {
+function buildStatsTable(allGoals, team2Color, team2Name) {
     const color = getComputedStyle(document.getElementById('statsModal'))
         .getPropertyValue('--team1-color').trim() || '#08399A';
+
+    // Shootout goals → separate «Пенальти» section after the by-half rows
+    const goals    = allGoals.filter(function(g) { return !g.isPenalty; });
+    const penGoals = allGoals.filter(function(g) { return g.isPenalty; })
+                             .sort(function(a, b) { return (a.timestamp || 0) - (b.timestamp || 0); });
 
     let html = '<table style="width:100%; border-collapse:collapse;">';
     let curHalf = null;
 
-    goals.forEach(function(g, idx) {
-        if (g.half && g.half !== curHalf) {
+    // Rows: regular goals, then a «Пенальти» header, then penalty goals (no match-time)
+    const rows = goals.slice();
+    if (penGoals.length) rows.push({ __penHeader: true });
+    penGoals.forEach(function(g) { rows.push(g); });
+
+    rows.forEach(function(g, idx) {
+        if (g.__penHeader) {
+            html += '<tr><td colspan="4" style="padding:10px 16px 6px; font-size:11px; font-weight:800; color:#b45309; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid #f1f5f9;">🥅 Пенальти</td></tr>';
+            return;
+        }
+        if (!g.isPenalty && g.half && g.half !== curHalf) {
             curHalf = g.half;
             const label = g.half === 1 ? '1-й тайм' : g.half === 2 ? '2-й тайм' : g.half + '-й тайм';
             html += '<tr><td colspan="4" style="padding:10px 16px 6px; font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid #f1f5f9;">' + label + '</td></tr>';
         }
 
-        const timeStr = g.matchTime || '—';
+        const timeStr = g.isPenalty ? '' : (g.matchTime || '—');
         let badgeHtml, nameHtml;
 
         if (g.isOpponent) {
@@ -1758,22 +1807,25 @@ function _renderChampStats(champTitle, matches, allGoals) {
         const defName = defaultName.trim().toLowerCase();
 
         let ourScore, oppScore;
-        if (t1Name === defName) {
+        const ourSide = (t2Name === defName && t1Name !== defName) ? 2 : 1; // fallback — team1 is ours
+        if (ourSide === 1) {
             ourScore = m.score1 || 0; oppScore = m.score2 || 0;
-        } else if (t2Name === defName) {
-            ourScore = m.score2 || 0; oppScore = m.score1 || 0;
         } else {
-            // Fallback — treat team1 as ours
-            ourScore = m.score1 || 0; oppScore = m.score2 || 0;
+            ourScore = m.score2 || 0; oppScore = m.score1 || 0;
         }
 
+        // Goals for/against — regulation score only (shootout goals aren't match goals)
         goalsFor     += ourScore;
         goalsAgainst += oppScore;
         played++;
 
-        if (ourScore > oppScore)       won++;
-        else if (ourScore < oppScore)  lost++;
-        else                           draw++;
+        // W/D/L — a shootout-decided match compares penaltyScore1/2 instead,
+        // so it isn't counted as a draw. An unfinished shootout with a level
+        // penalty score (ref ended it early) still counts as a draw.
+        const res = penResultScores(m, ourSide);
+        if (res.our > res.opp)       won++;
+        else if (res.our < res.opp)  lost++;
+        else                         draw++;
     });
 
     // ── Player scorers (from goals table, default team only) ──────────────

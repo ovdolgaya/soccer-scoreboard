@@ -401,7 +401,8 @@
                 if (matchData.status === 'ended') return;
 
                 // ── 2. Field-specific listeners — only small primitive fields, no logos ──
-                const watchFields = ['score1', 'score2', 'status', 'time', 'currentHalf', 'startTime', 'scheduledTime'];
+                const watchFields = ['score1', 'score2', 'status', 'time', 'currentHalf', 'startTime', 'scheduledTime',
+                                     'penaltyFormat', 'penaltyScore1', 'penaltyScore2'];
                 watchFields.forEach(function(field) {
                     database.ref('matches/' + matchId + '/' + field).on('value', function(snap) {
                         const val = snap.val();
@@ -594,7 +595,16 @@
                 return `<div class="status-message">Матч начнется ${day}.${mon} в ${hrs}:${mins}</div>`;
             }
             if (status === 'waiting')     return '<div class="status-message">Ожидание начала матча</div>';
-            if (status === 'ended')       return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
+            if (status === 'ended') {
+                if (matchData.penaltyFormat) {
+                    return `<div class="status-message">МАТЧ ОКОНЧЕН · ПЕН. ${matchData.penaltyScore1 || 0}:${matchData.penaltyScore2 || 0}</div>`;
+                }
+                return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
+            }
+            // Penalty shootout — this widget shows only the running penalty score (no dots)
+            if (status === 'penalties') {
+                return `<div class="status-message">ПЕНАЛЬТИ ${matchData.penaltyScore1 || 0}:${matchData.penaltyScore2 || 0}</div>`;
+            }
             if (status === 'half1_ended') return '<div class="status-message">1 ТАЙМ ОКОНЧЕН</div>';
             if (status === 'half2_ended') return '<div class="status-message">2 ТАЙМ ОКОНЧЕН</div>';
             // half3_ended can't occur — a match's last configured half always ends it directly.
@@ -648,6 +658,9 @@
             // (playerId is null for opponent goals) → "Гол! НЕИЗВЕСТНЫЙ" flashes
             // before the correct opponent card replaces it a moment later.
             if (goal.isOpponent) return;
+
+            // Shootout goals — no «Гол!» card; the timer bar shows the penalty score
+            if (goal.isPenalty) return;
 
             if (goal.isOwnGoal) {
                 showOwnGoalCard();

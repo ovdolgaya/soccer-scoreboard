@@ -126,8 +126,15 @@ function bwRenderStats(matchData) {
     });
 }
 
+// Table vs cards: penalty goals count toward the total (they're folded into each
+// player's goal count). 7 or fewer → table, 8 or more → cards.
+const BW_TABLE_MAX_GOALS = 7;
+
 function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
-    const sorted = goals.slice().sort(function(a,b) {
+    // Regular goals grouped by half; shootout goals get their own «Пенальти» section
+    const penGoals = goals.filter(function(g) { return g.isPenalty; })
+        .sort(function(a,b) { return (a.timestamp||0) - (b.timestamp||0); });
+    const sorted = goals.filter(function(g) { return !g.isPenalty; }).sort(function(a,b) {
         if ((a.half||0) !== (b.half||0)) return (a.half||0)-(b.half||0);
         return (a.matchTime||'').localeCompare(b.matchTime||'');
     });
@@ -135,7 +142,8 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
     const statusLabels = {
         'playing':     matchData.currentHalf === 3 ? '3-й тайм' : (matchData.currentHalf === 2 ? '2-й тайм' : '1-й тайм'),
         // half1/2_ended are breaks awaiting a decision, not a finished match — both "Перерыв"
-        'half1_ended': 'Перерыв', 'half2_ended': 'Перерыв', 'ended': 'Матч окончен'
+        'half1_ended': 'Перерыв', 'half2_ended': 'Перерыв',
+        'penalties':   'Серия пенальти', 'ended': 'Матч окончен'
     };
     const halfLabel = statusLabels[matchData.status] || '';
 
@@ -147,15 +155,18 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
             <div class="bw-stats-team-name">${matchData.team1Name || ''}</div>
             <div class="bw-stats-sub">Статистика голов${halfLabel ? ' · ' + halfLabel : ''}</div>
         </div>
-        <div class="bw-stats-score-badge">
-            <span class="bw-stats-score-num">${matchData.score1||0}</span>
-            <span class="bw-stats-score-sep">:</span>
-            <span class="bw-stats-score-opp">${matchData.score2||0}</span>
+        <div class="bw-stats-score-wrap">
+            <div class="bw-stats-score-badge">
+                <span class="bw-stats-score-num">${matchData.score1||0}</span>
+                <span class="bw-stats-score-sep">:</span>
+                <span class="bw-stats-score-opp">${matchData.score2||0}</span>
+            </div>
+            ${matchData.penaltyFormat ? `<div class="bw-stats-pen-line">Пенальти ${matchData.penaltyScore1||0} : ${matchData.penaltyScore2||0}</div>` : ''}
         </div>
     </div>
     <div class="bw-stats-content">`;
 
-    const useTable = goals.length <= 8;
+    const useTable = goals.length <= BW_TABLE_MAX_GOALS;
     if (useTable) {
         html += '<table class="bw-goals-table">';
         let lastHalf = null;
@@ -197,6 +208,25 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
                 <td class="bw-cell-assist">${assistHtml}</td>
             </tr>`;
         });
+
+        // «Пенальти» — scored shootout attempts only, no match-time, no assists
+        if (penGoals.length > 0) {
+            html += `<tr class="bw-half-header bw-pen-header"><td colspan="5">Пенальти</td></tr>`;
+            penGoals.forEach(function(g, pIdx) {
+                const p   = g.playerId ? (bwPlayersCache[g.playerId]||null) : null;
+                const num = p ? p.number : (g.playerNumber||'?');
+                const fn  = p ? (p.firstName||'') : '';
+                const ln  = p ? (p.lastName||'').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
+                const delay = ((sorted.length + pIdx) * 0.05).toFixed(2) + 's';
+                html += `<tr class="bw-goal-row" style="animation-delay:${delay}">
+                    <td class="bw-cell-time"></td>
+                    <td class="bw-cell-number"><span class="bw-number-badge">#${num}</span></td>
+                    <td class="bw-cell-name">${fn ? `<span class="bw-first-name">${fn}</span>` : ''}${ln}</td>
+                    <td></td>
+                    <td class="bw-cell-assist"></td>
+                </tr>`;
+            });
+        }
         html += '</table>';
     } else {
         // Aggregate scorers into cards

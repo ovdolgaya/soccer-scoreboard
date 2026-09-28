@@ -410,8 +410,9 @@ function requestGoalRemoval(team) {
                     goals.push(g);
                 });
 
+                // Shootout goals are managed only via the penalty dots — never here
                 const oppGoals = goals
-                    .filter(function(g) { return g.isOpponent === true; })
+                    .filter(function(g) { return g.isOpponent === true && !g.isPenalty; })
                     .sort(function(a, b) { return b.timestamp - a.timestamp; });
 
                 if (oppGoals.length === 0) {
@@ -451,8 +452,10 @@ function requestGoalRemoval(team) {
                     goals.push(g);
                 });
 
+                // Shootout goals are managed only via the penalty dots — removing one
+                // here would wrongly decrement the regulation score
                 const teamGoals = goals
-                    .filter(function(g) { return g.teamId === goalTracking.defaultTeamId; })
+                    .filter(function(g) { return g.teamId === goalTracking.defaultTeamId && !g.isPenalty; })
                     .sort(function(a, b) { return b.timestamp - a.timestamp; });
 
                 if (teamGoals.length === 0) {
@@ -544,12 +547,30 @@ function removeGoal(goalKey, side) {
 // RETROACTIVE GOAL ENTRY (ended matches)
 // ----------------------------------------
 
-function openRetroGoalModal() {
+// mode: 'retro' (default) — ended-match goal entry, with own-goal option
+//       'penalty'         — shootout scorer picker (penalty-shootout.js):
+//                           players only, no own-goal, no assists
+let _retroModalMode = 'retro';
+
+function openRetroGoalModal(mode) {
     if (!matchId) return;
+    _retroModalMode = (mode === 'penalty') ? 'penalty' : 'retro';
+    const isPen = _retroModalMode === 'penalty';
 
     if (goalTracking.playersCache.length === 0 && goalTracking.defaultTeamId) {
         loadGoalTrackingPlayers();
     }
+
+    const kicker = document.getElementById('retroGoalKicker');
+    const title  = document.getElementById('retroGoalTitle');
+    const note   = document.getElementById('retroGoalNote');
+    const ogWrap = document.getElementById('retroOwnGoalWrap');
+    if (kicker) kicker.textContent = isPen ? 'Серия пенальти' : 'Завершённый матч';
+    if (title)  title.textContent  = isPen ? '🥅 Кто забил пенальти?' : '⚽ Добавить гол';
+    if (note)   note.textContent   = isPen
+        ? 'Гол будет засчитан игроку в разделе «Пенальти».'
+        : 'Гол будет добавлен без привязки к времени матча и отобразится в разделе «Добавлено вручную».';
+    if (ogWrap) ogWrap.style.display = isPen ? 'none' : '';
 
     renderRetroPlayerGrid();
     document.getElementById('retroGoalModal').style.display = 'block';
@@ -557,8 +578,13 @@ function openRetroGoalModal() {
 }
 
 function closeRetroGoalModal() {
-    document.getElementById('retroGoalModal').style.display = 'none';
+    const modal = document.getElementById('retroGoalModal');
+    const wasOpen = modal && modal.style.display !== 'none';
+    if (modal) modal.style.display = 'none';
     document.body.style.overflow = '';
+    // Penalty picker dismissed without a choice → the dot stays empty
+    if (wasOpen && _retroModalMode === 'penalty' && typeof penCancelPick === 'function') penCancelPick();
+    _retroModalMode = 'retro';
 }
 
 
@@ -566,7 +592,9 @@ function renderRetroPlayerGrid() {
     _renderPlayerNumberGrid('retroPlayerGrid', {
         mode:    'scorer',
         large:   true,
-        onClick: 'confirmRetroGoal(\'{id}\', false)',
+        onClick: _retroModalMode === 'penalty'
+            ? 'penPickScorer(\'{id}\')'
+            : 'confirmRetroGoal(\'{id}\', false)',
         isSelected: function() { return false; }
     });
 }

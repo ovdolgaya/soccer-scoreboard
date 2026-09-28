@@ -91,7 +91,18 @@ function wsGetTimerContent(matchData) {
         return `<div class="status-message">Матч начнется ${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')} в ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</div>`;
     }
     if (status === 'waiting')     return '<div class="status-message">Ожидание начала матча</div>';
-    if (status === 'ended')       return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
+    if (status === 'ended') {
+        // Went to penalties — keep the shootout result visible after the final whistle
+        if (matchData.penaltyFormat) {
+            return `<div class="status-message">МАТЧ ОКОНЧЕН · ПЕН. ${matchData.penaltyScore1 || 0}:${matchData.penaltyScore2 || 0}</div>`;
+        }
+        return '<div class="status-message">МАТЧ ОКОНЧЕН</div>';
+    }
+    // Vertical / broadcast hide the timer bar during the shootout (dots panel instead);
+    // this text is the fallback for anything that still shows it
+    if (status === 'penalties') {
+        return `<div class="status-message">СЕРИЯ ПЕНАЛЬТИ ${matchData.penaltyScore1 || 0}:${matchData.penaltyScore2 || 0}</div>`;
+    }
     // half1/2_ended are mid-match breaks awaiting a decision (end match, or continue) —
     // neither means the match itself is over, so both show "ПЕРЕРЫВ", not "МАТЧ ОКОНЧЕН".
     // (half3_ended can't occur — a match's last configured half always ends it directly.)
@@ -294,4 +305,48 @@ function wsShowGoalNotif(notifEl, html, timeouts, durationMs, onHide) {
             if (onHide) onHide();
         }, 600);
     }, durationMs);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PENALTY SHOOTOUT — dots panel (vertical + broadcast)
+//  Depends on penalty-helpers.js (penBuildSets, penFlatRow, penCountGoals)
+// ════════════════════════════════════════════════════════════════
+
+// One row of dots per team (not split by set), growing left→right as
+// sudden-death sets are appended. Penalty score in the middle.
+//   green = goal, red = miss, empty = not yet taken
+function wsBuildPenaltyPanel(matchData, attempts) {
+    const sets  = penBuildSets(attempts, (matchData && matchData.penaltyFormat) || 5);
+    const score = penCountGoals(attempts);
+    function dots(team) {
+        return penFlatRow(sets, team).map(function(v) {
+            return '<span class="ws-pen-dot' + (v === 'goal' ? ' goal' : v === 'miss' ? ' miss' : '') + '"></span>';
+        }).join('');
+    }
+    return `
+        <div class="ws-pen-side ws-pen-t1">${dots(1)}</div>
+        <div class="ws-pen-score">
+            <span class="ws-pen-label">Пенальти</span>
+            <span class="ws-pen-nums">${score[1]}<span class="ws-pen-sep">:</span>${score[2]}</span>
+        </div>
+        <div class="ws-pen-side ws-pen-t2">${dots(2)}</div>`;
+}
+
+function wsRenderPenaltyPanel(el, matchData, attempts) {
+    if (!el) return;
+    if (!matchData || !matchData.penaltyFormat) {
+        // Format not chosen yet — just the label, no dots
+        el.innerHTML = '<div class="ws-pen-score"><span class="ws-pen-label">Серия пенальти</span></div>';
+        return;
+    }
+    el.innerHTML = wsBuildPenaltyPanel(matchData, attempts);
+}
+
+// Live /penaltyAttempts/{matchId} → onChange(attempts). Returns stop().
+function wsInitPenaltyListener(matchId, onChange) {
+    if (!matchId) return function() {};
+    const ref = database.ref('penaltyAttempts/' + matchId);
+    function onValue(snap) { onChange(snap.val() || {}); }
+    ref.on('value', onValue);
+    return function stop() { ref.off('value', onValue); };
 }

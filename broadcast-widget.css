@@ -120,6 +120,15 @@ html, body {
 .bw-stats-score-sep { font-size: 48px; color: #bbb; font-weight: 300; }
 .bw-stats-score-opp { font-size: 72px; font-weight: 900; color: #999; line-height: 1; }
 
+/* Secondary penalty line under the regulation score (matches that went to penalties) */
+.bw-stats-score-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.bw-stats-pen-line {
+    font-size: 26px; font-weight: 800; color: #FCDC00;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+.bw-half-header.bw-pen-header td { color: #FCDC00; }
+
 .bw-stats-content {
     flex: 1;
     overflow: hidden;
@@ -316,6 +325,12 @@ html, body {
 #bw-score-layer.bw-pos-topleft { top: 24px; left: 24px; bottom: unset; right: unset; transform: none; }
 #bw-score-layer.bw-pos-bottom  { top: unset; left: 50%; bottom: 60px; right: unset; transform: translateX(-50%) scale(1.5); transform-origin: bottom center; }
 #bw-score-layer.bw-pos-bottom .timer-container { opacity: 0; height: 0; overflow: hidden; pointer-events: none; }
+
+/* ── Penalty shootout: score card stays bottom-center for the whole shootout,
+      dots panel directly under it; timer bar and top-left scoreboard not used ── */
+#bw-pen-panel { display: none; width: 100%; }
+#bw-score-layer.bw-penalties #bw-pen-panel { display: flex; }
+#bw-score-layer.bw-penalties .timer-container { display: none; }
 
 /* ── Goal notification position (broadcast-specific) ── */
 #bw-goal-notif {

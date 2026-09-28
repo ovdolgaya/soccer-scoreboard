@@ -53,6 +53,8 @@
         <div class="bw-scoreboard" id="bw-scoreboard">
             <!-- rendered by JS -->
         </div>
+        <!-- Penalty dots — visible only with .bw-penalties on the score layer -->
+        <div class="ws-pen-panel" id="bw-pen-panel"></div>
     </div>
 
     <!-- Transition flash overlay -->
@@ -92,6 +94,7 @@ const bwStatsBox       = document.getElementById('bw-stats-box');
 const bwTransOverlay   = document.getElementById('bw-transition-overlay');
 const bwLoading        = document.getElementById('bw-loading');
 const bwSubscribeLayer = document.getElementById('bw-subscribe-layer');
+const bwPenPanel       = document.getElementById('bw-pen-panel');
 
 // ── State ──
 let bwMatchData        = null;
@@ -118,6 +121,10 @@ let bwRosterThumbURL   = null;
 
 // Sequence flags
 let bwIntroShown       = false;
+
+// Penalty shootout — live /penaltyAttempts while status === 'penalties'
+let bwPenAttempts      = {};
+let bwStopPen          = null;
 
 // ── Utilities ──
 function bwFetchTeamData(teamId) {
@@ -172,6 +179,7 @@ function bwFlashTransition(durationMs, midFn) {
 </script>
 
 <!-- Shared modules — scoreboard, goal cards, goal listener -->
+<script src="penalty-helpers.js"></script>
 <script src="widget-shared.js"></script>
 <script src="widget-goal-listener.js"></script>
 
@@ -196,6 +204,7 @@ function bwStopLiveListeners() {
     bwLiveStopped = true;
     bwMatchRef.off('value', bwOnMatchValue);
     bwStopGoalsListener();
+    bwStopPenaltyListener();
     console.log('[broadcast-widget] match ended — live listeners detached');
 }
 
@@ -216,8 +225,9 @@ function bwOnMatchValue(snap2) {
         bwHandleOppGoal();
     }
 
-    // Update scoreboard
+    // Update scoreboard (+ penalty panel — penalty scores live on the match record)
     bwRenderScoreboard(updated);
+    if (updated.status === 'penalties') bwRenderPenaltyPanel();
 
     // Delegate status handling — bwOnStatusChange deduplicates internally
     bwOnStatusChange(updated.status, updated);
@@ -290,6 +300,10 @@ if (!BW_MATCH_ID) {
                 bwShowCachedImage(thumbUrl);
                 bwShowCanvas();
             }
+        } else if (s === 'penalties') {
+            // Opened mid-shootout — straight into penalty view, no transition sequence
+            bwStartPenaltyListener();
+            bwEnterPenaltyView();
         } else if (s === 'half1_ended') {
             // Перерыв — показываем матч-thumbnail без скорборда
             bwHideScore();

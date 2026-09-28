@@ -321,7 +321,8 @@
 
         // Only recalculate status for matches that haven't started yet.
         // Playing/ended matches keep their current status unchanged.
-        const lockedStatuses = ['playing', 'half1_ended', 'half2_ended', 'ended'];
+        // 'penalties' must be here too — otherwise editing a match mid-shootout resets it to 'waiting'
+        const lockedStatuses = ['playing', 'half1_ended', 'half2_ended', 'penalties', 'ended'];
         if (!_editingMatchId) {
             // New match — always set status
             updates.status = (updates.scheduledTime && updates.scheduledTime > Date.now())
@@ -372,7 +373,8 @@
 
     function _refreshCockpitHeader(data) {
         const map = { scheduled:'Ожидается', waiting:'Готов к началу', playing:'Идёт сейчас',
-                      ended:'Закончен', half1_ended:'1 тайм окончен', half2_ended:'2 тайм окончен' };
+                      ended:'Закончен', half1_ended:'1 тайм окончен', half2_ended:'2 тайм окончен',
+                      penalties:'Серия пенальти' };
         const t1 = document.getElementById('cockpitTeam1');
         const t2 = document.getElementById('cockpitTeam2');
         const dt = document.getElementById('cockpitDate');

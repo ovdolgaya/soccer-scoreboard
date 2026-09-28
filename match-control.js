@@ -199,19 +199,83 @@ function endMatchFromPopup() {
     endMatch();
 }
 
+// Single integration point for every «Закончить матч» button/popup.
+//   status 'penalties'  → second call: finalize via penRequestEnd() (confirm if undecided),
+//                         never asks «Нужна серия пенальти?» twice for the same match
+//   level score         → «Нужна серия пенальти?» popup (Нет → ended, Да → 'penalties')
+//   otherwise           → ended straight away (unchanged behaviour)
 function endMatch() {
     if (!matchId) return;
+    const match = (_matchDataCache && _matchDataCache[matchId]) || _matchCache;
 
-    const updates = {
-        status: 'ended'
-    };
+    if (match && match.status === 'penalties') {
+        if (typeof penRequestEnd === 'function') penRequestEnd();
+        else _finalizeEndMatch();
+        return;
+    }
+
+    if (match && (match.score1 || 0) === (match.score2 || 0)) {
+        showPenaltyPrompt(match);
+        return;
+    }
+
+    _finalizeEndMatch();
+}
+
+// extra — optional additional fields written together with status 'ended'
+function _finalizeEndMatch(extra) {
+    if (!matchId) return;
+    const updates = Object.assign({ status: 'ended' }, extra || {});
 
     database.ref('matches/' + matchId).update(updates).then(function() {
         stopTimerSync();
-
-        if (typeof updateButtonStates === 'function' && _matchCache) {
-            updateButtonStates(Object.assign({}, _matchCache, updates));
+        const cached = (_matchDataCache && _matchDataCache[matchId]) || _matchCache;
+        if (cached) Object.assign(cached, updates);
+        if (typeof updateButtonStates === 'function' && cached) {
+            updateButtonStates(Object.assign({}, cached, updates));
         }
+    });
+}
+
+// ========================================
+// PENALTY PROMPT — «Нужна серия пенальти?»
+// ========================================
+
+function showPenaltyPrompt(match) {
+    const scoreEl = document.getElementById('penaltyPromptScore');
+    if (scoreEl) scoreEl.textContent = (match.score1 || 0) + ' : ' + (match.score2 || 0);
+    document.getElementById('penaltyPromptModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closePenaltyPrompt() {
+    document.getElementById('penaltyPromptModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// «Нет» — end exactly as before, no shootout recorded
+function penaltyPromptNo() {
+    closePenaltyPrompt();
+    _finalizeEndMatch();
+}
+
+// «Да» — status becomes 'penalties' (not 'ended'); cockpit swaps in the penalty section.
+// score1/score2 stay at the tied value from here on.
+function penaltyPromptYes() {
+    closePenaltyPrompt();
+    if (!matchId) return;
+    const updates = { status: 'penalties', penaltyFormat: null, penaltyScore1: 0, penaltyScore2: 0 };
+
+    database.ref('matches/' + matchId).update(updates).then(function() {
+        stopTimerSync();
+        const cached = (_matchDataCache && _matchDataCache[matchId]) || _matchCache;
+        if (cached) Object.assign(cached, updates);
+        if (typeof updateButtonStates === 'function' && cached) {
+            updateButtonStates(Object.assign({}, cached, updates));
+        }
+    }).catch(function(err) {
+        console.error('Start penalties error:', err);
+        showToast('❌ Ошибка: ' + err.message);
     });
 }
 

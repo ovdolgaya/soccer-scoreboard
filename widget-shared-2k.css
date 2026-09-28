@@ -44,3 +44,11 @@
 .ws-2k .ngc-opp-goal-word { font-size: 75px; }
 .ws-2k .ngc-opp-minute    { font-size: 29px; margin-left: 16px; }
 .ws-2k .ngc-opp-name      { font-size: 43px; margin-top: 8px; }
+
+/* ── Penalty shootout panel ×1.333 ── */
+.ws-pen-panel { gap: 21px; padding: 11px 19px; border-bottom-left-radius: 13px; border-bottom-right-radius: 13px; }
+.ws-pen-side  { gap: 8px; }
+.ws-pen-dot   { width: 24px; height: 24px; border-width: 3px; }
+.ws-pen-label { font-size: 15px; }
+.ws-pen-nums  { font-size: 32px; }
+.ws-pen-sep   { margin: 0 5px; }

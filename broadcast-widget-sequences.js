@@ -82,6 +82,7 @@ function bwHalfStart() {
     bwHideCanvasInstant();
     bwHideStatsInstant();
     bwHideScore();
+    bwExitPenaltyView();
 
     // Score intro: bottom-center for 5s → top-left
     bwScoreToBottom();
@@ -232,9 +233,11 @@ async function bwHalfEndSequence() {
     await bwDelay(3000);
     if (!stillValid()) return;
 
-    // 2. Hide score
+    // 2. Hide score (after a shootout the dots panel was part of the 3s final card —
+    //    drop it now so the score layer is back to normal)
     bwHideScore();
     await bwDelay(400);
+    bwExitPenaltyView();
     if (!stillValid()) return;
 
     // 3. Subscribe reminder (4s) — clean screen, no overlap
@@ -275,13 +278,84 @@ async function bwHalfEndSequence() {
     // Canvas stays visible — bwHalfStart() will clear it instantly when next half begins
 }
 
+// ── PENALTY SHOOTOUT ──
+// status → 'penalties': match thumbnail with the tied score (5s) → thumbnail closes →
+// subscribe reminder (4s) → penalty view (score card bottom-center + dots, persistent).
+// Same bwSeqToken guard as bwHalfEndSequence — this can start while a half-end sequence
+// is still mid-flight (ref ends the last half on a draw and clicks «Да» quickly); bumping
+// the token makes that one bail, and this one bails too if 'ended' arrives first.
+async function bwPenaltyStartSequence() {
+    const myToken = ++bwSeqToken;
+    function stillValid() { return bwSeqToken === myToken; }
+
+    // Clear whatever a half-end sequence left on screen
+    bwHideStatsInstant();
+    bwHideScore();
+    bwExitPenaltyView();
+
+    // 1. Match thumbnail with the current (tied) score — 5s
+    const thumbUrl = await bwCacheMatchThumb(bwMatchData, true);
+    if (!stillValid()) return;
+    bwMatchThumbURL = thumbUrl;
+    await bwFlashTransition(700, function() {
+        if (!stillValid()) return;
+        bwShowCachedImage(thumbUrl);
+        bwShowCanvas();
+    });
+    if (!stillValid()) return;
+    await bwDelay(5000);
+    if (!stillValid()) return;
+
+    // 2. Thumbnail closes
+    await bwFlashTransition(700, function() { if (stillValid()) bwHideCanvas(); });
+    if (!stillValid()) return;
+
+    // 3. Subscribe reminder — clean screen
+    bwSubscribeSequence(4000);
+    await bwDelay(4200);
+    if (!stillValid()) return;
+
+    // 4. Penalty view — stays for the rest of the shootout
+    bwEnterPenaltyView();
+}
+
+// Score card bottom-center + dots panel, top-left scoreboard not used.
+// Synchronous — safe to call from page load.
+function bwEnterPenaltyView() {
+    bwRenderPenaltyPanel();
+    bwScoreLayer.classList.add('bw-penalties');
+    bwScoreToBottom();
+    bwShowScore();
+}
+
+function bwExitPenaltyView() {
+    bwScoreLayer.classList.remove('bw-penalties');
+}
+
+function bwRenderPenaltyPanel() {
+    wsRenderPenaltyPanel(bwPenPanel, bwMatchData, bwPenAttempts);
+}
+
+function bwStartPenaltyListener() {
+    if (bwStopPen) return;
+    bwStopPen = wsInitPenaltyListener(BW_MATCH_ID, function(attempts) {
+        bwPenAttempts = attempts;
+        bwRenderPenaltyPanel();
+    });
+}
+
+function bwStopPenaltyListener() {
+    if (bwStopPen) { bwStopPen(); bwStopPen = null; }
+}
+
 // ── INTRO SEQUENCE (on page load) ──
 async function bwIntroSequence(matchData) {
     bwIntroShown = true;
 
     // Skip intro if match is already in progress
     const status = matchData.status;
-    if (status === 'playing' || status === 'half1_ended' || status === 'half2_ended' || status === 'ended') {
+    if (status === 'playing' || status === 'half1_ended' || status === 'half2_ended' ||
+        status === 'penalties' || status === 'ended') {
         return;
     }
 
@@ -335,8 +409,16 @@ function bwOnStatusChange(newStatus, matchData) {
         return;
     }
 
+    if (newStatus === 'penalties') {
+        if (bwTimerInterval) { clearInterval(bwTimerInterval); bwTimerInterval = null; }
+        bwStartPenaltyListener();
+        bwPenaltyStartSequence();
+        return;
+    }
+
     if (newStatus === 'half1_ended' || newStatus === 'half2_ended' || newStatus === 'ended') {
         if (bwTimerInterval) { clearInterval(bwTimerInterval); bwTimerInterval = null; }
+        bwStopPenaltyListener();
         bwHalfEndSequence();
     }
 }

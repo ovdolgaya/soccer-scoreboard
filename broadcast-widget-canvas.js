@@ -118,6 +118,17 @@ function bwDrawMatchThumb(matchData, showScore, callback) {
                 ctx.fillStyle = 'white';
                 ctx.font = `bold ${Math.round(90*SCALE)}px Calibri, sans-serif`;
                 ctx.fillText(s2, x, midY);
+
+                // Went to penalties — secondary line under the (tied) regulation score
+                if (matchData.penaltyFormat && matchData.status === 'ended') {
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#FCDC00';
+                    ctx.font = `bold ${Math.round(36*SCALE)}px Calibri, sans-serif`;
+                    ctx.fillText('ПЕНАЛЬТИ ' + (matchData.penaltyScore1 || 0) + ' : ' + (matchData.penaltyScore2 || 0),
+                                 W/2, midY + Math.round(80*SCALE));
+                    ctx.fillStyle = 'white';
+                }
             } else {
                 ctx.font = `bold ${Math.round(60*SCALE)}px Calibri, sans-serif`;
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -136,6 +147,8 @@ function bwDrawMatchThumb(matchData, showScore, callback) {
             const status = matchData.status || '';
             if (showScore && (status === 'half1_ended' || status === 'half2_ended')) {
                 dateStr = 'ПЕРЕРЫВ';
+            } else if (showScore && status === 'penalties') {
+                dateStr = 'СЕРИЯ ПЕНАЛЬТИ';
             } else if (showScore && status === 'ended') {
                 dateStr = 'МАТЧ ОКОНЧЕН';
             } else if (matchData.scheduledTime) {
