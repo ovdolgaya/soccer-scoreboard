@@ -81,6 +81,8 @@
         .pen-status.done { color:#15803d; font-weight:700; }
         .pen-format-change { margin-top:8px; font-size:12px; color:#94a3b8; text-align:center; }
         .pen-format-change a { color:#1e5fd4; }
+        /* Player picker buttons must not be widened by global button styles */
+        #retroPlayerGrid > button { min-width:0; margin:0; }
     </style>
 </head>
 <body>
@@ -505,8 +507,9 @@
       </div>
  
       <!-- Player grid -->
+      <!-- Adaptive columns (same as goalPlayerGrid) — fixed repeat(5,1fr) overflowed on phones -->
       <div id="retroPlayerGrid"
-           style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:16px 20px;">
+           style="display:grid; grid-template-columns:repeat(auto-fill, minmax(66px, 1fr)); gap:8px; padding:16px 20px;">
       </div>
  
       <!-- Own goal button -->
