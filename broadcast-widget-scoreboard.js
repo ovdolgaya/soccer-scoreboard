@@ -241,10 +241,17 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
                 scorers[ak].assists++;
             });
         });
-        const scorerList = Object.values(scorers).filter(s => s.goals > 0).sort((a,b) => b.goals - a.goals);
+        // Goal scorers first (goals ↓, then assists ↓), then assist-only players (assists ↓).
+        // No separator — the yellow goal number vs grey assist number already tells them apart.
+        const all = Object.values(scorers);
+        const scorerList = all.filter(s => s.goals > 0)
+                .sort((a,b) => (b.goals - a.goals) || (b.assists - a.assists))
+            .concat(all.filter(s => s.goals === 0 && s.assists > 0)
+                .sort((a,b) => b.assists - a.assists));
         const goalLabel   = n => n===1?'гол':n<=4?'гола':'голов';
         const assistLabel = n => n===1?'передача':n<=4?'передачи':'передач';
-        html += '<div class="bw-cards-grid">';
+        // 3 columns fit ~12 cards; beyond that switch to a denser 4×4 grid (up to 16)
+        html += '<div class="bw-cards-grid' + (scorerList.length > 12 ? ' bw-cards-dense' : '') + '">';
         scorerList.forEach(function(sc, idx) {
             const delay = (idx * 0.06).toFixed(2) + 's';
 
@@ -302,10 +309,10 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
                     <div class="bw-player-lastname">${ln}</div>
                 </div>
                 <div class="bw-goal-count">
-                    <div class="bw-goal-count-goals">
+                    ${sc.goals > 0 ? `<div class="bw-goal-count-goals">
                         <div class="bw-goal-count-number">${sc.goals}</div>
                         <div class="bw-goal-count-label">${goalLabel(sc.goals)}</div>
-                    </div>
+                    </div>` : ''}
                     ${assistsHtml}
                 </div>
             </div>`;

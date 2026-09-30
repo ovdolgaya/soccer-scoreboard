@@ -157,6 +157,21 @@ html, body {
 .bw-goal-count-number.bw-assist-num { font-size: 40px; }
 .bw-goal-count-label  { font-size: 15px; }
 
+/* Dense 4×4 grid ×1.333 */
+.bw-cards-grid.bw-cards-dense { gap: 16px; }
+.bw-cards-dense .bw-player-card        { min-height: 200px; }
+.bw-cards-dense .bw-player-photo-wrap,
+.bw-cards-dense .bw-player-avatar,
+.bw-cards-dense .bw-player-logo-wrap   { width: 133px; }
+.bw-cards-dense .bw-player-info        { padding: 11px 16px; }
+.bw-cards-dense .bw-player-firstname   { font-size: 19px; }
+.bw-cards-dense .bw-player-lastname    { font-size: 31px; }
+.bw-cards-dense .bw-goal-count         { min-width: 101px; }
+.bw-cards-dense .bw-goal-count-goals,
+.bw-cards-dense .bw-goal-count-assists { padding: 0 16px; }
+.bw-cards-dense .bw-goal-count-number  { font-size: 45px; }
+.bw-cards-dense .bw-goal-count-number.bw-assist-num { font-size: 35px; }
+
 /* ── Score widget — scale ×1.0 в top-left (такие же пропорции как HD) ── */
 #bw-score-layer.bw-pos-topleft {
     transform: scale(1.15);

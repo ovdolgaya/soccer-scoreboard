@@ -190,6 +190,7 @@ Full-screen widget for Larix/OBS. Supports **HD (1920×1080)** and **2K (2560×1
 4. **Goal** — goal card bottom-center (5s) → score bottom-center (3s) → top-left
 5. **Half ends** — score bottom-center (3s) → YouTube subscribe reminder (4s) → stats full-screen (10s) → match thumbnail with score
 6. **Penalties start** — match thumbnail with the tied score (5s) → subscribe reminder (4s) → penalty view: top-left scoreboard hidden, score card stays **bottom-center** for the whole shootout with the dots panel under it (`bwPenaltyStartSequence()`, same `bwSeqToken` guard)
+- **Stats card view** (8+ home goals): goal scorers first (goals ↓), then **assist-only players** (assists ↓, grey assist number only). More than 12 cards → dense 4×4 grid (up to 16). `goals-widget.html` unchanged
 7. **Match ends after penalties** — normal half-end sequence; stats have a «Пенальти» section and a penalty line under the score; final thumbnail shows «ПЕНАЛЬТИ X : Y» under the regulation score
 
 **State machine design:** `playing` always wins — `bwHalfStart()` runs synchronously and instantly clears whatever is on screen. A shared generation token (`bwSeqToken`) is bumped by `bwHalfStart()` and `bwHalfEndSequence()`, and checked by both of those plus `bwPostGoalAnnouncement()` after every `await` — so if the ref fires off a new transition (start/stop a half) while an older fire-and-forget sequence is still mid-flight, the stale one bails out immediately instead of re-showing the scoreboard or thumbnail over a state that's already moved on. (Fixes a real production bug where quickly starting/stopping halves left the thumbnail and live scoreboard overlapping.)
@@ -293,6 +294,7 @@ Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Sessio
 - [ ] widget.html: «ПЕНАЛЬТИ X:Y» in timer bar, no goal cards
 - [ ] championships: card score «2 : 2 (пен. 4:3)», stats modal «Пенальти» section, W/D/L counts shootout win/loss
 - [ ] Championships: active championships at the top (А→Я), «Прошедшие чемпионаты» section below (А→Я), in both tabs; toggling «завершён» moves the championship after saving
+- [ ] broadcast stats cards: assist-only players appear after scorers with a grey assist count; 13–16 cards → 4 columns, nothing clipped (HD and 2K)
 - [ ] Firebase rules updated with `/penaltyAttempts` (TEST and PROD)
 - [ ] PWA cache cleared after deployment (`scoreboard-v10`)
 

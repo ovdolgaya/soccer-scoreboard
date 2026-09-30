@@ -317,6 +317,21 @@ html, body {
     font-family: 'Lexend', Calibri, sans-serif;
 }
 
+/* ── Dense card grid: more than 12 cards → 4 columns × 4 rows (up to 16) ── */
+.bw-cards-grid.bw-cards-dense { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.bw-cards-dense .bw-player-card        { min-height: 150px; }
+.bw-cards-dense .bw-player-photo-wrap,
+.bw-cards-dense .bw-player-avatar,
+.bw-cards-dense .bw-player-logo-wrap   { width: 100px; }
+.bw-cards-dense .bw-player-info        { padding: 8px 12px; }
+.bw-cards-dense .bw-player-firstname   { font-size: 14px; }
+.bw-cards-dense .bw-player-lastname    { font-size: 23px; }
+.bw-cards-dense .bw-goal-count         { min-width: 76px; }
+.bw-cards-dense .bw-goal-count-goals,
+.bw-cards-dense .bw-goal-count-assists { padding: 0 12px; }
+.bw-cards-dense .bw-goal-count-number  { font-size: 34px; }
+.bw-cards-dense .bw-goal-count-number.bw-assist-num { font-size: 26px; }
+
 /* ── Score widget positioning (broadcast-specific) ── */
 #bw-score-layer {
     inset: unset; width: auto; height: auto; background: transparent;
