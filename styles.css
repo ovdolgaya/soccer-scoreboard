@@ -689,28 +689,25 @@
                 width: 100%;
             }
 
-            /* Compact score cards (S20): one row — team name left, − score + right.
-               Keeps both teams + keepers on one phone screen. */
+            /* Compact score cards (S20): team name on top, then a wide button row —
+               − far left, + far right, so a rushed tap can't hit the wrong one.
+               Still about 1/3 shorter than the desktop card. */
             .score-controls { margin: 16px 0; gap: 10px; }
-            .team-control {
-                display: flex; align-items: center; justify-content: space-between; gap: 10px;
-                min-width: 0; padding: 10px 12px; text-align: left;
-            }
+            .team-control { min-width: 0; padding: 12px 16px 14px; }
             .team-control h3 {
-                margin: 0; flex: 1; min-width: 0; font-size: 15px; line-height: 1.2;
-                /* long names wrap to 2 lines instead of «CHAMP…» */
-                display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-                overflow: hidden; word-break: break-word;
+                margin: 0 0 10px; font-size: 16px; line-height: 1.2;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             }
-            .team-control .score-buttons { gap: 6px; flex-shrink: 0; }
-            .team-control .score-display { font-size: 30px; min-width: 40px; text-align: center; }
+            .team-control .score-buttons,
+            .gk-collapsed .gk-buttons { justify-content: space-between; gap: 12px; }
             .team-control .score-buttons button,
-            .gk-collapsed .gk-buttons button { width: 42px; height: 42px; margin: 0; padding: 0; }
-            .gk-collapsed .gk-buttons { gap: 6px; }
-            .gk-collapsed .score-display { font-size: 30px; min-width: 40px; }
-            .gk-collapsed .gk-head { gap: 6px; padding: 8px; font-size: 14px; }
-            .gk-collapsed .gk-head-icon { display: none; }   /* room for the name on small phones */
-            .gk-section { padding: 10px 12px; margin-bottom: 16px; }
+            .gk-collapsed .gk-buttons button { width: 76px; height: 64px; margin: 0; padding: 0; font-size: 26px; }
+            .team-control .score-display,
+            .gk-collapsed .score-display { font-size: 36px; min-width: 50px; text-align: center; }
+            /* Keeper collapsed: header row on top, same wide buttons below */
+            .gk-collapsed { flex-direction: column; align-items: stretch; gap: 8px; }
+            .gk-collapsed .gk-head { flex: none; width: 100%; justify-content: center; padding: 6px 8px; font-size: 15px; gap: 8px; }
+            .gk-section { padding: 12px 16px 14px; margin-bottom: 16px; }
 
             .dashboard-header {
                 flex-direction: column;
