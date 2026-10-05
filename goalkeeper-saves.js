@@ -28,7 +28,8 @@
 const _gk = {
     matchId: null,   // match the listener is bound to
     query:   null,   // /saves query (orderByChild matchId)
-    saves:   {}      // live copy: saveId → save
+    saves:   {},     // live copy: saveId → save
+    expanded: false  // keeper list open? (local UI only; forced open while no keeper is selected)
 };
 
 function _gkMatch() {
@@ -62,6 +63,7 @@ function _gkAttach() {
     gkDetach();
     _gk.matchId = matchId;
     _gk.saves   = {};
+    _gk.expanded = false;
     _gk.query   = database.ref('saves').orderByChild('matchId').equalTo(matchId);
     _gk.query.on('value', function(snap) {
         _gk.saves = snap.val() || {};
@@ -113,7 +115,8 @@ function gkRender() {
     });
 
     if (keepers.length === 0) {
-        body.innerHTML = '<div class="gk-empty">Нет вратарей в составе.<br>' +
+        body.innerHTML = '<div class="gk-head static"><span>🧤 Вратари</span></div>' +
+            '<div class="gk-empty">Нет вратарей в составе.<br>' +
             '<small>Отметьте вратаря (или полевого игрока на эту игру) в разделе «Состав».</small></div>';
         return;
     }
@@ -126,28 +129,49 @@ function gkRender() {
         return; // gkSelect re-renders
     }
 
-    let html = '<div class="gk-list">';
+    const activeCount = activeId ? (counts[activeId] || 0) : 0;
+    const plusOff  = !started || !activeId;
+    const minusOff = !started || !activeId || activeCount === 0;
+    const buttons = '<div class="score-buttons gk-buttons">' +
+                '<button class="button" onclick="gkRemoveSave()"' + (minusOff ? ' disabled' : '') + '>−</button>' +
+                '<span class="score-display">' + activeCount + '</span>' +
+                '<button class="button" onclick="gkAddSave()"' + (plusOff ? ' disabled' : '') + '>+</button>' +
+            '</div>';
+
+    // Collapsed (default once a keeper is selected): one row — [🧤 #N Name ▾]  − count +
+    // Tap the header → keeper list opens; picking a keeper collapses it again.
+    const expanded = _gk.expanded || !activeId;
+    if (!expanded) {
+        const a = keepers.find(function(p) { return p.id === activeId; }) || { number: '?', lastName: '' };
+        body.innerHTML =
+            '<div class="gk-collapsed">' +
+                '<button class="gk-head" onclick="gkToggle()" title="Сменить вратаря">' +
+                    '<span class="gk-head-icon">🧤</span>' +
+                    '<span class="gk-num">#' + _gkEsc(a.number) + '</span>' +
+                    '<span class="gk-head-name">' + (_gkEsc(a.lastName) || 'Вратарь') + '</span>' +
+                    '<span class="gk-caret">▾</span>' +
+                '</button>' +
+                buttons +
+            '</div>';
+        return;
+    }
+
+    let html = '<button class="gk-head open" onclick="gkToggle()"' + (activeId ? '' : ' disabled') + '>' +
+                   '<span>🧤 Вратари</span>' + (activeId ? '<span class="gk-caret">▴</span>' : '') +
+               '</button>';
+    html += '<div class="gk-list">';
     keepers.forEach(function(p) {
         const isActive = p.id === activeId;
         const name = (_gkEsc(p.lastName) + ' ' + _gkEsc(p.firstName)).trim() || 'Игрок';
         html += '<label class="gk-row' + (isActive ? ' active' : '') + '">' +
                     '<input type="radio" name="gkActive" value="' + _gkEsc(p.id) + '"' +
-                        (isActive ? ' checked' : '') + ' onchange="gkSelect(this.value)">' +
+                        (isActive ? ' checked' : '') + ' onclick="gkSelect(this.value)">' +
                     '<span class="gk-num">#' + _gkEsc(p.number) + '</span>' +
                     '<span class="gk-name">' + name + '</span>' +
                     '<span class="gk-count">' + (counts[p.id] || 0) + '</span>' +
                 '</label>';
     });
-    html += '</div>';
-
-    const activeCount = activeId ? (counts[activeId] || 0) : 0;
-    const plusOff  = !started || !activeId;
-    const minusOff = !started || !activeId || activeCount === 0;
-    html += '<div class="score-buttons gk-buttons">' +
-                '<button class="button" onclick="gkRemoveSave()"' + (minusOff ? ' disabled' : '') + '>−</button>' +
-                '<span class="score-display">' + activeCount + '</span>' +
-                '<button class="button" onclick="gkAddSave()"' + (plusOff ? ' disabled' : '') + '>+</button>' +
-            '</div>';
+    html += '</div>' + buttons;
 
     let hint;
     if (!started)                 hint = 'Выберите вратаря. Кнопки станут активны после начала матча.';
@@ -160,6 +184,11 @@ function gkRender() {
     body.innerHTML = html;
 }
 
+function gkToggle() {
+    _gk.expanded = !_gk.expanded;
+    gkRender();
+}
+
 // ----------------------------------------
 // ACTIONS
 // ----------------------------------------
@@ -167,6 +196,7 @@ function gkSelect(playerId) {
     const match = _gkMatch();
     if (!match || !playerId) return;
     match.activeGoalkeeperId = playerId;
+    _gk.expanded = false;          // keeper picked → collapse to the compact − N + row
     gkRender();
     database.ref('matches/' + matchId).update({ activeGoalkeeperId: playerId })
         .catch(function(err) { console.error('activeGoalkeeperId save error:', err); showToast('❌ Ошибка сохранения'); });
@@ -201,8 +231,9 @@ function gkAddSave() {
     }).then(function() {
         showToast('🧤 Сейв!');
     }).catch(function(err) {
-        console.error('Save error:', err);
-        showToast('❌ Ошибка сохранения сейва');
+        console.error('Save error:', err, save);
+        // Show the reason — PERMISSION_DENIED means the Firebase rules reject the record
+        showToast('❌ Ошибка сохранения сейва' + (err && err.code ? ' (' + err.code + ')' : ''));
     });
 }
 

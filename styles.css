@@ -302,6 +302,25 @@
         .gk-buttons button:disabled { opacity: .35; cursor: not-allowed; }
         .gk-hint { margin-top: 10px; font-size: 12px; color: #94a3b8; text-align: center; }
         .gk-empty { text-align: center; color: #94a3b8; font-size: 13px; padding: 8px; }
+        /* Collapsible header (S20) — tap to open/close the keeper list */
+        .gk-head {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; margin: 0 0 12px; padding: 4px 0; background: none; border: none;
+            font-size: 18px; font-weight: 700; color: #1e293b; cursor: pointer; font-family: inherit;
+        }
+        .gk-head:disabled { cursor: default; }
+        .gk-head.static { cursor: default; }
+        .gk-caret { font-size: 14px; color: #3b82f6; }
+        .gk-collapsed { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .gk-collapsed .gk-head {
+            width: auto; flex: 1; min-width: 0; margin: 0; justify-content: flex-start;
+            padding: 8px 10px; background: #fff; border: 2px solid #e2e8f0; border-radius: 10px;
+            font-size: 15px;
+        }
+        .gk-collapsed .gk-head:active { border-color: #3b82f6; }
+        .gk-head-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        .gk-collapsed .gk-buttons { gap: 8px; flex-shrink: 0; }
+        .gk-collapsed .score-display { font-size: 32px; min-width: 44px; }
 
         /* Time Controls */
         .time-controls {
@@ -669,6 +688,29 @@
             .team-control {
                 width: 100%;
             }
+
+            /* Compact score cards (S20): one row — team name left, − score + right.
+               Keeps both teams + keepers on one phone screen. */
+            .score-controls { margin: 16px 0; gap: 10px; }
+            .team-control {
+                display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                min-width: 0; padding: 10px 12px; text-align: left;
+            }
+            .team-control h3 {
+                margin: 0; flex: 1; min-width: 0; font-size: 15px; line-height: 1.2;
+                /* long names wrap to 2 lines instead of «CHAMP…» */
+                display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+                overflow: hidden; word-break: break-word;
+            }
+            .team-control .score-buttons { gap: 6px; flex-shrink: 0; }
+            .team-control .score-display { font-size: 30px; min-width: 40px; text-align: center; }
+            .team-control .score-buttons button,
+            .gk-collapsed .gk-buttons button { width: 42px; height: 42px; margin: 0; padding: 0; }
+            .gk-collapsed .gk-buttons { gap: 6px; }
+            .gk-collapsed .score-display { font-size: 30px; min-width: 40px; }
+            .gk-collapsed .gk-head { gap: 6px; padding: 8px; font-size: 14px; }
+            .gk-collapsed .gk-head-icon { display: none; }   /* room for the name on small phones */
+            .gk-section { padding: 10px 12px; margin-bottom: 16px; }
 
             .dashboard-header {
                 flex-direction: column;

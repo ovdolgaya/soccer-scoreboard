@@ -316,6 +316,8 @@ Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Sessio
 - [ ] Keepers: section between goals and «📍 Отметить момент»; lists only roster goalkeepers (absent excluded)
 - [ ] Keepers: one keeper → auto-selected; several → none selected until clicked; no keepers → «Нет вратарей в составе»
 - [ ] Keepers: before the match starts radio works, −/+ disabled
+- [ ] Keepers: collapsed row `#N Фамилия ▾ − N +` once selected; tap → list opens; pick → collapses; two keepers + none selected → list open
+- [ ] Mobile cockpit: both score cards + keepers fit on one screen; long team names wrap to 2 lines
 - [ ] Keepers: + during a half → `/saves` record with half + matchTime; count next to the name and in the middle updates
 - [ ] Keepers: switch keeper → middle count shows the new keeper's saves; − removes only his latest save; − disabled at 0
 - [ ] Keepers: selection survives cockpit reload and syncs to a second device
