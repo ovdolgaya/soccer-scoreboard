@@ -535,3 +535,41 @@ html, body {
     font-size: 42px; font-weight: 700; color: rgba(255,255,255,0.8);
     letter-spacing: 0.06em;
 }
+
+
+/* ══ Keeper saves footer — ended matches only (S20) ══ */
+.bw-stats-content.bw-has-keepers { padding-bottom: 12px; }
+.bw-no-goals {
+    text-align: center; padding: 60px 0;
+    font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.55);
+}
+.bw-keepers-footer {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 28px;
+    padding: 20px 56px 26px;
+    border-top: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.12);
+}
+.bw-keepers-title {
+    font-size: 24px; font-weight: 800; color: rgba(255,255,255,0.55);
+    text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap;
+}
+.bw-keepers-list { display: flex; gap: 20px; flex-wrap: nowrap; min-width: 0; }
+.bw-keeper-chip {
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(255,255,255,0.12); border-radius: 16px;
+    padding: 10px 22px 10px 12px; white-space: nowrap;
+    animation: bwRowIn 0.35s ease both;
+}
+.bw-keeper-name { font-size: 30px; font-weight: 700; color: #fff; }
+.bw-keeper-name .bw-first-name { font-size: 24px; font-weight: 400; opacity: 0.8; margin-right: 8px; }
+.bw-keeper-count { font-size: 44px; font-weight: 900; color: #FCDC00; line-height: 1; margin-left: 6px; }
+.bw-keeper-label { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; }
+.bw-keeper-pen { text-transform: none; font-weight: 400; opacity: 0.8; }
+/* No goals → keepers centred in the content area instead of the footer */
+.bw-keepers-footer.bw-keepers-inline {
+    flex-direction: column; gap: 24px; border-top: none; background: none; padding: 0;
+}
+.bw-keepers-inline .bw-keepers-list { flex-wrap: wrap; justify-content: center; }
+/* Emoji colour can't be set with `color` — turn the purple glove into a white silhouette */
+.bw-keepers-icon { display: inline-block; color: #fff; filter: grayscale(1) brightness(0) invert(1); }

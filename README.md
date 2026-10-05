@@ -133,7 +133,7 @@
 - Cockpit section «🧤 Вратари» between goals and «📍 Отметить момент» — default team only
 - Radio selects the keeper in goal (`matches/{id}/activeGoalkeeperId`); `+` saves to `/saves`, `−` removes that keeper's latest save
 - Visible in every status incl. penalty shootout (`isPenalty`), editable after the end (`retroactive`)
-- Not shown on widgets during the match; statistics display is the next phase
+- Not shown on widgets during the match; after the final whistle the broadcast stats screen shows a «🧤 Вратари» footer (saves per keeper, «пен. N» for shootout saves)
 
 ### Roster Analytics (Session 20)
 - Third tab «📊 Аналитика» on the roster page — team stats for a period (С / По, quick buttons Этот месяц · Прошлый месяц · Этот год; current month by default)
@@ -333,6 +333,10 @@ Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Sessio
 - [ ] Roster «Аналитика»: player with different numbers across matches → one row with the current number
 - [ ] Roster «Аналитика»: players without the stat greyed below; Сейвы tab lists only goalkeepers below; absent players listed; deleted players only with stats («удалён»)
 - [ ] Roster «Аналитика»: wins include shootout wins (same as championships)
+- [ ] broadcast: half-time stats have NO keeper footer; final stats show «🧤 Вратари» with correct counts and «сейв / сейва / сейвов»
+- [ ] broadcast: 6 goals over 2–3 halves + keepers → table, nothing clipped; 3 halves + «Пенальти» + keepers → cards (HD and `?res=2k`)
+- [ ] broadcast: 0 goals but saves → stats shown, keepers centred under «Голы не забиты»; no goals and no saves → straight to thumbnail as before
+- [ ] broadcast: match without saves → stats exactly as before (no footer, «Статистика голов»)
 - [ ] Firebase rules updated with `/saves` (TEST and PROD)
 - [ ] PWA cache cleared after deployment (`scoreboard-v11`)
 
@@ -342,7 +346,6 @@ Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Sessio
 
 1. `goals-widget.html` — «Пенальти» section + 7-goal table threshold (deferred; analytics-only widget)
 2. Dynamic stats-table row sizing for 3 halves + penalties (deferred until it's a real problem)
-3. Goalkeeper statistics in the broadcast end-of-match stats
 3. Assist tracking in retroactive goal modal
 3. Substitutions — player in/out with time
 4. Yellow/red cards

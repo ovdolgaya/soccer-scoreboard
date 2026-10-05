@@ -397,7 +397,7 @@ Full-screen automated director. Supports HD (1920×1080) and 2K (2560×1440) via
 - **Default team only** — no opponent keeper tracking, no keeper link on opponent goals.
 - **Shootout saves stay manual** (decided S20): −/+ during `penalties` writes `isPenalty: true`. Not derived from `/penaltyAttempts` — a miss isn't necessarily a save.
 - **Championships page (done S20):** saves in the match stats modal and a «🧤 Сейвы» tab in championship stats.
-- **Next:** keeper stats below goals in the broadcast end-of-match stats (`bwRenderStats` in `broadcast-widget-scoreboard.js`).
+- **Broadcast widget (done S20):** keeper footer «🧤 Вратари» under the end-of-match stats — only for status `'ended'` (never at half-time). Footer sits outside `.bw-stats-content` so it can't be clipped; with it, table vs cards uses a height budget (rows + 0.6 × section headers ≤ 7.8, measured in Chromium at HD and 2K). Without saves the old rule (≤ 7 goals → table) is unchanged. No goals but saves → stats still shown, keepers centred under «Голы не забиты».
 
 ---
 
@@ -416,6 +416,7 @@ Full-screen automated director. Supports HD (1920×1080) and 2K (2560×1440) via
 10. `team-stats.js` — **new** shared module; `championships.html` championship stats now render through it (old `_renderChampStats` / `_buildChampStatsHTML` / `_renderChampScorerTable` removed; `_fetchMatchGoals/Saves` are aliases). Our side is resolved by team id first, then name
 11. `roster.html` / `roster-analytics.js` / `roster-styles.css` — «📊 Аналитика» tab. Ended matches whose `matchDate` (else day of `scheduledTime`) is in the period; default = current month; swapped dates auto-fixed; selected ⚽/👟/🧤 tab kept on period change. Squad without the stat listed greyed below (saves: goalkeepers only); deleted players shown only with stats («удалён»). Squad records prefill the name cache (fresh after roster edits, no extra reads)
 12. `sw.js` — `team-stats.js`, `roster-analytics.js` added (still v11)
+13. `broadcast-widget-scoreboard.js` / `broadcast-widget.css` / `broadcast-widget-2k.css` — keeper saves footer in end-of-match stats (see Goalkeeper Saves)
 8. `penalty-shootout.js` — click-cycle replaced by a choice row (`penSelect` / `penChoose`): one write per attempt, no intermediate «miss»; changing a home scorer removes the old `/goals` record. `index.html` — `.pen-choice*` styles, selected-dot ring. Shootout keeper saves stay manual (−/+ with `isPenalty`)
 
 

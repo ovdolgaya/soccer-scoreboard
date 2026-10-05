@@ -87,10 +87,27 @@ function showOwnGoalCard() {
 //  STATS OVERLAY
 // ════════════════════════════════════════════════════════════════
 
+// Goalkeeper saves (S20) — only once the match is 'ended' (never shown during the
+// match, incl. half-time breaks). Optional: a failed read just means no keeper footer.
+function _bwFetchSaves(matchData) {
+    if (!matchData || matchData.status !== 'ended') return Promise.resolve([]);
+    return database.ref('saves').orderByChild('matchId').equalTo(BW_MATCH_ID).once('value')
+        .then(function(snap) {
+            const list = [];
+            snap.forEach(function(child) { list.push(child.val()); });
+            return list;
+        })
+        .catch(function(err) { console.warn('[broadcast-widget] saves load failed:', err); return []; });
+}
+
 function bwRenderStats(matchData) {
     return new Promise(function(resolve) {
-        database.ref('goals').orderByChild('matchId').equalTo(BW_MATCH_ID).once('value')
-        .then(function(snap) {
+        Promise.all([
+            database.ref('goals').orderByChild('matchId').equalTo(BW_MATCH_ID).once('value'),
+            _bwFetchSaves(matchData)
+        ]).then(function(res) {
+            const snap  = res[0];
+            const saves = res[1];
             const goalsData = {};
             snap.forEach(function(child) { goalsData[child.key] = child.val(); });
 
@@ -98,7 +115,8 @@ function bwRenderStats(matchData) {
                 return g.playerId || g.isOwnGoal;
             });
 
-            if (homeGoals.length === 0) { resolve(false); return; }
+            // Nothing to show → caller goes straight to the match thumbnail
+            if (homeGoals.length === 0 && saves.length === 0) { resolve(false); return; }
 
             const needed = [];
             homeGoals.forEach(function(g) {
@@ -106,6 +124,9 @@ function bwRenderStats(matchData) {
                 if (g.assists) g.assists.forEach(function(a) {
                     if (a.playerId && !bwPlayersCache[a.playerId]) needed.push(a.playerId);
                 });
+            });
+            saves.forEach(function(sv) {
+                if (sv.playerId && !bwPlayersCache[sv.playerId]) needed.push(sv.playerId);
             });
             const unique = [...new Set(needed)];
             Promise.all(unique.map(function(pid) {
@@ -118,7 +139,7 @@ function bwRenderStats(matchData) {
                     const color = (t1 && t1.color) || '#08399A';
                     const logo  = (t1 && t1.logo)  || '';
                     bwSetCssColor(color);
-                    bwStatsBox.innerHTML = bwBuildStatsHtml(matchData, homeGoals, logo, color);
+                    bwStatsBox.innerHTML = bwBuildStatsHtml(matchData, homeGoals, logo, color, saves);
                     resolve(true);
                 });
             });
@@ -126,11 +147,56 @@ function bwRenderStats(matchData) {
     });
 }
 
+// Keeper footer — one chip per keeper: #number · first LAST · count «сейвов»
+function _bwSaveLabel(n) {
+    const m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return 'сейв';
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'сейва';
+    return 'сейвов';
+}
+
+function _bwKeepersFooterHtml(saves, inline) {
+    const map = {};
+    saves.forEach(function(sv) {
+        if (!sv.playerId) return;
+        if (!map[sv.playerId]) map[sv.playerId] = { pid: sv.playerId, num: sv.playerNumber, n: 0, pen: 0 };
+        map[sv.playerId].n++;
+        if (sv.isPenalty) map[sv.playerId].pen++;
+    });
+    const keepers = Object.values(map).sort(function(a, b) { return b.n - a.n; });
+    if (!keepers.length) return '';
+
+    const chips = keepers.map(function(k) {
+        const p   = bwPlayersCache[k.pid] || null;
+        const num = p ? p.number : (k.num != null ? k.num : '?');
+        const fn  = p ? (p.firstName || '') : '';
+        const ln  = p ? (p.lastName || '').toUpperCase() : 'НЕИЗВЕСТНЫЙ';
+        return `<div class="bw-keeper-chip">
+            <span class="bw-number-badge">#${num}</span>
+            <span class="bw-keeper-name">${fn ? `<span class="bw-first-name">${fn}</span>` : ''}${ln}</span>
+            <span class="bw-keeper-count">${k.n}</span>
+            <span class="bw-keeper-label">${_bwSaveLabel(k.n)}${k.pen ? ` <span class="bw-keeper-pen">(пен. ${k.pen})</span>` : ''}</span>
+        </div>`;
+    }).join('');
+
+    return `<div class="bw-keepers-footer${inline ? ' bw-keepers-inline' : ''}">
+        <div class="bw-keepers-title"><span class="bw-keepers-icon">🧤</span> Вратари</div>
+        <div class="bw-keepers-list">${chips}</div>
+    </div>`;
+}
+
 // Table vs cards: penalty goals count toward the total (they're folded into each
 // player's goal count). 7 or fewer → table, 8 or more → cards.
+// With the keeper footer (ended match with saves, ~113px of the fixed height) the
+// table uses a height budget instead: rows + 0.6 × section headers ≤ 7.8
+// (measured in Chromium: row 86.5px, header 53px — same ratio at 2K).
+// E.g. 6 goals in 3 halves fit; 6 goals in 3 halves + «Пенальти» → cards.
 const BW_TABLE_MAX_GOALS = 7;
+const BW_TABLE_BUDGET_WITH_KEEPERS = 7.8;
+const BW_HEADER_ROW_RATIO = 0.6;
 
-function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
+function bwBuildStatsHtml(matchData, goals, logoUrl, color, saves) {
+    const keepersHtml = _bwKeepersFooterHtml(saves || []);
     // Regular goals grouped by half; shootout goals get their own «Пенальти» section
     const penGoals = goals.filter(function(g) { return g.isPenalty; })
         .sort(function(a,b) { return (a.timestamp||0) - (b.timestamp||0); });
@@ -153,7 +219,7 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
         ${logoHtml}
         <div class="bw-stats-title-wrap">
             <div class="bw-stats-team-name">${matchData.team1Name || ''}</div>
-            <div class="bw-stats-sub">Статистика голов${halfLabel ? ' · ' + halfLabel : ''}</div>
+            <div class="bw-stats-sub">${keepersHtml ? 'Статистика матча' : 'Статистика голов'}${halfLabel ? ' · ' + halfLabel : ''}</div>
         </div>
         <div class="bw-stats-score-wrap">
             <div class="bw-stats-score-badge">
@@ -164,10 +230,21 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
             ${matchData.penaltyFormat ? `<div class="bw-stats-pen-line">Пенальти ${matchData.penaltyScore1||0} : ${matchData.penaltyScore2||0}</div>` : ''}
         </div>
     </div>
-    <div class="bw-stats-content">`;
+    <div class="bw-stats-content${keepersHtml ? ' bw-has-keepers' : ''}">`;
 
-    const useTable = goals.length <= BW_TABLE_MAX_GOALS;
-    if (useTable) {
+    let useTable;
+    if (keepersHtml) {
+        const halves  = {};
+        sorted.forEach(function(g) { halves[g.half || 0] = true; });
+        const headers = Object.keys(halves).length + (penGoals.length ? 1 : 0);
+        useTable = goals.length + BW_HEADER_ROW_RATIO * headers <= BW_TABLE_BUDGET_WITH_KEEPERS;
+    } else {
+        useTable = goals.length <= BW_TABLE_MAX_GOALS;   // unchanged behaviour
+    }
+    if (goals.length === 0) {
+        // Saves but no goals (0 : X) — keepers move up into the centre instead of the footer
+        html += '<div class="bw-no-goals">Голы не забиты</div>' + _bwKeepersFooterHtml(saves || [], true);
+    } else if (useTable) {
         html += '<table class="bw-goals-table">';
         let lastHalf = null;
         sorted.forEach(function(g, idx) {
@@ -321,6 +398,8 @@ function bwBuildStatsHtml(matchData, goals, logoUrl, color) {
     }
 
     html += '</div>';
+    // Keeper footer — outside .bw-stats-content (which clips), so it's never cut off
+    if (goals.length > 0) html += keepersHtml;
     return html;
 }
 

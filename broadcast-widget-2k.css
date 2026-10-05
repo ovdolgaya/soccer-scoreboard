@@ -244,3 +244,18 @@ html, body {
     70%  { opacity: 0.7; }
     100% { opacity: 0; transform: translateY(-107px) scale(0.6); }
 }
+
+
+/* ── Keeper saves footer ×1.333 (S20) ── */
+.bw-stats-content.bw-has-keepers { padding-bottom: 16px; }
+.bw-no-goals          { padding: 80px 0; font-size: 45px; }
+.bw-keepers-footer    { gap: 37px; padding: 27px 75px 35px; }
+.bw-keepers-title     { font-size: 32px; }
+.bw-keepers-list      { gap: 27px; }
+.bw-keeper-chip       { gap: 19px; border-radius: 21px; padding: 13px 29px 13px 16px; }
+.bw-keeper-name       { font-size: 40px; }
+.bw-keeper-name .bw-first-name { font-size: 32px; margin-right: 11px; }
+.bw-keeper-count      { font-size: 59px; margin-left: 8px; }
+.bw-keeper-label      { font-size: 27px; }
+.bw-keepers-footer .bw-number-badge { border-radius: 19px; padding: 9px 24px; font-size: 35px; min-width: 107px; }
+.bw-keepers-footer.bw-keepers-inline { gap: 32px; padding: 0; }
