@@ -525,7 +525,8 @@
  
       <!-- Player grid -->
       <div id="retroPlayerGrid"
-           style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:16px 20px;">
+           style="display:grid; grid-template-columns:repeat(auto-fill, minmax(66px, 1fr)); gap:10px; padding:16px 20px;">
+           <!-- auto-fill like the goal scorer grid: fixed 5 columns overflowed on small phones -->
       </div>
  
       <!-- Own goal button -->
