@@ -36,6 +36,7 @@
     <script src="match-edit-modal.js"></script>
     <script src="penalty-helpers.js"></script>
     <script src="penalty-shootout.js"></script>
+    <script src="goalkeeper-saves.js"></script>
     
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -77,12 +78,21 @@
         #penaltySection .pen-dot:active { transform:scale(.92); }
         #penaltySection .pen-dot.goal { background:#22a04b; border-color:#22a04b; color:#fff; }
         #penaltySection .pen-dot.miss { background:#ef4444; border-color:#ef4444; color:#fff; font-size:16px; }
+        #penaltySection .pen-dot.selected { box-shadow:0 0 0 3px #3b82f6; }
+        /* Choice row under the team's dots — one write with the final result */
+        .pen-choice { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:4px;
+                      padding:8px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; }
+        .pen-choice-label { font-size:12px; font-weight:700; color:#1e40af; margin-right:2px; }
+        #penaltySection .pen-choice-btn { margin:0; min-width:0; padding:8px 12px; border:none; border-radius:8px;
+                      font-size:13px; font-weight:700; cursor:pointer; color:#fff; }
+        #penaltySection .pen-choice-btn.goal  { background:#22a04b; }
+        #penaltySection .pen-choice-btn.miss  { background:#ef4444; }
+        #penaltySection .pen-choice-btn.clear { background:#e2e8f0; color:#475569; }
+        #penaltySection .pen-choice-btn.close { background:transparent; color:#64748b; margin-left:auto; font-size:18px; padding:4px 8px; }
         .pen-status { margin-top:12px; font-size:13px; color:#64748b; text-align:center; }
         .pen-status.done { color:#15803d; font-weight:700; }
         .pen-format-change { margin-top:8px; font-size:12px; color:#94a3b8; text-align:center; }
         .pen-format-change a { color:#1e5fd4; }
-        /* Player picker buttons must not be widened by global button styles */
-        #retroPlayerGrid > button { min-width:0; margin:0; }
     </style>
 </head>
 <body>
@@ -301,6 +311,13 @@
                 <div id="penaltyBody"></div>
             </div>
 
+            <!-- Goalkeeper saves — default team only; not shown on widgets during the match.
+                 Visible in every status (incl. penalties). See goalkeeper-saves.js -->
+            <div id="gkSection" class="gk-section" style="display:none;">
+                <h3>🧤 Вратари</h3>
+                <div id="gkBody"></div>
+            </div>
+
              <!-- Clip marker — only shown when a half is playing -->
                 <div id="clipMarkerSection" style="display:none; margin-top:14px; text-align:center;">
                     <button class="button" id="clipMarkerBtn" onclick="saveClipMarker()"
@@ -507,9 +524,8 @@
       </div>
  
       <!-- Player grid -->
-      <!-- Adaptive columns (same as goalPlayerGrid) — fixed repeat(5,1fr) overflowed on phones -->
       <div id="retroPlayerGrid"
-           style="display:grid; grid-template-columns:repeat(auto-fill, minmax(66px, 1fr)); gap:8px; padding:16px 20px;">
+           style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:16px 20px;">
       </div>
  
       <!-- Own goal button -->

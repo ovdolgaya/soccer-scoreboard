@@ -47,6 +47,12 @@
                            background:transparent; color:rgba(255,255,255,0.85); box-shadow:none;">
                 <i class="fas fa-shield-alt"></i> Команды
             </button>
+            <button id="tabBtnAnalytics" onclick="switchRosterTab('analytics')"
+                    style="flex:1; padding:10px; border:none; border-radius:9px; font-size:14px;
+                           font-weight:600; cursor:pointer; transition:all .2s;
+                           background:transparent; color:rgba(255,255,255,0.85); box-shadow:none;">
+                <i class="fas fa-chart-bar"></i> Аналитика
+            </button>
         </div>
 
         <!-- ══ TAB: СОСТАВ ══ -->
@@ -344,6 +350,23 @@
         </div>
         </div><!-- /#tabRoster -->
 
+        <!-- ══ TAB: АНАЛИТИКА ══ — see roster-analytics.js + team-stats.js -->
+        <div id="tabAnalytics" style="display:none;">
+            <div class="ra-card">
+                <div class="ra-period">
+                    <label>С <input type="date" id="raFrom" onchange="raDatesChanged()"></label>
+                    <label>По <input type="date" id="raTo" onchange="raDatesChanged()"></label>
+                </div>
+                <div class="ra-presets">
+                    <button class="ra-preset" id="raPreset_month"     onclick="raPreset('month')">Этот месяц</button>
+                    <button class="ra-preset" id="raPreset_prevMonth" onclick="raPreset('prevMonth')">Прошлый месяц</button>
+                    <button class="ra-preset" id="raPreset_year"      onclick="raPreset('year')">Этот год</button>
+                </div>
+                <div id="raSubtitle" class="ra-subtitle"></div>
+                <div id="raStatsBody"></div>
+            </div>
+        </div>
+
         <!-- ══ TAB: КОМАНДЫ ══ -->
         <div id="tabTeams" style="display:none;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -528,19 +551,25 @@
 
     <!-- Roster Management Script -->
     <script src="roster.js"></script>
+    <script src="penalty-helpers.js"></script>
+    <script src="team-stats.js"></script>
+    <script src="roster-analytics.js"></script>
 
     <!-- Shared Navigation (must come after Firebase + config) -->
     <script src="nav.js"></script>
     <script>
     // ── Tab switching ──────────────────────────────────────────
     function switchRosterTab(tab) {
-        document.getElementById('tabRoster').style.display = tab === 'roster' ? '' : 'none';
-        document.getElementById('tabTeams').style.display  = tab === 'teams'  ? '' : 'none';
+        document.getElementById('tabRoster').style.display    = tab === 'roster'    ? '' : 'none';
+        document.getElementById('tabTeams').style.display     = tab === 'teams'     ? '' : 'none';
+        document.getElementById('tabAnalytics').style.display = tab === 'analytics' ? '' : 'none';
         const activeStyle   = 'background:white; color:#08399A; box-shadow:0 2px 8px rgba(0,0,0,0.12);';
         const inactiveStyle = 'background:transparent; color:rgba(255,255,255,0.85); box-shadow:none;';
-        document.getElementById('tabBtnRoster').style.cssText += tab === 'roster' ? activeStyle : inactiveStyle;
-        document.getElementById('tabBtnTeams').style.cssText  += tab === 'teams'  ? activeStyle : inactiveStyle;
+        document.getElementById('tabBtnRoster').style.cssText    += tab === 'roster'    ? activeStyle : inactiveStyle;
+        document.getElementById('tabBtnTeams').style.cssText     += tab === 'teams'     ? activeStyle : inactiveStyle;
+        document.getElementById('tabBtnAnalytics').style.cssText += tab === 'analytics' ? activeStyle : inactiveStyle;
         if (tab === 'teams') loadTeamsList();
+        if (tab === 'analytics') raOpen();
     }
 
     // ── Teams list ─────────────────────────────────────────────

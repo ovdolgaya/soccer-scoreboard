@@ -71,6 +71,7 @@ function loadGoalTrackingPlayers() {
             });
             players.sort(function(a, b) { return a.number - b.number; });
             goalTracking.playersCache = players;
+            if (typeof gkRender === 'function') gkRender(); // keeper list depends on players
         });
 }
 
@@ -582,7 +583,7 @@ function closeRetroGoalModal() {
     const wasOpen = modal && modal.style.display !== 'none';
     if (modal) modal.style.display = 'none';
     document.body.style.overflow = '';
-    // Penalty picker dismissed without a choice → the dot stays empty
+    // Penalty picker dismissed without a choice → the dot stays as it was (nothing written)
     if (wasOpen && _retroModalMode === 'penalty' && typeof penCancelPick === 'function') penCancelPick();
     _retroModalMode = 'retro';
 }

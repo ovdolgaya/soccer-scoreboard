@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: September 28, 2026 (Session 19)
+## Last Updated: October 5, 2026 (Session 20)
 
 ---
 
@@ -129,6 +129,18 @@
 - Goals displayed in chronological stats table with team-color badge + team name (no assists)
 - Same table shown in championships match stats modal
 
+### Goalkeeper Saves (Session 20)
+- Cockpit section «🧤 Вратари» between goals and «📍 Отметить момент» — default team only
+- Radio selects the keeper in goal (`matches/{id}/activeGoalkeeperId`); `+` saves to `/saves`, `−` removes that keeper's latest save
+- Visible in every status incl. penalty shootout (`isPenalty`), editable after the end (`retroactive`)
+- Not shown on widgets during the match; statistics display is the next phase
+
+### Roster Analytics (Session 20)
+- Third tab «📊 Аналитика» on the roster page — team stats for a period (С / По, quick buttons Этот месяц · Прошлый месяц · Этот год; current month by default)
+- Same blocks as championship stats (shared `team-stats.js`): W/D/L, goals for/against, ⚽ Голы · 👟 Пасы · 🧤 Сейвы
+- Whole squad listed: players without the stat greyed below (saves tab: goalkeepers only)
+- Stats grouped by player ID — number changes between matches don't split a player
+
 ### Environment Switcher (PROD / TEST)
 - Toggle in nav dropdown (profile button) — visible only when logged in
 - Switches between PROD and TEST Firebase databases without code changes
@@ -154,7 +166,9 @@
 - `assists: [{playerId, playerNumber}]` array on goal records
 
 ### Championships
-- Championship Stats Modal: W/D/L, goals for/against, ⚽/👟 toggle, medals (dense rank — tied players share rank and medal)
+- Championship Stats Modal: W/D/L, goals for/against, ⚽ Голы · 👟 Пасы · 🧤 Сейвы toggle, medals (dense rank — tied players share rank and medal)
+- Match stats modal: goals table, then «👟 Пасы» and «🧤 Сейвы» sections
+- Matches without a championship → «Товарищеские матчи» group (first card), with stats and thumbnail
 - Championship thumbnail (2560×1440)
 - `isPassed` toggle hides from match form
 - Both tabs (Чемпионаты / Управление): active championships first (by name), then a «Прошедшие чемпионаты · N» header with passed ones (by name). Championships that exist only as a match title (no `/championships` record) count as active
@@ -219,7 +233,7 @@ Also supports a **landscape mode** for embedding into a 16:9 broadcast as a corn
 
 ## 🔐 FIREBASE RULES
 
-Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Session 19 added `/penaltyAttempts` (write: auth; read: public per match, like `/matches/$matchId`, so widgets can draw the dots).
+Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Session 19 added `/penaltyAttempts` (write: auth; read: public per match, like `/matches/$matchId`, so widgets can draw the dots). Session 20 added `/saves` (write: auth; read: public like `/goals`; `.indexOn: [matchId, playerId]`).
 
 ---
 
@@ -278,8 +292,11 @@ Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Sessio
 - [ ] Penalties: halftime-popup «Закончить матч» on a draw also shows the popup
 - [ ] Penalties: **Да** → status «Серия пенальти» (cockpit header, list card, calendar chip green); +/− replaced by the penalty section; «Закончить матч» still in time controls
 - [ ] Format 3 / 5 → correct number of dots; «изменить» only while nothing recorded
-- [ ] Home dot: 1st click → red (miss), no picker; 2nd click → player picker (no own-goal button); pick → green dot with #number; close picker → stays red
-- [ ] Opponent dot: miss → goal without picker; 3rd click → empty for both teams; `/goals` record removed on goal → empty
+- [ ] Tap a dot → blue ring + choice row «⚽ Гол · ✕ Промах» under that team; tap again / × closes it; «🗑 Очистить» only on filled dots
+- [ ] Home «Гол» → player picker (no own-goal button); pick → green dot with #number in ONE step — broadcast/vertical never flash a red dot first
+- [ ] Home «Гол» picker closed without a choice → dot unchanged (empty stays empty, miss stays miss)
+- [ ] Home goal → «Сменить игрока» → new number; only one `/goals` record for that attempt
+- [ ] Opponent «Гол» → green immediately, no picker; goal → «Промах» / «Очистить» removes the linked `/goals` record and updates the penalty score
 - [ ] Penalty section uses the light cockpit card style (same as «Управление временем»)
 - [ ] Tied finished set → «Доп. серия 1» appended; winning sudden-death set → «✅ Победа…»
 - [ ] «Закончить матч» with 0 attempts → confirm → ended as draw, no «Пенальти» anywhere
@@ -296,7 +313,28 @@ Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Sessio
 - [ ] Championships: active championships at the top (А→Я), «Прошедшие чемпионаты» section below (А→Я), in both tabs; toggling «завершён» moves the championship after saving
 - [ ] broadcast stats cards: assist-only players appear after scorers with a grey assist count; 13–16 cards → 4 columns, nothing clipped (HD and 2K)
 - [ ] Firebase rules updated with `/penaltyAttempts` (TEST and PROD)
-- [ ] PWA cache cleared after deployment (`scoreboard-v10`)
+- [ ] Keepers: section between goals and «📍 Отметить момент»; lists only roster goalkeepers (absent excluded)
+- [ ] Keepers: one keeper → auto-selected; several → none selected until clicked; no keepers → «Нет вратарей в составе»
+- [ ] Keepers: before the match starts radio works, −/+ disabled
+- [ ] Keepers: + during a half → `/saves` record with half + matchTime; count next to the name and in the middle updates
+- [ ] Keepers: switch keeper → middle count shows the new keeper's saves; − removes only his latest save; − disabled at 0
+- [ ] Keepers: selection survives cockpit reload and syncs to a second device
+- [ ] Keepers: + during a break → saved with the finished half
+- [ ] Keepers: section stays visible in penalty shootout; saves get `isPenalty: true`
+- [ ] Keepers: after «Закончить матч» −/+ still work; saves get `retroactive: true`
+- [ ] Keepers: field player marked goalkeeper in roster → appears after cockpit reload
+- [ ] Keepers: nothing appears on widget / broadcast / vertical / goals widgets
+- [ ] Championships: «Товарищеские матчи» card first (🤝), contains all matches without a championship; stats + thumbnail work; icon doesn't open logo upload
+- [ ] Match stats: «👟 Пасы» and «🧤 Сейвы» below the goals table; shootout saves show «(пен. N)»; 0:0 match with saves shows «Голов не зафиксировано» + saves
+- [ ] Championship stats: no «Бомбардиры» title; three equal buttons fit on mobile; «🧤 Сейвы» ranks keepers with medals; ⚠️ «не привязан» warning only on Голы
+- [ ] Championship stats unchanged after the move to `team-stats.js` (W/D/L, goals, medals, own goals row, ⚠️ warning)
+- [ ] Roster «Аналитика»: opens on the current month, «Этот месяц» highlighted, «Сыграно матчей: N» correct (only ended matches)
+- [ ] Roster «Аналитика»: quick buttons and date inputs update stats; swapped dates are fixed; selected ⚽/👟/🧤 tab stays
+- [ ] Roster «Аналитика»: player with different numbers across matches → one row with the current number
+- [ ] Roster «Аналитика»: players without the stat greyed below; Сейвы tab lists only goalkeepers below; absent players listed; deleted players only with stats («удалён»)
+- [ ] Roster «Аналитика»: wins include shootout wins (same as championships)
+- [ ] Firebase rules updated with `/saves` (TEST and PROD)
+- [ ] PWA cache cleared after deployment (`scoreboard-v11`)
 
 ---
 
@@ -304,6 +342,7 @@ Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Sessio
 
 1. `goals-widget.html` — «Пенальти» section + 7-goal table threshold (deferred; analytics-only widget)
 2. Dynamic stats-table row sizing for 3 halves + penalties (deferred until it's a real problem)
+3. Goalkeeper statistics in the broadcast end-of-match stats
 3. Assist tracking in retroactive goal modal
 3. Substitutions — player in/out with time
 4. Yellow/red cards

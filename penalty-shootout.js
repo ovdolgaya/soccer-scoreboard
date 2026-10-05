@@ -8,12 +8,15 @@
 //   «⏹ Закончить матч» stays in the time-controls section (not here) —
 //   second endMatch() call → penRequestEnd() → confirm if undecided → 'ended'
 //
-// Dots: single click cycles empty → miss → goal → empty. No turn order.
-// Miss comes first so a missed penalty is one click; a goal is the second
-// click, which (home team) opens the player picker (retroGoalModal in
-// 'penalty' mode). Closing the picker without a choice leaves the dot as miss.
+// Dots: tap a dot → a choice row opens under that team's dots:
+//   ⚽ Гол · ✕ Промах (+ 🗑 Очистить when the dot is filled). No turn order.
+// Only the FINAL result is written — one write per attempt, no intermediate
+// state, so widgets never flash a wrong dot (the old click-cycle wrote «miss»
+// on the way to «goal»). Home «Гол» opens the player picker (retroGoalModal in
+// 'penalty' mode) and nothing is written until a player is picked; closing the
+// picker leaves the dot exactly as it was. Home goal → «Гол» again = change scorer.
 //
-// Writes (one atomic multi-path update per click):
+// Writes (one atomic multi-path update per choice):
 //   /penaltyAttempts/{matchId}/{s#_t#_a#}
 //   /goals/{key}     — isPenalty: true (home: playerId; opponent: isOpponent)
 //   /matches/{id}/penaltyScore1|2
@@ -27,7 +30,8 @@ const _pen = {
     ref:      null,   // /penaltyAttempts/{matchId} listener ref
     attempts: {},     // live copy of /penaltyAttempts/{matchId}
     homeSide: 1,      // side of the default team (player picker side)
-    pending:  null    // {s, t, i} while the player picker is open
+    pending:  null,   // {s, t, i} while the player picker is open
+    selected: null    // {s, t, i} — dot whose choice row is open (local UI only)
 };
 
 function _penMatch() {
@@ -79,6 +83,7 @@ function penDetach() {
     _pen.matchId  = null;
     _pen.attempts = {};
     _pen.pending  = null;
+    _pen.selected = null;
 }
 
 // ----------------------------------------
@@ -121,14 +126,18 @@ function penRender() {
                 '<div class="pen-set-title">' + (s === 0 ? 'Основная серия' : 'Доп. серия ' + s) + '</div>';
         [1, 2].forEach(function(t) {
             html += '<div class="pen-row"><div class="pen-row-team">' + (t === 1 ? t1 : t2) + '</div><div class="pen-dots">';
+            const sel = _pen.selected;
             set[t].forEach(function(v, i) {
                 const a   = _pen.attempts[penAttemptId(s, t, i)];
-                const cls = v === 'goal' ? ' goal' : v === 'miss' ? ' miss' : '';
+                let cls = v === 'goal' ? ' goal' : v === 'miss' ? ' miss' : '';
+                if (sel && sel.s === s && sel.t === t && sel.i === i) cls += ' selected';
                 let label = v === 'goal' ? '✓' : v === 'miss' ? '✕' : (i + 1);
                 if (v === 'goal' && a && a.playerNumber != null) label = '#' + a.playerNumber;
-                html += '<button class="pen-dot' + cls + '" onclick="penCycle(' + s + ',' + t + ',' + i + ')">' + label + '</button>';
+                html += '<button class="pen-dot' + cls + '" onclick="penSelect(' + s + ',' + t + ',' + i + ')">' + label + '</button>';
             });
-            html += '</div></div>';
+            html += '</div>';
+            if (sel && sel.s === s && sel.t === t) html += _penChoiceRow(s, t, sel.i);
+            html += '</div>';
         });
         html += '</div>';
     });
@@ -143,7 +152,7 @@ function penRender() {
         status = '<div class="pen-status">Ничья в основной серии — идёт доп. серия. ' +
                  'Матч можно закончить в любой момент.</div>';
     } else {
-        status = '<div class="pen-status">Нажмите на кружок: промах → гол → пусто</div>';
+        status = '<div class="pen-status">Нажмите на кружок и выберите результат</div>';
     }
     html += status;
 
@@ -170,33 +179,57 @@ function penChooseFormat(f) {
 }
 
 // ----------------------------------------
-// DOT CYCLING
+// DOT CHOICE — tap a dot → choice row → one write with the final result
 // ----------------------------------------
-function penCycle(s, t, i) {
+function _penChoiceRow(s, t, i) {
+    const cur  = _pen.attempts[penAttemptId(s, t, i)] || null;
+    const args = s + ',' + t + ',' + i;
+    const isHome = (t === _pen.homeSide);
+    const goalLabel = (cur && cur.result === 'goal' && isHome) ? '⚽ Сменить игрока' : '⚽ Гол';
+    let html = '<div class="pen-choice">' +
+        '<span class="pen-choice-label">Попытка ' + (i + 1) + ':</span>' +
+        '<button class="pen-choice-btn goal" onclick="penChoose(' + args + ',\'goal\')">' + goalLabel + '</button>' +
+        '<button class="pen-choice-btn miss" onclick="penChoose(' + args + ',\'miss\')">✕ Промах</button>';
+    if (cur) html += '<button class="pen-choice-btn clear" onclick="penChoose(' + args + ',\'clear\')">🗑 Очистить</button>';
+    html += '<button class="pen-choice-btn close" onclick="penSelect(' + args + ')" title="Закрыть">×</button>';
+    return html + '</div>';
+}
+
+// Tap a dot → open its choice row; tap the same dot (or ×) → close
+function penSelect(s, t, i) {
+    const sel = _pen.selected;
+    _pen.selected = (sel && sel.s === s && sel.t === t && sel.i === i) ? null : { s: s, t: t, i: i };
+    penRender();
+}
+
+function penChoose(s, t, i, choice) {
     const match = _penMatch();
     if (!match || match.status !== 'penalties') return;
     const id  = penAttemptId(s, t, i);
     const cur = _pen.attempts[id] || null;
+    _pen.selected = null;
 
-    const updates = {};
-    const next = Object.assign({}, _pen.attempts);
-
-    if (!cur) {
-        // empty → miss (single click)
-        next[id] = { team: t, setIndex: s, attemptIndex: i, result: 'miss', timestamp: Date.now() };
-    } else if (cur.result === 'miss') {
-        // miss → goal
+    if (choice === 'goal') {
         if (t === _pen.homeSide) {
-            // Home team → pick the scorer first; cancelling keeps the miss
+            // Home → pick the scorer first; nothing is written until a player is chosen
             _pen.pending = { s: s, t: t, i: i };
+            penRender();
             openRetroGoalModal('penalty');
             return;
         }
+        if (cur && cur.result === 'goal') { penRender(); return; } // opponent goal already there
         _penSetGoal(s, t, i, null);
         return;
-    } else {
-        // goal → empty: drop the attempt and its linked /goals record
-        if (cur.goalKey) updates['goals/' + cur.goalKey] = null;
+    }
+
+    if (choice === 'miss' && cur && cur.result === 'miss') { penRender(); return; } // nothing changes
+
+    const updates = {};
+    const next = Object.assign({}, _pen.attempts);
+    if (cur && cur.goalKey) updates['goals/' + cur.goalKey] = null; // drop the linked goal record
+    if (choice === 'miss') {
+        next[id] = { team: t, setIndex: s, attemptIndex: i, result: 'miss', timestamp: Date.now() };
+    } else { // 'clear'
         delete next[id];
     }
     updates['penaltyAttempts/' + matchId + '/' + id] = next[id] || null;
@@ -212,7 +245,7 @@ function penPickScorer(playerId) {
     _penSetGoal(p.s, p.t, p.i, playerId);
 }
 
-// Called from closeRetroGoalModal — picker dismissed without a choice → dot stays «miss»
+// Called from closeRetroGoalModal — picker dismissed without a choice → dot unchanged
 function penCancelPick() {
     _pen.pending = null;
 }
@@ -252,9 +285,11 @@ function _penSetGoal(s, t, i, playerId) {
     }
 
     const next = Object.assign({}, _pen.attempts);
+    const prev = next[id];
     next[id] = attempt;
 
     const updates = {};
+    if (prev && prev.goalKey) updates['goals/' + prev.goalKey] = null; // scorer changed — old goal goes
     updates['penaltyAttempts/' + matchId + '/' + id] = attempt;
     updates['goals/' + goalKey] = goal;
     _penCommit(next, updates);

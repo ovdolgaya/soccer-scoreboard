@@ -2,7 +2,7 @@
 // Strategy: Network-first for everything (app requires live Firebase data)
 // Only caches static shell files so the app loads offline gracefully
 
-const CACHE_NAME = 'scoreboard-v10';
+const CACHE_NAME = 'scoreboard-v11';
 
 const STATIC_SHELL = [
   './',
@@ -17,8 +17,11 @@ const STATIC_SHELL = [
   './goal-tracking.js',
   './penalty-helpers.js',
   './penalty-shootout.js',
+  './goalkeeper-saves.js',
   './roster-thumbnail-helper.js',
   './roster.js',
+  './roster-analytics.js',
+  './team-stats.js',
   './roster-styles.css',
   './auth.js',
   './nav.js',

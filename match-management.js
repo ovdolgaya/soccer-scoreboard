@@ -449,6 +449,7 @@ function _applyStatusSections(match) {
     if (cockpitSt) cockpitSt.textContent = getStatusText(st || 'waiting');
 
     if (typeof penApplyStatus === 'function') penApplyStatus(match);
+    if (typeof gkApplyStatus === 'function') gkApplyStatus(match);
 }
 
 // ========================================
@@ -697,7 +698,7 @@ function deleteMatch(matchIdToDelete) {
 
 // Fields the cockpit listens to live (primitives only — no logos re-downloaded)
 const _COCKPIT_FIELDS = ['score1', 'score2', 'status', 'currentHalf', 'startTime',
-                         'penaltyFormat', 'penaltyScore1', 'penaltyScore2'];
+                         'penaltyFormat', 'penaltyScore1', 'penaltyScore2', 'activeGoalkeeperId'];
 
 // Cockpit match listener reference — for cleanup on navigate away
 let _cockpitMatchListener = null;
@@ -726,6 +727,8 @@ function listenToMatchChanges() {
             }
             // Penalty format picked / scores written — refresh the penalty section
             if (field.indexOf('penalty') === 0 && typeof penRender === 'function') penRender();
+            // Keeper switched (this or another device) — refresh the keeper section
+            if (field === 'activeGoalkeeperId' && typeof gkRender === 'function') gkRender();
         });
     });
 
@@ -737,6 +740,7 @@ function listenToMatchChanges() {
 function _detachCockpitListeners() {
     if (!matchId) return;
     if (typeof penDetach === 'function') penDetach();
+    if (typeof gkDetach === 'function') gkDetach();
     const fields = _COCKPIT_FIELDS;
     fields.forEach(function(field) {
         database.ref('matches/' + matchId + '/' + field).off();
