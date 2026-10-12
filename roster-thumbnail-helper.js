@@ -448,20 +448,18 @@ function drawCoachCard(ctx, cardX, cardY, cardW, cardH, cardR,
     // ── Gradient footer overlay — fades smoothly into #0033A0 blue ──
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY + photoH - Math.round(cardH * 0.18), cardW,
-                  FOOTER_H + Math.round(cardH * 0.18), [0, 0, cardR, cardR]);
+    // Overlay covers the bottom 30% of the card (was ~40–44%)
+    const GRAD_H   = Math.round(cardH * 0.30);
+    const gradTopY = cardY + cardH - GRAD_H;
+    ctx.roundRect(cardX, gradTopY, cardW, GRAD_H, [0, 0, cardR, cardR]);
     ctx.clip();
-    const footGrad = ctx.createLinearGradient(
-        0, cardY + photoH - Math.round(cardH * 0.20),
-        0, cardY + cardH
-    );
+    const footGrad = ctx.createLinearGradient(0, gradTopY, 0, cardY + cardH);
     footGrad.addColorStop(0,    'rgba(0, 51, 160, 0)');
-    footGrad.addColorStop(0.35, 'rgba(0, 51, 160, 0.75)');
-    footGrad.addColorStop(0.65, 'rgba(0, 51, 160, 0.95)');
+    footGrad.addColorStop(0.25, 'rgba(0, 51, 160, 0.75)');
+    footGrad.addColorStop(0.55, 'rgba(0, 51, 160, 0.95)');
     footGrad.addColorStop(1,    'rgba(0, 51, 160, 1.0)');
     ctx.fillStyle = footGrad;
-    ctx.fillRect(cardX, cardY + photoH - Math.round(cardH * 0.20),
-                 cardW, FOOTER_H + Math.round(cardH * 0.20));
+    ctx.fillRect(cardX, gradTopY, cardW, GRAD_H);
     ctx.restore();
 
     // ── "ТРЕНЕР" badge — top-left, yellow pill ──
@@ -599,20 +597,18 @@ function drawPlayerCard(ctx, cardX, cardY, cardW, cardH, cardR, badgeSz,
     // ── Gradient footer overlay — fades photo smoothly into #0033A0 blue ──
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY + photoH - Math.round(cardH * 0.18), cardW,
-                  FOOTER_H + Math.round(cardH * 0.18), [0, 0, cardR, cardR]);
+    // Overlay covers the bottom 30% of the card (was ~40–44%)
+    const GRAD_H   = Math.round(cardH * 0.30);
+    const gradTopY = cardY + cardH - GRAD_H;
+    ctx.roundRect(cardX, gradTopY, cardW, GRAD_H, [0, 0, cardR, cardR]);
     ctx.clip();
-    const footGrad = ctx.createLinearGradient(
-        0, cardY + photoH - Math.round(cardH * 0.20),
-        0, cardY + cardH
-    );
+    const footGrad = ctx.createLinearGradient(0, gradTopY, 0, cardY + cardH);
     footGrad.addColorStop(0,    'rgba(0, 51, 160, 0)');
-    footGrad.addColorStop(0.35, 'rgba(0, 51, 160, 0.75)');
-    footGrad.addColorStop(0.65, 'rgba(0, 51, 160, 0.95)');
+    footGrad.addColorStop(0.25, 'rgba(0, 51, 160, 0.75)');
+    footGrad.addColorStop(0.55, 'rgba(0, 51, 160, 0.95)');
     footGrad.addColorStop(1,    'rgba(0, 51, 160, 1.0)');
     ctx.fillStyle = footGrad;
-    ctx.fillRect(cardX, cardY + photoH - Math.round(cardH * 0.20),
-                 cardW, FOOTER_H + Math.round(cardH * 0.20));
+    ctx.fillRect(cardX, gradTopY, cardW, GRAD_H);
     ctx.restore();
 
     // ── Number badge — top-left, yellow square ──
