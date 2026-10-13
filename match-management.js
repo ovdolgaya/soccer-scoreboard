@@ -442,6 +442,9 @@ function _applyStatusSections(match) {
         if (isEnded && changed) loadGoalsStats(matchId);
     }
 
+    // Keeper saves timeline — live while an ended match is open (−/+ and 🗑 update it)
+    if (isEnded) _attachSavesStats(matchId); else _detachSavesStats();
+
     // Show clips for ended matches (read-only review)
     if (isEnded && changed && typeof loadClips === 'function') loadClips();
 
@@ -684,6 +687,115 @@ function _renderPenaltyStatsRows(penaltyGoals, players, team2Color, team2Name, m
     return html;
 }
 
+// ========================================
+// GOALKEEPER SAVES TIMELINE (ended matches only) — S21
+// ========================================
+// Section «🧤 Сейвы вратарей» after «Голы команды». Same grouping as goals:
+//   1-й / 2-й / N-й тайм (sorted by matchTime) → «Пенальти» (isPenalty) →
+//   «Добавлено после матча» (retroactive / no half). 🗑 deletes one save.
+// Live: listens to /saves for this match, so keeper −/+ and 🗑 update it instantly.
+// Hidden when the match has no saves.
+const _savesStats = { query: null, matchId: null };
+
+function _attachSavesStats(mid) {
+    if (_savesStats.query && _savesStats.matchId === mid) return;   // already listening
+    _detachSavesStats();
+    _savesStats.matchId = mid;
+    _savesStats.query = database.ref('saves').orderByChild('matchId').equalTo(mid);
+    _savesStats.query.on('value', function(snap) {
+        const saves = [];
+        snap.forEach(function(child) { const sv = child.val(); sv._key = child.key; saves.push(sv); });
+        const ids = Array.from(new Set(saves.map(function(sv) { return sv.playerId; }).filter(Boolean)));
+        Promise.all(ids.map(function(pid) {
+            return _fetchPlayerFields(pid).then(function(p) { return { id: pid, p: p }; });
+        })).then(function(res) {
+            if (_savesStats.matchId !== mid) return;                   // match switched meanwhile
+            const players = {};
+            res.forEach(function(r) { players[r.id] = r.p; });
+            renderSavesStats(saves, players);
+        });
+    }, function(err) {
+        console.warn('saves timeline load failed:', err);
+        const sec = document.getElementById('savesStatsSection');
+        if (sec) sec.style.display = 'none';
+    });
+}
+
+function _detachSavesStats() {
+    if (_savesStats.query) _savesStats.query.off('value');
+    _savesStats.query = null;
+    _savesStats.matchId = null;
+    const sec = document.getElementById('savesStatsSection');
+    if (sec) sec.style.display = 'none';
+}
+
+function _savesGroupHeader(label, bg) {
+    return '<div style="padding:8px 20px 4px; font-size:11px; font-weight:700; color:#94a3b8; ' +
+           'text-transform:uppercase; letter-spacing:0.08em; background:' + (bg || '#f1f5f9') + '; ' +
+           'border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">' + label + '</div>';
+}
+
+function _escSaves(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function renderSavesStats(saves, players) {
+    const sec   = document.getElementById('savesStatsSection');
+    const body  = document.getElementById('savesStatsBody');
+    const count = document.getElementById('savesStatsCount');
+    if (!sec || !body) return;
+    if (!saves.length) { sec.style.display = 'none'; body.innerHTML = ''; return; }
+    sec.style.display = 'block';
+    if (count) count.textContent = saves.length;
+
+    const live = saves.filter(function(s) { return s.half && !s.isPenalty && !s.retroactive; })
+        .sort(function(a, b) {
+            if (a.half !== b.half) return a.half - b.half;
+            const c = (a.matchTime || '').localeCompare(b.matchTime || '');
+            return c !== 0 ? c : (a.timestamp || 0) - (b.timestamp || 0);
+        });
+    const byTs = function(a, b) { return (a.timestamp || 0) - (b.timestamp || 0); };
+    const pen   = saves.filter(function(s) { return s.isPenalty; }).sort(byTs);
+    const later = saves.filter(function(s) { return !s.isPenalty && (s.retroactive || !s.half); }).sort(byTs);
+
+    function row(s, withTime) {
+        const p    = s.playerId ? players[s.playerId] : null;
+        const num  = p ? (p.number || '?') : (s.playerNumber != null ? s.playerNumber : '?');
+        const name = p ? ((p.firstName ? p.firstName + ' ' : '') + (p.lastName || '').toUpperCase()) : 'Неизвестный игрок';
+        const time = withTime ? (s.matchTime || '—') : '';
+        const label = (time ? time + ' — ' : '') + '#' + num + ' ' + name;
+        return '<div style="display:flex; align-items:center; padding:10px 20px; border-bottom:1px solid #f1f5f9;">' +
+            '<div style="width:48px; flex-shrink:0; font-size:13px; font-weight:700; color:' + (s.matchTime ? '#64748b' : '#cbd5e1') + '; font-family:monospace;">' + _escSaves(time) + '</div>' +
+            '<div style="width:1px; height:28px; background:#e2e8f0; margin-right:12px; flex-shrink:0;"></div>' +
+            '<div style="flex-shrink:0; background:#08399A; color:#fff; border-radius:6px; padding:3px 8px; font-size:12px; font-weight:800; margin-right:10px; min-width:34px; text-align:center;">#' + _escSaves(num) + '</div>' +
+            '<div style="flex:1; font-size:14px; font-weight:600; color:#1e293b; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + _escSaves(name) + '</div>' +
+            '<div style="font-size:15px; flex-shrink:0; margin-left:8px;">🧤</div>' +
+            '<button onclick="deleteSave(\'' + s._key + '\', this.dataset.label)" data-label="' + _escSaves(label) + '" title="Удалить сейв" ' +
+                'style="background:none; border:none; cursor:pointer; font-size:15px; padding:0 0 0 10px; opacity:.6; flex-shrink:0; height:28px;">🗑</button>' +
+            '</div>';
+    }
+
+    let html = '', half = null;
+    live.forEach(function(s) {
+        if (s.half !== half) { half = s.half; html += _savesGroupHeader(half + '-й тайм'); }
+        html += row(s, true);
+    });
+    if (pen.length)   { html += _savesGroupHeader('🥅 Пенальти', '#fefce8');          pen.forEach(function(s) { html += row(s, false); }); }
+    if (later.length) { html += _savesGroupHeader('Добавлено после матча');            later.forEach(function(s) { html += row(s, false); }); }
+    body.innerHTML = html;
+}
+
+function deleteSave(saveKey, label) {
+    if (!saveKey) return;
+    if (!confirm('Удалить сейв?\n' + (label || ''))) return;
+    database.ref('saves/' + saveKey).remove()
+        .then(function() { showToast('🗑 Сейв удалён'); })
+        .catch(function(err) {
+            console.error('deleteSave error:', err);
+            showToast('❌ Ошибка удаления' + (err && err.code ? ' (' + err.code + ')' : ''));
+        });
+}
+
 function deleteMatch(matchIdToDelete) {
     if (confirm('Вы уверены, что хотите удалить этот матч?')) {
         database.ref('matches/' + matchIdToDelete).remove()
@@ -741,6 +853,7 @@ function _detachCockpitListeners() {
     if (!matchId) return;
     if (typeof penDetach === 'function') penDetach();
     if (typeof gkDetach === 'function') gkDetach();
+    _detachSavesStats();
     const fields = _COCKPIT_FIELDS;
     fields.forEach(function(field) {
         database.ref('matches/' + matchId + '/' + field).off();

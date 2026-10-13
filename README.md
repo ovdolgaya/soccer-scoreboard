@@ -1,5 +1,5 @@
 # Soccer Scoreboard Application
-## Last Updated: October 5, 2026 (Session 20)
+## Last Updated: October 13, 2026 (Session 21)
 
 ---
 
@@ -133,6 +133,7 @@
 - Cockpit section «🧤 Вратари» between goals and «📍 Отметить момент» — default team only
 - Radio selects the keeper in goal (`matches/{id}/activeGoalkeeperId`); `+` saves to `/saves`, `−` removes that keeper's latest save
 - Visible in every status incl. penalty shootout (`isPenalty`), editable after the end (`retroactive`)
+- Finished match cockpit: «🧤 Сейвы вратарей» after «Голы команды» — saves by half with match time (to find them in the video), Пенальти, Добавлено после матча; 🗑 deletes a single save
 - Not shown on widgets during the match; after the final whistle the broadcast stats screen shows a «🧤 Вратари» footer (saves per keeper, «пен. N» for shootout saves)
 
 ### Roster Analytics (Session 20)
@@ -317,6 +318,9 @@ Full current rules: see `PROJECT_CONTEXT.md` → Firebase Security Rules. Sessio
 - [ ] Keepers: one keeper → auto-selected; several → none selected until clicked; no keepers → «Нет вратарей в составе»
 - [ ] Keepers: before the match starts radio works, −/+ disabled
 - [ ] Keepers: collapsed `#N Фамилия ▾` + wide − N + once selected; tap → list opens; pick → collapses; two keepers + none selected → list open
+- [ ] Ended match: «🧤 Сейвы вратарей · N» after «Голы команды»; saves grouped by half and sorted by time; shootout saves under «Пенальти»; after-match saves under «Добавлено после матча»
+- [ ] Ended match: 🗑 asks for confirmation and removes exactly that save; count and keeper section update immediately; keeper + adds a row under «Добавлено после матча»
+- [ ] Ended match without saves: section hidden; switching to another match shows that match's saves
 - [ ] Small phone: penalty «Кто забил пенальти?» and «Добавить гол» pickers show all numbers inside the modal (3–4 per row)
 - [ ] Mobile cockpit: team name above the buttons; − and + at the card edges (hard to mis-tap); both teams + collapsed keepers fit on one screen
 - [ ] Keepers: + during a half → `/saves` record with half + matchTime; count next to the name and in the middle updates
