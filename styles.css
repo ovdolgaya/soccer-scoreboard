@@ -274,6 +274,17 @@
             font-feature-settings: 'tnum';
         }
 
+        /* Cockpit half timer (match-management.js → _updateCockpitTimer) */
+        .cockpit-timer {
+            display: flex; align-items: baseline; justify-content: center; gap: 10px;
+            margin: 4px 0 14px;
+        }
+        .cockpit-timer-half { font-size: 18px; font-weight: 700; color: #64748b; }
+        .cockpit-timer-value {
+            font-size: 34px; font-weight: 800; color: #1e40af;
+            font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+        }
+
         /* Goalkeeper saves (goalkeeper-saves.js) — system primary blue */
         .gk-section {
             margin: 0 0 20px;

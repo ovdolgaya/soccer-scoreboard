@@ -5,6 +5,9 @@
 let currentMatchesDisplayed = 10;
 const MATCHES_PER_PAGE = 10;
 let allMatchesCache = [];
+// Every match incl. ended ones — the calendar always shows past matches (S22).
+// Same objects as in allMatchesCache, so live field updates reach both.
+let allMatchesFullCache = [];
 let activeChampFilter = '';
 
 // Full match data cache — keyed by matchId, includes logos.
@@ -33,18 +36,20 @@ function loadMatches(reset = true) {
 
     // ── Fetch all matches ONCE (includes logos — stored in cache for cockpit use) ──
     database.ref('matches').once('value', function(snapshot) {
-        const matches = [];
+        const all = [];
         snapshot.forEach(function(childSnapshot) {
             const match = childSnapshot.val();
             match.id = childSnapshot.key;
             _matchDataCache[match.id] = match; // cache full record including logos
-            if (hidePast && match.status === 'ended') return;
-            matches.push(match);
+            all.push(match);
         });
 
-        sortMatches(matches);
+        sortMatches(all);
+        allMatchesFullCache = all;
+        // «Спрятать прошедшие матчи» applies to the list only
+        const matches = hidePast ? all.filter(function(m) { return m.status !== 'ended'; }) : all.slice();
         allMatchesCache = matches;
-        _populateChampFilter(matches);
+        _refreshChampFilter();
         displayMatches();
 
         // ── Set up lightweight field listeners ONLY for non-ended matches ──
@@ -239,6 +244,13 @@ function renderMatchCard(match) {
 
 // ── Championship filter helpers ──────────────────────────────────────────
 
+// Championship dropdown follows what the current view can show:
+// calendar → all matches (incl. past), list → the hidePast-filtered set
+function _refreshChampFilter() {
+    const calendar = typeof isCalendarView === 'function' && isCalendarView();
+    _populateChampFilter(calendar ? allMatchesFullCache : allMatchesCache);
+}
+
 function _populateChampFilter(matches) {
     const sel = document.getElementById('champFilterSelect');
     if (!sel) return;
@@ -251,7 +263,9 @@ function _populateChampFilter(matches) {
     });
     titles.sort(function(a, b) { return a.localeCompare(b, 'ru'); });
 
-    // Preserve current selection if it still exists in the new list
+    // Preserve current selection if it still exists in the new list; otherwise drop the
+    // filter (e.g. a past-only championship picked in the calendar, then back to the list)
+    if (activeChampFilter && !titles.includes(activeChampFilter)) activeChampFilter = '';
     const current = activeChampFilter;
     sel.innerHTML = '<option value="">Все чемпионаты</option>';
     titles.forEach(function(t) {
@@ -453,6 +467,45 @@ function _applyStatusSections(match) {
 
     if (typeof penApplyStatus === 'function') penApplyStatus(match);
     if (typeof gkApplyStatus === 'function') gkApplyStatus(match);
+    _updateCockpitTimer();
+}
+
+// ========================================
+// COCKPIT HALF TIMER — «1 тайм: 00:01:25» while a half is playing (S22)
+// ========================================
+// Computed from matches/{id}/startTime exactly like the widgets (wsGetTimerContent),
+// never counted locally — so it's right after reload, on a 2nd device and after
+// the phone wakes up. Hidden in every other status.
+let _cockpitTimerInterval = null;
+
+function _fmtElapsed(startTime) {
+    const sec = Math.floor(Math.max(0, Date.now() - startTime) / 1000);
+    return String(Math.floor(sec / 3600)).padStart(2, '0') + ':' +
+           String(Math.floor((sec % 3600) / 60)).padStart(2, '0') + ':' +
+           String(sec % 60).padStart(2, '0');
+}
+
+function _updateCockpitTimer() {
+    const box = document.getElementById('cockpitTimer');
+    const m   = (matchId && _matchDataCache[matchId]) || null;
+    const on  = !!(box && m && m.status === 'playing' && m.startTime);
+    if (!on) {
+        if (box) box.style.display = 'none';
+        _stopCockpitTimer();
+        return;
+    }
+    box.style.display = '';
+    document.getElementById('cockpitTimerHalf').textContent = (m.currentHalf || 1) + ' тайм:';
+    document.getElementById('cockpitTimerValue').textContent = _fmtElapsed(m.startTime);
+    if (!_cockpitTimerInterval) {
+        // 250ms tick → the second flips within a quarter second of the widget
+        _cockpitTimerInterval = setInterval(_updateCockpitTimer, 250);
+    }
+}
+
+function _stopCockpitTimer() {
+    if (_cockpitTimerInterval) clearInterval(_cockpitTimerInterval);
+    _cockpitTimerInterval = null;
 }
 
 // ========================================
@@ -837,6 +890,8 @@ function listenToMatchChanges() {
             if (field === 'status' || field === 'currentHalf') {
                 updateButtonStates(_matchDataCache[matchId]);
             }
+            // New half started (this or another device) — timer restarts from the new startTime
+            if (field === 'startTime' || field === 'currentHalf') _updateCockpitTimer();
             // Penalty format picked / scores written — refresh the penalty section
             if (field.indexOf('penalty') === 0 && typeof penRender === 'function') penRender();
             // Keeper switched (this or another device) — refresh the keeper section
@@ -854,6 +909,7 @@ function _detachCockpitListeners() {
     if (typeof penDetach === 'function') penDetach();
     if (typeof gkDetach === 'function') gkDetach();
     _detachSavesStats();
+    _stopCockpitTimer();
     const fields = _COCKPIT_FIELDS;
     fields.forEach(function(field) {
         database.ref('matches/' + matchId + '/' + field).off();

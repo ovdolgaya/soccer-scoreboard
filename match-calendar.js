@@ -2,9 +2,10 @@
 // MATCH CALENDAR VIEW
 // ========================================
 // Month-grid alternative to the card list on the dashboard.
-// Uses the same data as the list (allMatchesCache + activeChampFilter from
-// match-management.js), so it respects «Спрятать прошедшие матчи» and the
-// championship filter and costs no extra Firebase reads.
+// Uses the same download as the list (allMatchesFullCache + activeChampFilter
+// from match-management.js) — no extra Firebase reads. Past matches are ALWAYS
+// shown (S22): «Спрятать прошедшие матчи» applies to the list only and its
+// checkbox is hidden while the calendar is open.
 //
 // Rendering entry point: renderMatchCalendar() — called from displayMatches()
 // whenever the calendar view is active, so live score/status updates
@@ -56,6 +57,11 @@ function _calApplyViewVisibility() {
     if (cal)     cal.style.display  = _calViewActive ? '' : 'none';
     // In list mode displayMatches() decides whether «Показать ещё» is needed
     if (loadMore && _calViewActive) loadMore.style.display = 'none';
+    // «Спрятать прошедшие матчи» has no effect on the calendar — hide it there
+    const hidePastWrap = document.getElementById('hidePastWrap');
+    if (hidePastWrap) hidePastWrap.style.display = _calViewActive ? 'none' : 'flex';
+    // Championship list: calendar includes championships that only have past matches
+    if (typeof _refreshChampFilter === 'function') _refreshChampFilter();
 }
 
 // Restore the last chosen view on page load
@@ -142,11 +148,13 @@ function _calPanelTitle(key) {
     return _CAL_WD_LONG[d.getDay()] + ', ' + p[2] + ' ' + _CAL_MONTHS_GEN[p[1] - 1];
 }
 
-// Same source as the list: allMatchesCache (already hidePast-filtered) + championship filter
+// All matches incl. past ones (never hidePast-filtered) + championship filter
 function _calSourceMatches() {
+    const src = (typeof allMatchesFullCache !== 'undefined' && allMatchesFullCache.length)
+        ? allMatchesFullCache : allMatchesCache;
     return activeChampFilter
-        ? allMatchesCache.filter(function(m) { return (m.championshipTitle || '') === activeChampFilter; })
-        : allMatchesCache;
+        ? src.filter(function(m) { return (m.championshipTitle || '') === activeChampFilter; })
+        : src;
 }
 
 function _calByTime(a, b) {

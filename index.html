@@ -137,7 +137,7 @@
             </div>
 
             <div style="display:flex; gap:16px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
-                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;">
+                <label id="hidePastWrap" style="display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;">
                     <input type="checkbox" id="hidePastMatches" onchange="loadMatches()" checked style="width:auto; height:18px; cursor:pointer;">
                     <span>Спрятать прошедшие матчи</span>
                 </label>
@@ -266,6 +266,12 @@
 
             <div class="time-controls" id="timeControlsSection">
                 <h3>Управление временем</h3>
+                <!-- Live half timer — only while a half is playing (match-management.js → _updateCockpitTimer).
+                     Same formula as the widgets: now − matches/{id}/startTime -->
+                <div id="cockpitTimer" class="cockpit-timer" style="display:none;">
+                    <span id="cockpitTimerHalf" class="cockpit-timer-half">1 тайм:</span>
+                    <span id="cockpitTimerValue" class="cockpit-timer-value">00:00:00</span>
+                </div>
                 <div class="time-buttons">
                     <button class="button secondary" id="startHalf1Btn" onclick="startHalf(1)">▶ Начать 1 тайм</button>
                     <button class="button secondary hidden" id="stopHalf1Btn" onclick="stopHalf(1)">⏸ Остановить 1 тайм</button>
